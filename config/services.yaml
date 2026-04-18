@@ -1,0 +1,8 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    Webwerkwien\ContaoCliBridgeBundle\:
+        resource: ../src
+        exclude: ../src/{ContaoManager,ContaoCliBridgeBundle.php}
