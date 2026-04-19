@@ -25,17 +25,17 @@ class VersionReadCommand extends Command
         $this
             ->addOption('table',   null, InputOption::VALUE_REQUIRED, 'Table name, e.g. tl_content')
             ->addOption('id',      null, InputOption::VALUE_REQUIRED, 'Record ID')
-            ->addOption('version', null, InputOption::VALUE_REQUIRED, 'Version number');
+            ->addOption('ver', null, InputOption::VALUE_REQUIRED, 'Version number');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $table   = $input->getOption('table');
         $id      = (int) $input->getOption('id');
-        $version = (int) $input->getOption('version');
+        $version = (int) $input->getOption('ver');
 
         if (!$table || !$id || !$version) {
-            $output->writeln(json_encode(['status' => 'error', 'message' => '--table, --id and --version are required']));
+            $output->writeln(json_encode(['status' => 'error', 'message' => '--table, --id and --ver are required']));
             return self::FAILURE;
         }
 
