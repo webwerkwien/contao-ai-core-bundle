@@ -32,6 +32,14 @@ class FileMetaUpdateCommand extends AbstractWriteCommand
             return $this->outputError('At least one --set FIELD=VALUE is required');
         }
 
+        $allowedFields = ['alt', 'title', 'caption', 'name', 'importantPartX', 'importantPartY', 'importantPartWidth', 'importantPartHeight'];
+
+        foreach (array_keys($fields) as $key) {
+            if (!in_array($key, $allowedFields, true)) {
+                return $this->outputError("Field '{$key}' is not an editable metadata field. Allowed: " . implode(', ', $allowedFields));
+            }
+        }
+
         $this->framework->initialize();
 
         $file = FilesModel::findByPath(ltrim($path, '/'));
@@ -39,13 +47,9 @@ class FileMetaUpdateCommand extends AbstractWriteCommand
             return $this->outputError("No tl_files record found for path: {$path}. Run contao:filesync first.");
         }
 
-        $allowedFields = ['alt', 'title', 'caption', 'name', 'importantPartX', 'importantPartY', 'importantPartWidth', 'importantPartHeight'];
         $updated = [];
 
         foreach ($fields as $key => $value) {
-            if (!in_array($key, $allowedFields, true)) {
-                return $this->outputError("Field '{$key}' is not an editable metadata field. Allowed: " . implode(', ', $allowedFields));
-            }
             $file->$key = $value;
             $updated[]  = $key;
         }

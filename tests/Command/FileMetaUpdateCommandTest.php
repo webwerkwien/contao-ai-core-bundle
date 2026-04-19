@@ -29,4 +29,17 @@ class FileMetaUpdateCommandTest extends TestCase
         $this->assertSame('error', $out['status']);
         $this->assertStringContainsString('--set', $out['message']);
     }
+
+    public function testDisallowedFieldReturnsError(): void
+    {
+        $framework = $this->createMock(ContaoFramework::class);
+        $framework->expects($this->never())->method('initialize');
+
+        $tester = new CommandTester(new FileMetaUpdateCommand($framework));
+        $tester->execute(['--path' => 'files/photo.jpg', '--set' => ['type=file']]);
+
+        $out = json_decode($tester->getDisplay(), true);
+        $this->assertSame('error', $out['status']);
+        $this->assertStringContainsString('not an editable metadata field', $out['message']);
+    }
 }
