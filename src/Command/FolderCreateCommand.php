@@ -39,7 +39,8 @@ class FolderCreateCommand extends AbstractWriteCommand
         }
 
         $absPath = rtrim($this->projectDir, '/') . '/' . $path;
-        if (!is_dir($absPath) && !mkdir($absPath, 0775, true)) {
+        $existed = is_dir($absPath);
+        if (!$existed && !mkdir($absPath, 0775, true)) {
             return $this->outputError("Could not create directory: {$path}");
         }
 
@@ -58,7 +59,7 @@ class FolderCreateCommand extends AbstractWriteCommand
         $file->public = $this->input->getOption('public') ? '1' : '0';
         $file->save();
 
-        $this->outputSuccess(['path' => $path, 'public' => (bool) $file->public]);
+        $this->outputSuccess(['path' => $path, 'public' => (bool) $file->public, 'created' => !$existed]);
         return Command::SUCCESS;
     }
 
