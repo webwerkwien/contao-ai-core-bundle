@@ -33,7 +33,7 @@ class FolderCreateCommand extends AbstractWriteCommand
         }
 
         // Normalize and guard against path traversal
-        $path = ltrim(str_replace('\', '/', $path), '/');
+        $path = ltrim(str_replace('\\', '/', $path), '/');
         if (str_contains($path, '..') || !str_starts_with($path, 'files/')) {
             return $this->outputError('Path must start with files/ and must not contain ".."  (outside-files-root)');
         }
