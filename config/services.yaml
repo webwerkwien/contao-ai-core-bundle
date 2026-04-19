@@ -6,3 +6,11 @@ services:
     Webwerkwien\ContaoCliBridgeBundle\:
         resource: ../src
         exclude: ../src/{ContaoManager,ContaoCliBridgeBundle.php}
+
+    Webwerkwien\ContaoCliBridgeBundle\Command\FolderCreateCommand:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    Webwerkwien\ContaoCliBridgeBundle\Command\FileProcessCommand:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
