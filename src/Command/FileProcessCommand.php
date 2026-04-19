@@ -35,8 +35,14 @@ class FileProcessCommand extends AbstractWriteCommand
             return $this->outputError('--path is required');
         }
 
-        $path    = ltrim(str_replace('\', '/', $path), '/');
+        $path    = ltrim(str_replace('\\', '/', $path), '/');
         $absPath = rtrim($this->projectDir, '/') . '/' . $path;
+
+        $real = realpath($absPath);
+        if ($real === false || !str_starts_with($real . DIRECTORY_SEPARATOR, realpath($this->projectDir) . DIRECTORY_SEPARATOR)) {
+            return $this->outputError('Access denied: path is outside project directory');
+        }
+        $absPath = $real;
 
         if (!file_exists($absPath)) {
             return $this->outputError("File not found: {$path}");
@@ -78,6 +84,7 @@ class FileProcessCommand extends AbstractWriteCommand
             }
         }
 
+        clearstatcache(true, $absPath);
         $this->outputSuccess([
             'path'    => $path,
             'ext'     => $ext,
@@ -124,7 +131,7 @@ class FileProcessCommand extends AbstractWriteCommand
 
         $dst = imagecreatetruecolor($newW, $newH);
 
-        if (in_array($ext, ['png', 'gif'], true)) {
+        if (in_array($ext, ['png', 'gif', 'webp'], true)) {
             imagealphablending($dst, false);
             imagesavealpha($dst, true);
             $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
