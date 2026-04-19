@@ -21,8 +21,7 @@ class FolderCreateCommand extends AbstractWriteCommand
     protected function configure(): void
     {
         parent::configure();
-        $this->addOption('path',   null, InputOption::VALUE_REQUIRED, 'Folder path relative to Contao root, e.g. files/images/gallery');
-        $this->addOption('public', null, InputOption::VALUE_NONE,     'Mark folder as publicly accessible');
+        $this->addOption('path', null, InputOption::VALUE_REQUIRED, 'Folder path relative to Contao root, e.g. files/images/gallery');
     }
 
     protected function doExecute(array $fields): int
@@ -48,18 +47,18 @@ class FolderCreateCommand extends AbstractWriteCommand
 
         $file = FilesModel::findByPath($path);
         if ($file === null) {
-            $file           = new FilesModel();
-            $file->pid      = $this->resolveParentUuid(dirname($path));
-            $file->tstamp   = time();
-            $file->type     = 'folder';
-            $file->path     = $path;
-            $file->name     = basename($path);
-            $file->hash     = '';
+            $file         = new FilesModel();
+            $file->pid    = $this->resolveParentUuid(dirname($path));
+            $file->tstamp = time();
+            $file->type   = 'folder';
+            $file->path   = $path;
+            $file->name   = basename($path);
+            $file->hash   = '';
         }
-        $file->public = $this->input->getOption('public') ? '1' : '0';
+        $file->tstamp = time();
         $file->save();
 
-        $this->outputSuccess(['path' => $path, 'public' => (bool) $file->public, 'created' => !$existed]);
+        $this->outputSuccess(['path' => $path, 'created' => !$existed]);
         return Command::SUCCESS;
     }
 

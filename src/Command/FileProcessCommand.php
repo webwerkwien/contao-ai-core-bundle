@@ -26,6 +26,7 @@ class FileProcessCommand extends AbstractWriteCommand
         $this->addOption('allowed-types', null, InputOption::VALUE_OPTIONAL, 'Comma-separated allowed extensions (overrides Contao config)', '');
         $this->addOption('max-width',     null, InputOption::VALUE_OPTIONAL, 'Max image width in pixels (0 = no limit)', '0');
         $this->addOption('max-height',    null, InputOption::VALUE_OPTIONAL, 'Max image height in pixels (0 = no limit)', '0');
+        $this->addOption('max-file-size', null, InputOption::VALUE_OPTIONAL, 'Max allowed file size in bytes (0 = use Contao config)', '0');
     }
 
     protected function doExecute(array $fields): int
@@ -61,6 +62,28 @@ class FileProcessCommand extends AbstractWriteCommand
 
         if (!in_array($ext, $allowed, true)) {
             return $this->outputError("Extension '{$ext}' is not allowed. Allowed: " . implode(', ', $allowed));
+        }
+
+        // Check max file size
+        $maxFileSizeOpt = (int) $this->input->getOption('max-file-size');
+        if ($maxFileSizeOpt > 0) {
+            $maxBytes = $maxFileSizeOpt;
+        } else {
+            if (!isset($GLOBALS['TL_CONFIG'])) {
+                $this->framework->initialize();
+            }
+            $maxBytes = (int) ($GLOBALS['TL_CONFIG']['maxFileSize'] ?? 0);
+        }
+        if ($maxBytes > 0) {
+            clearstatcache(true, $absPath);
+            $fileBytes = filesize($absPath);
+            if ($fileBytes > $maxBytes) {
+                return $this->outputError(sprintf(
+                    'File size %d bytes exceeds the maximum allowed size of %d bytes',
+                    $fileBytes,
+                    $maxBytes
+                ));
+            }
         }
 
         $resized = false;
