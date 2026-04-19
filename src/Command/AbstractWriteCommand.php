@@ -2,6 +2,7 @@
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
+use Contao\Versions;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -48,6 +49,13 @@ abstract class AbstractWriteCommand extends Command
             }
         }
         return $result;
+    }
+
+    protected function createVersion(string $table, int $id): void
+    {
+        $versions = new Versions($table, $id);
+        $versions->initialize();
+        $versions->create();
     }
 
     protected function outputSuccess(array $data): void

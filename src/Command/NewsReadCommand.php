@@ -4,11 +4,12 @@ namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\NewsModel;
+use Contao\StringUtil;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputArgument;
 
-#[AsCommand(name: 'contao:news:update', description: 'Update a news entry')]
-class NewsUpdateCommand extends AbstractWriteCommand
+#[AsCommand(name: 'contao:news:read', description: 'Read a Contao news entry as JSON')]
+class NewsReadCommand extends AbstractReadCommand
 {
     public function __construct(private readonly ContaoFramework $framework)
     {
@@ -17,31 +18,31 @@ class NewsUpdateCommand extends AbstractWriteCommand
 
     protected function configure(): void
     {
-        parent::configure();
         $this->addArgument('id', InputArgument::REQUIRED, 'News ID');
     }
 
-    protected function doExecute(array $fields): int
+    protected function doExecute(): int
     {
         $this->framework->initialize();
+
         $id   = (int) $this->input->getArgument('id');
         $news = NewsModel::findById($id);
 
         if ($news === null) {
             return $this->outputError("News entry not found: $id");
         }
-        if (empty($fields)) {
-            return $this->outputError('No fields specified. Use --set field=value');
+
+        $row = $news->row();
+
+        // Deserialize headline
+        if (isset($row['headline']) && is_string($row['headline'])) {
+            $headline = StringUtil::deserialize($row['headline'], true);
+            if (isset($headline['value'])) {
+                $row['headline'] = $headline;
+            }
         }
 
-        foreach ($fields as $key => $value) {
-            $news->$key = $value;
-        }
-        $this->createVersion('tl_news', $id);
-        $news->tstamp = time();
-        $news->save();
-
-        $this->outputSuccess(['id' => $id, 'updated' => array_keys($fields)]);
+        $this->outputRecord($row);
         return 0;
     }
 }

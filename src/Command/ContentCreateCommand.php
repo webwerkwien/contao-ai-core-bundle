@@ -44,6 +44,7 @@ class ContentCreateCommand extends AbstractWriteCommand
             $el->$key = $value;
         }
         $el->save();
+        $this->createVersion('tl_content', (int) $el->id);
 
         $this->outputSuccess(['id' => (int) $el->id, 'type' => $el->type]);
         return 0;

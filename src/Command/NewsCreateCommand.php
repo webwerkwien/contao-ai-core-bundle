@@ -48,6 +48,7 @@ class NewsCreateCommand extends AbstractWriteCommand
             $news->$key = $value;
         }
         $news->save();
+        $this->createVersion('tl_news', (int) $news->id);
 
         $this->outputSuccess(['id' => (int) $news->id, 'headline' => $headline]);
         return 0;

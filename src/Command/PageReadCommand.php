@@ -7,8 +7,8 @@ use Contao\PageModel;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputArgument;
 
-#[AsCommand(name: 'contao:page:update', description: 'Update a Contao page')]
-class PageUpdateCommand extends AbstractWriteCommand
+#[AsCommand(name: 'contao:page:read', description: 'Read a Contao page record as JSON')]
+class PageReadCommand extends AbstractReadCommand
 {
     public function __construct(private readonly ContaoFramework $framework)
     {
@@ -17,31 +17,34 @@ class PageUpdateCommand extends AbstractWriteCommand
 
     protected function configure(): void
     {
-        parent::configure();
         $this->addArgument('id', InputArgument::REQUIRED, 'Page ID');
     }
 
-    protected function doExecute(array $fields): int
+    protected function doExecute(): int
     {
         $this->framework->initialize();
+
         $id   = (int) $this->input->getArgument('id');
         $page = PageModel::findById($id);
 
         if ($page === null) {
             return $this->outputError("Page not found: $id");
         }
-        if (empty($fields)) {
-            return $this->outputError('No fields specified. Use --set field=value');
-        }
 
-        foreach ($fields as $key => $value) {
-            $page->$key = $value;
-        }
-        $page->tstamp = time();
-        $this->createVersion('tl_page', $id);
-        $page->save();
+        $row = $page->row();
 
-        $this->outputSuccess(['id' => $id, 'updated' => array_keys($fields)]);
+        // Resolve effective layout (walk up page tree if layout = 0)
+        $layoutId = (int) $row['layout'];
+        if ($layoutId === 0) {
+            $parent = PageModel::findById((int) $row['pid']);
+            while ($parent !== null && (int) $parent->layout === 0) {
+                $parent = PageModel::findById((int) $parent->pid);
+            }
+            $layoutId = $parent !== null ? (int) $parent->layout : 0;
+        }
+        $row['layout_effective'] = $layoutId;
+
+        $this->outputRecord($row);
         return 0;
     }
 }

@@ -46,6 +46,7 @@ class ArticleCreateCommand extends AbstractWriteCommand
             $article->$key = $value;
         }
         $article->save();
+        $this->createVersion('tl_article', (int) $article->id);
 
         $this->outputSuccess(['id' => (int) $article->id, 'title' => $article->title]);
         return 0;

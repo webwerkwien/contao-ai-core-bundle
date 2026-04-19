@@ -51,6 +51,7 @@ class EventCreateCommand extends AbstractWriteCommand
             $event->$key = $value;
         }
         $event->save();
+        $this->createVersion('tl_calendar_events', (int) $event->id);
 
         $this->outputSuccess(['id' => (int) $event->id, 'title' => $title]);
         return 0;

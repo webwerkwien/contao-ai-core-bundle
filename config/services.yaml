@@ -14,3 +14,23 @@ services:
     Webwerkwien\ContaoCliBridgeBundle\Command\FileProcessCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'
+
+    Webwerkwien\ContaoCliBridgeBundle\Command\FileReadCommand:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    Webwerkwien\ContaoCliBridgeBundle\Command\FileWriteCommand:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    Webwerkwien\ContaoCliBridgeBundle\Command\TemplateListCommand:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    Webwerkwien\ContaoCliBridgeBundle\Command\TemplateReadCommand:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    Webwerkwien\ContaoCliBridgeBundle\Command\TemplateWriteCommand:
+        arguments:
+            $projectDir: '%kernel.project_dir%'

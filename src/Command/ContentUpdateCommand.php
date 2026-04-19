@@ -37,6 +37,7 @@ class ContentUpdateCommand extends AbstractWriteCommand
         foreach ($fields as $key => $value) {
             $el->$key = $value;
         }
+        $this->createVersion('tl_content', $id);
         $el->tstamp = time();
         $el->save();
 

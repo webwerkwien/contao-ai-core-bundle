@@ -48,6 +48,7 @@ class PageCreateCommand extends AbstractWriteCommand
             $page->$key = $value;
         }
         $page->save();
+        $this->createVersion('tl_page', (int) $page->id);
 
         $this->outputSuccess(['id' => (int) $page->id, 'title' => $page->title, 'alias' => $page->alias]);
         return 0;
