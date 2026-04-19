@@ -4,7 +4,7 @@ namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\FilesModel;
-use Contao\Versions;
+use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -16,6 +16,7 @@ class FileWriteCommand extends Command
 {
     public function __construct(
         private readonly ContaoFramework $framework,
+        private readonly Connection $connection,
         private readonly string $projectDir,
     ) {
         parent::__construct();
@@ -67,9 +68,27 @@ class FileWriteCommand extends Command
 
         $filesModel = FilesModel::findByPath($path);
         if ($filesModel !== null) {
-            // Snapshot before overwriting
-            $versions = new Versions('tl_files', (int) $filesModel->id);
-            $versions->initialize();
+            $fileId = (int) $filesModel->id;
+            $fileRow = $this->connection->fetchAssociative("SELECT * FROM tl_files WHERE id = ?", [$fileId]);
+            if ($fileRow !== false) {
+                $max = (int) $this->connection->fetchOne(
+                    'SELECT MAX(version) FROM tl_version WHERE fromTable = ? AND pid = ?',
+                    ['tl_files', $fileId]
+                );
+                $this->connection->executeStatement(
+                    'UPDATE tl_version SET active = 0 WHERE fromTable = ? AND pid = ?',
+                    ['tl_files', $fileId]
+                );
+                $this->connection->insert('tl_version', [
+                    'tstamp'    => time(),
+                    'fromTable' => 'tl_files',
+                    'pid'       => $fileId,
+                    'version'   => $max + 1,
+                    'username'  => 'cli-agent',
+                    'active'    => 1,
+                    'data'      => serialize($fileRow),
+                ]);
+            }
         }
 
         if (file_put_contents($absPath, $content) === false) {
@@ -80,7 +99,6 @@ class FileWriteCommand extends Command
         $bytes = strlen($content);
 
         if ($filesModel !== null) {
-            $versions->create();
             $filesModel->tstamp = time();
             $filesModel->hash   = md5_file($absPath) ?: '';
             $filesModel->save();
