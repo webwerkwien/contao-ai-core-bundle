@@ -58,7 +58,7 @@ class VersionListCommand extends Command
             'table'    => $table,
             'id'       => $id,
             'versions' => $versions,
-        ], JSON_UNESCAPED_UNICODE));
+        ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR));
 
         return self::SUCCESS;
     }

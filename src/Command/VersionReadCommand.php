@@ -56,6 +56,11 @@ class VersionReadCommand extends Command
             $data = ['_raw' => $row['data']];
         }
 
+        // Normalize through JSON roundtrip to handle objects (__PHP_Incomplete_Class),
+        // binary strings, and other non-JSON-safe values from unserialization
+        $flags = JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR;
+        $data  = json_decode(json_encode($data, $flags), true) ?? [];
+
         $output->writeln(json_encode([
             'status'   => 'ok',
             'table'    => $table,
@@ -65,7 +70,7 @@ class VersionReadCommand extends Command
             'username' => $row['username'],
             'active'   => (bool) $row['active'],
             'data'     => $data,
-        ], JSON_UNESCAPED_UNICODE));
+        ], $flags));
 
         return self::SUCCESS;
     }
