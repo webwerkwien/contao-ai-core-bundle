@@ -45,7 +45,11 @@ class FileWriteCommand extends AbstractWriteCommand
         // TODO: restrict to var/bridge-uploads/ once agent scp_upload is updated
         $realSource = realpath($source);
         $uploadDir  = rtrim($this->projectDir, '/') . '/var/bridge-uploads/';
-        $realUpload = realpath($uploadDir) ?: $uploadDir;
+        $realUpload = realpath($uploadDir);
+        if ($realUpload === false) {
+            return $this->outputError('Upload directory var/bridge-uploads/ does not exist on this server');
+        }
+        $realUpload = rtrim($realUpload, '/') . '/';
 
         if (
             $realSource === false
@@ -76,12 +80,13 @@ class FileWriteCommand extends AbstractWriteCommand
 
         // Create parent directories if needed
         $dir = dirname($absPath);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0775, true);
+        if (!is_dir($dir) && !mkdir($dir, 0775, true)) {
+            return $this->outputError("Cannot create directory for: {$path}");
         }
 
         $filesModel = FilesModel::findByPath($path);
         if ($filesModel !== null) {
+            // Snapshot the record before overwrite — Contao convention: version = pre-change state
             $this->versionManager->createVersion('tl_files', (int) $filesModel->id);
         }
 
