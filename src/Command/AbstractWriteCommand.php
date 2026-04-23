@@ -1,17 +1,25 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
-use Contao\Versions;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Contracts\Service\Attribute\Required;
+use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
 
 abstract class AbstractWriteCommand extends Command
 {
     protected InputInterface $input;
     protected OutputInterface $output;
+    protected VersionManager $versionManager;
+
+    #[Required]
+    public function setVersionManager(VersionManager $versionManager): void
+    {
+        $this->versionManager = $versionManager;
+    }
 
     protected function configure(): void
     {
@@ -53,14 +61,12 @@ abstract class AbstractWriteCommand extends Command
 
     protected function createVersion(string $table, int $id): void
     {
-        $versions = new Versions($table, $id);
-        $versions->initialize();
-        $versions->create();
+        $this->versionManager->createVersion($table, $id);
     }
 
     protected function outputSuccess(array $data): void
     {
-        $this->output->writeln(json_encode(['status' => 'ok'] + $data));
+        $this->output->writeln(json_encode(['status' => 'ok'] + $data, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
     }
 
     protected function outputError(string $message, int $code = 1): int
@@ -69,7 +75,7 @@ abstract class AbstractWriteCommand extends Command
             'status'  => 'error',
             'message' => $message,
             'code'    => $code,
-        ]));
+        ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
         return Command::FAILURE;
     }
 }

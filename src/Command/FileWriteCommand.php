@@ -1,22 +1,20 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\FilesModel;
-use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(name: 'contao:file:write', description: 'Write a text file to files/ and create a tl_version snapshot')]
-class FileWriteCommand extends Command
+class FileWriteCommand extends AbstractWriteCommand
 {
+    private const MAX_SOURCE_BYTES = 10485760; // 10 MB
+
     public function __construct(
         private readonly ContaoFramework $framework,
-        private readonly Connection $connection,
         private readonly string $projectDir,
     ) {
         parent::__construct();
@@ -24,36 +22,52 @@ class FileWriteCommand extends Command
 
     protected function configure(): void
     {
+        parent::configure();
         $this
             ->addOption('path',   null, InputOption::VALUE_REQUIRED, 'Destination path relative to Contao root, e.g. files/scripts/style.css')
             ->addOption('source', null, InputOption::VALUE_REQUIRED, 'Absolute path of temp file on the server to read content from');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function doExecute(array $fields): int
     {
-        $path   = $input->getOption('path');
-        $source = $input->getOption('source');
+        $path   = $this->input->getOption('path');
+        $source = $this->input->getOption('source');
 
         if (!$path || !$source) {
-            $output->writeln(json_encode(['status' => 'error', 'message' => '--path and --source are required']));
-            return self::FAILURE;
+            return $this->outputError('--path and --source are required');
         }
 
         $path = ltrim(str_replace('\\', '/', $path), '/');
         if (str_contains($path, '..') || !str_starts_with($path, 'files/')) {
-            $output->writeln(json_encode(['status' => 'error', 'message' => 'Path must start with files/ and must not contain ".."']));
-            return self::FAILURE;
+            return $this->outputError('Path must start with files/ and must not contain ".."');
         }
 
-        if (!is_file($source)) {
-            $output->writeln(json_encode(['status' => 'error', 'message' => "Source file not found: {$source}"]));
-            return self::FAILURE;
+        // TODO: restrict to var/bridge-uploads/ once agent scp_upload is updated
+        $realSource = realpath($source);
+        $uploadDir  = rtrim($this->projectDir, '/') . '/var/bridge-uploads/';
+        $realUpload = realpath($uploadDir) ?: $uploadDir;
+
+        if (
+            $realSource === false
+            || (
+                !str_starts_with($realSource, '/tmp/')
+                && !str_starts_with($realSource, $realUpload)
+            )
+        ) {
+            return $this->outputError('--source must be under /tmp/ or var/bridge-uploads/');
         }
 
-        $content = file_get_contents($source);
+        if (!is_file($realSource)) {
+            return $this->outputError("Source file not found: {$source}");
+        }
+
+        if (filesize($realSource) > self::MAX_SOURCE_BYTES) {
+            return $this->outputError('Source file exceeds maximum allowed size of 10 MB');
+        }
+
+        $content = file_get_contents($realSource);
         if ($content === false) {
-            $output->writeln(json_encode(['status' => 'error', 'message' => "Cannot read source file: {$source}"]));
-            return self::FAILURE;
+            return $this->outputError("Cannot read source file: {$source}");
         }
 
         $this->framework->initialize();
@@ -68,52 +82,30 @@ class FileWriteCommand extends Command
 
         $filesModel = FilesModel::findByPath($path);
         if ($filesModel !== null) {
-            $fileId = (int) $filesModel->id;
-            $fileRow = $this->connection->fetchAssociative("SELECT * FROM tl_files WHERE id = ?", [$fileId]);
-            if ($fileRow !== false) {
-                $max = (int) $this->connection->fetchOne(
-                    'SELECT MAX(version) FROM tl_version WHERE fromTable = ? AND pid = ?',
-                    ['tl_files', $fileId]
-                );
-                $this->connection->executeStatement(
-                    'UPDATE tl_version SET active = 0 WHERE fromTable = ? AND pid = ?',
-                    ['tl_files', $fileId]
-                );
-                $this->connection->insert('tl_version', [
-                    'tstamp'    => time(),
-                    'fromTable' => 'tl_files',
-                    'pid'       => $fileId,
-                    'version'   => $max + 1,
-                    'username'  => 'cli-agent',
-                    'active'    => 1,
-                    'data'      => serialize($fileRow),
-                ]);
-            }
+            $this->versionManager->createVersion('tl_files', (int) $filesModel->id);
         }
 
         if (file_put_contents($absPath, $content) === false) {
-            $output->writeln(json_encode(['status' => 'error', 'message' => "Cannot write file: {$path}"]));
-            return self::FAILURE;
+            return $this->outputError("Cannot write file: {$path}");
         }
 
         $bytes = strlen($content);
 
         if ($filesModel !== null) {
             $filesModel->tstamp = time();
-            $filesModel->hash   = md5_file($absPath) ?: '';
+            $filesModel->hash   = md5($content);
             $filesModel->save();
             $version = true;
         } else {
             $version = false;
         }
 
-        $output->writeln(json_encode([
-            'status'  => 'ok',
+        $this->outputSuccess([
             'path'    => $path,
             'bytes'   => $bytes,
             'version' => $version,
-        ], JSON_UNESCAPED_UNICODE));
+        ]);
 
-        return self::SUCCESS;
+        return Command::SUCCESS;
     }
 }
