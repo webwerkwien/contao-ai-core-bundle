@@ -1,4 +1,4 @@
-<?php declare(strict_types=1);
+﻿<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Service;
 
@@ -47,12 +47,45 @@ class VersionManagerTest extends TestCase
     public function testLoadVersionDataRejectsMaliciousObjects(): void
     {
         $conn = $this->createMock(Connection::class);
-        // Serialized stdClass object — should not be returned as stdClass
+        // Serialized stdClass object -- should not be returned as stdClass
         $malicious = serialize(new \stdClass());
         $conn->method('fetchAssociative')->willReturn(['data' => $malicious]);
         $vm = new VersionManager($conn);
-        // stdClass serializes to object, not array → returns false
+        // stdClass serializes to object, not array -> returns false
         $result = $vm->loadVersionData('tl_article', 1, 1);
         $this->assertFalse($result);
+    }
+
+    public function testCreateVersionInsertsAndDeactivatesPrevious(): void
+    {
+        $conn = $this->createMock(Connection::class);
+
+        $conn->expects($this->once())
+            ->method('fetchAssociative')
+            ->willReturn(['id' => 1, 'title' => 'Test']);
+
+        $conn->expects($this->once())
+            ->method('fetchOne')
+            ->willReturn('3');
+
+        $conn->expects($this->once())
+            ->method('executeStatement');
+
+        $conn->expects($this->once())
+            ->method('insert');
+
+        $vm = new VersionManager($conn);
+        $vm->createVersion('tl_article', 1);
+    }
+
+    public function testMarkActiveVersionCallsExecuteStatementTwice(): void
+    {
+        $conn = $this->createMock(Connection::class);
+
+        $conn->expects($this->exactly(2))
+            ->method('executeStatement');
+
+        $vm = new VersionManager($conn);
+        $vm->markActiveVersion('tl_article', 1, 2);
     }
 }
