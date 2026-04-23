@@ -27,23 +27,25 @@ class VersionManager
             return;
         }
 
-        $max = (int) $this->connection->fetchOne(
-            'SELECT MAX(version) FROM tl_version WHERE fromTable = ? AND pid = ?',
-            [$table, $id]
-        );
-        $this->connection->executeStatement(
-            'UPDATE tl_version SET active = 0 WHERE fromTable = ? AND pid = ?',
-            [$table, $id]
-        );
-        $this->connection->insert('tl_version', [
-            'tstamp'    => time(),
-            'fromTable' => $table,
-            'pid'       => $id,
-            'version'   => $max + 1,
-            'username'  => 'cli-agent',
-            'active'    => 1,
-            'data'      => serialize($row),
-        ]);
+        $this->connection->transactional(function () use ($table, $id, $row): void {
+            $max = (int) $this->connection->fetchOne(
+                'SELECT MAX(version) FROM tl_version WHERE fromTable = ? AND pid = ?',
+                [$table, $id]
+            );
+            $this->connection->executeStatement(
+                'UPDATE tl_version SET active = 0 WHERE fromTable = ? AND pid = ?',
+                [$table, $id]
+            );
+            $this->connection->insert('tl_version', [
+                'tstamp'    => time(),
+                'fromTable' => $table,
+                'pid'       => $id,
+                'version'   => $max + 1,
+                'username'  => 'cli-agent',
+                'active'    => 1,
+                'data'      => serialize($row),
+            ]);
+        });
     }
 
     /**

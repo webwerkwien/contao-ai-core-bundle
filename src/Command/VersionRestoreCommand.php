@@ -55,7 +55,11 @@ class VersionRestoreCommand extends Command
         }
 
         unset($data['id']);
-        $this->connection->update('`' . $table . '`', $data, ['id' => $id]);
+        $quotedData = [];
+        foreach ($data as $col => $val) {
+            $quotedData[$this->connection->quoteIdentifier($col)] = $val;
+        }
+        $this->connection->update('`' . $table . '`', $quotedData, ['id' => $id]);
         $this->versionManager->markActiveVersion($table, $id, $version);
 
         $output->writeln(json_encode([
