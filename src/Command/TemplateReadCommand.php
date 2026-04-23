@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -50,7 +52,11 @@ class TemplateReadCommand extends Command
         }
 
         $content = file_get_contents($absPath);
-        $output->writeln(json_encode(['status' => 'ok', 'path' => $path, 'content' => $content, 'size' => $size], JSON_UNESCAPED_UNICODE));
+        if ($content === false) {
+            $output->writeln(json_encode(['status' => 'error', 'message' => "Cannot read template file: {$path}"]));
+            return self::FAILURE;
+        }
+        $output->writeln(json_encode(['status' => 'ok', 'path' => $path, 'content' => $content, 'size' => $size], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
 
         return self::SUCCESS;
     }

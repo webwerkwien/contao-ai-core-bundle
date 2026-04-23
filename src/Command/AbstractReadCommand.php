@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
 use Symfony\Component\Console\Command\Command;
@@ -23,7 +25,10 @@ abstract class AbstractReadCommand extends Command
 
     protected function outputRecord(array $data): void
     {
-        $this->output->writeln(json_encode(['status' => 'ok'] + $data, JSON_UNESCAPED_UNICODE));
+        $this->output->writeln(json_encode(
+            ['status' => 'ok'] + $data,
+            JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE
+        ));
     }
 
     protected function outputError(string $message, int $code = 1): int
@@ -32,7 +37,7 @@ abstract class AbstractReadCommand extends Command
             'status'  => 'error',
             'message' => $message,
             'code'    => $code,
-        ]));
+        ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
         return Command::FAILURE;
     }
 }
