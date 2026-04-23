@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
@@ -10,6 +10,14 @@ use Symfony\Component\Console\Input\InputArgument;
 #[AsCommand(name: 'contao:user:update', description: 'Update a backend user field')]
 class UserUpdateCommand extends AbstractWriteCommand
 {
+    // 'admin' and 'password' deliberately excluded to prevent privilege escalation
+    private const ALLOWED_FIELDS = [
+        'name', 'email', 'language', 'backendTheme', 'fullscreen',
+        'description', 'groups', 'inherit', 'modules', 'themes',
+        'elements', 'fields', 'pagemounts', 'alpty', 'filemounts',
+        'fop', 'forms', 'formp', 'disable', 'start', 'stop',
+    ];
+
     public function __construct(private readonly ContaoFramework $framework)
     {
         parent::__construct();
@@ -35,6 +43,11 @@ class UserUpdateCommand extends AbstractWriteCommand
             return $this->outputError('No fields specified. Use --set field=value');
         }
 
+        $disallowedFields = array_diff(array_keys($fields), self::ALLOWED_FIELDS);
+        if (!empty($disallowedFields)) {
+            return $this->outputError('Field(s) not allowed: ' . implode(', ', $disallowedFields));
+        }
+
         foreach ($fields as $key => $value) {
             $user->$key = $value;
         }
@@ -42,6 +55,6 @@ class UserUpdateCommand extends AbstractWriteCommand
         $user->save();
 
         $this->outputSuccess(['username' => $username, 'updated' => array_keys($fields)]);
-        return 0;
+        return \Symfony\Component\Console\Command\Command::SUCCESS;
     }
 }
