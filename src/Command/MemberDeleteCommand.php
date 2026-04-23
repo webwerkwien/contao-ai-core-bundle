@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
@@ -35,6 +35,6 @@ class MemberDeleteCommand extends AbstractWriteCommand
         $member->delete();
 
         $this->outputSuccess(['username' => $username, 'deleted_id' => (int) $id]);
-        return 0;
+        return Command::SUCCESS;
     }
 }

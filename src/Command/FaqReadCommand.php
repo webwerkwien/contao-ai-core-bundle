@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
@@ -32,6 +32,6 @@ class FaqReadCommand extends AbstractReadCommand
         }
 
         $this->outputRecord($faq->row());
-        return 0;
+        return Command::SUCCESS;
     }
 }

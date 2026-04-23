@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
@@ -51,6 +51,6 @@ class NewsCreateCommand extends AbstractWriteCommand
         $this->createVersion('tl_news', (int) $news->id);
 
         $this->outputSuccess(['id' => (int) $news->id, 'headline' => $headline]);
-        return 0;
+        return Command::SUCCESS;
     }
 }

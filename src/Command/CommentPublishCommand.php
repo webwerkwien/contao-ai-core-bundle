@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
@@ -41,6 +41,6 @@ class CommentPublishCommand extends AbstractWriteCommand
         $comment->save();
 
         $this->outputSuccess(['id' => $id, 'published' => $comment->published === '1']);
-        return 0;
+        return Command::SUCCESS;
     }
 }

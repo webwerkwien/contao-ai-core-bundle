@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
@@ -51,6 +51,6 @@ class PageCreateCommand extends AbstractWriteCommand
         $this->createVersion('tl_page', (int) $page->id);
 
         $this->outputSuccess(['id' => (int) $page->id, 'title' => $page->title, 'alias' => $page->alias]);
-        return 0;
+        return Command::SUCCESS;
     }
 }

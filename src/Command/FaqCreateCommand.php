@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
@@ -48,6 +48,6 @@ class FaqCreateCommand extends AbstractWriteCommand
         $this->createVersion('tl_faq', (int) $faq->id);
 
         $this->outputSuccess(['id' => (int) $faq->id, 'question' => $question]);
-        return 0;
+        return Command::SUCCESS;
     }
 }

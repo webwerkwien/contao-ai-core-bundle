@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
@@ -32,6 +32,6 @@ class ArticleReadCommand extends AbstractReadCommand
         }
 
         $this->outputRecord($article->row());
-        return 0;
+        return Command::SUCCESS;
     }
 }

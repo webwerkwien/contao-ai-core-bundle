@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
@@ -54,6 +54,6 @@ class EventCreateCommand extends AbstractWriteCommand
         $this->createVersion('tl_calendar_events', (int) $event->id);
 
         $this->outputSuccess(['id' => (int) $event->id, 'title' => $title]);
-        return 0;
+        return Command::SUCCESS;
     }
 }

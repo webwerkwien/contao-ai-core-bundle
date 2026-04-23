@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
@@ -33,6 +33,6 @@ class ContentDeleteCommand extends AbstractWriteCommand
 
         $el->delete();
         $this->outputSuccess(['id' => $id, 'deleted' => true]);
-        return 0;
+        return Command::SUCCESS;
     }
 }

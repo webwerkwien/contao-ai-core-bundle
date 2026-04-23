@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
@@ -42,6 +42,6 @@ class NewsUpdateCommand extends AbstractWriteCommand
         $news->save();
 
         $this->outputSuccess(['id' => $id, 'updated' => array_keys($fields)]);
-        return 0;
+        return Command::SUCCESS;
     }
 }

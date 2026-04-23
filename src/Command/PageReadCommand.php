@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
@@ -45,6 +45,6 @@ class PageReadCommand extends AbstractReadCommand
         $row['layout_effective'] = $layoutId;
 
         $this->outputRecord($row);
-        return 0;
+        return Command::SUCCESS;
     }
 }
