@@ -10,7 +10,8 @@ use Symfony\Component\Console\Input\InputArgument;
 #[AsCommand(name: 'contao:member:update', description: 'Update a frontend member field')]
 class MemberUpdateCommand extends AbstractWriteCommand
 {
-    // 'password' deliberately excluded to prevent credential manipulation
+    // 'password' deliberately excluded to prevent credential manipulation.
+    // 'disable' and 'login' are intentionally allowed — sysadmin CLI is trusted to manage account state.
     private const ALLOWED_FIELDS = [
         'firstname', 'lastname', 'email', 'phone', 'mobile',
         'dateOfBirth', 'gender', 'language', 'company', 'street',

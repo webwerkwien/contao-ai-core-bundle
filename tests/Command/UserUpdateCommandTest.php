@@ -3,7 +3,6 @@
 namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
 
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Console\Tester\CommandTester;
 
 class UserUpdateCommandTest extends TestCase
 {
