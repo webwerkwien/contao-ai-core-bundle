@@ -51,7 +51,7 @@ class VersionReadCommand extends Command
             return self::FAILURE;
         }
 
-        $data = @unserialize($row['data']);
+        $data = unserialize($row['data'], ['allowed_classes' => false]);
         if ($data === false) {
             $data = ['_raw' => $row['data']];
         }

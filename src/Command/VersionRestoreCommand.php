@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
@@ -9,12 +9,14 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
 
 #[AsCommand(name: 'contao:version:restore', description: 'Restore a record to a specific version')]
 class VersionRestoreCommand extends Command
 {
     public function __construct(
         private readonly ContaoFramework $framework,
+        private readonly VersionManager $versionManager,
         private readonly Connection $connection,
     ) {
         parent::__construct();
@@ -23,9 +25,9 @@ class VersionRestoreCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('table',   null, InputOption::VALUE_REQUIRED, 'Table name, e.g. tl_content')
-            ->addOption('id',      null, InputOption::VALUE_REQUIRED, 'Record ID')
-            ->addOption('ver', null, InputOption::VALUE_REQUIRED, 'Version number to restore');
+            ->addOption('table', null, InputOption::VALUE_REQUIRED, 'Table name, e.g. tl_content')
+            ->addOption('id',    null, InputOption::VALUE_REQUIRED, 'Record ID')
+            ->addOption('ver',   null, InputOption::VALUE_REQUIRED, 'Version number to restore');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -35,42 +37,26 @@ class VersionRestoreCommand extends Command
         $version = (int) $input->getOption('ver');
 
         if (!$table || !$id || !$version) {
-            $output->writeln(json_encode(['status' => 'error', 'message' => '--table, --id and --ver are required']));
-            return self::FAILURE;
+            $output->writeln(json_encode(['status' => 'error', 'message' => '--table, --id and --ver are required'], JSON_UNESCAPED_UNICODE));
+            return Command::FAILURE;
+        }
+
+        if (!$this->versionManager->isAllowedTable($table)) {
+            $output->writeln(json_encode(['status' => 'error', 'message' => "Table not allowed: {$table}"], JSON_UNESCAPED_UNICODE));
+            return Command::FAILURE;
         }
 
         $this->framework->initialize();
 
-        $versionRow = $this->connection->fetchAssociative(
-            'SELECT data FROM tl_version WHERE fromTable = ? AND pid = ? AND version = ?',
-            [$table, $id, $version]
-        );
-
-        if ($versionRow === false) {
-            $output->writeln(json_encode(['status' => 'error', 'message' => "Version {$version} not found for {$table}:{$id}"]));
-            return self::FAILURE;
+        $data = $this->versionManager->loadVersionData($table, $id, $version);
+        if ($data === false) {
+            $output->writeln(json_encode(['status' => 'error', 'message' => "Version {$version} not found or corrupt for {$table}:{$id}"], JSON_UNESCAPED_UNICODE));
+            return Command::FAILURE;
         }
 
-        $data = @unserialize($versionRow['data']);
-        if (!is_array($data)) {
-            $output->writeln(json_encode(['status' => 'error', 'message' => 'Could not deserialize version data']));
-            return self::FAILURE;
-        }
-
-        // Remove primary key from update data to avoid duplicate-key issues
         unset($data['id']);
-
-        $this->connection->update("`{$table}`", $data, ['id' => $id]);
-
-        // Mark this version as active, deactivate others
-        $this->connection->executeStatement(
-            'UPDATE tl_version SET active = 0 WHERE fromTable = ? AND pid = ?',
-            [$table, $id]
-        );
-        $this->connection->executeStatement(
-            'UPDATE tl_version SET active = 1 WHERE fromTable = ? AND pid = ? AND version = ?',
-            [$table, $id, $version]
-        );
+        $this->connection->update('`' . $table . '`', $data, ['id' => $id]);
+        $this->versionManager->markActiveVersion($table, $id, $version);
 
         $output->writeln(json_encode([
             'status'           => 'ok',
@@ -79,6 +65,6 @@ class VersionRestoreCommand extends Command
             'restored_version' => $version,
         ], JSON_UNESCAPED_UNICODE));
 
-        return self::SUCCESS;
+        return Command::SUCCESS;
     }
 }
