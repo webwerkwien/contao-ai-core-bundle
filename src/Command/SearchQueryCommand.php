@@ -36,7 +36,8 @@ class SearchQueryCommand extends AbstractReadCommand
             'SELECT s.id, s.url, s.title, s.language, s.tstamp
              FROM tl_search s
              INNER JOIN tl_search_index i ON i.pid = s.id
-             WHERE i.word LIKE :query
+             INNER JOIN tl_search_term t ON t.id = i.termId
+             WHERE t.term LIKE :query
              GROUP BY s.id
              ORDER BY s.tstamp DESC
              LIMIT :limit',
