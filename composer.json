@@ -2,7 +2,7 @@
     "name": "webwerkwien/contao-ai-core-bundle",
     "description": "Contao 5 console commands for agent-driven CRUD operations",
     "type": "contao-bundle",
-    "license": "proprietary",
+    "license": "MIT",
     "require": {
         "php": "^8.2",
         "contao/core-bundle": "^5.3"
