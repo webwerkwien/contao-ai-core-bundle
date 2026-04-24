@@ -9,6 +9,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
 
 #[AsCommand(name: 'contao:version:read', description: 'Read a specific version snapshot as JSON')]
 class VersionReadCommand extends Command
@@ -16,6 +17,7 @@ class VersionReadCommand extends Command
     public function __construct(
         private readonly ContaoFramework $framework,
         private readonly Connection $connection,
+        private readonly VersionManager $versionManager,
     ) {
         parent::__construct();
     }
@@ -42,7 +44,7 @@ class VersionReadCommand extends Command
         $this->framework->initialize();
 
         $row = $this->connection->fetchAssociative(
-            'SELECT * FROM tl_version WHERE fromTable = ? AND pid = ? AND version = ?',
+            'SELECT tstamp, version, username, active FROM tl_version WHERE fromTable = ? AND pid = ? AND version = ?',
             [$table, $id, $version]
         );
 
@@ -51,13 +53,14 @@ class VersionReadCommand extends Command
             return self::FAILURE;
         }
 
-        $data = @unserialize($row['data']);
+        $data = $this->versionManager->loadVersionData($table, $id, $version);
         if ($data === false) {
-            $data = ['_raw' => $row['data']];
+            $output->writeln(json_encode(['status' => 'error', 'message' => "Version {$version} not found or corrupt for {$table}:{$id}"]));
+            return self::FAILURE;
         }
 
-        // Normalize through JSON roundtrip to handle objects (__PHP_Incomplete_Class),
-        // binary strings, and other non-JSON-safe values from unserialization
+        // Normalize through JSON roundtrip to handle binary strings and other
+        // non-JSON-safe values from unserialization
         $flags = JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR;
         $data  = json_decode(json_encode($data, $flags), true) ?? [];
 
