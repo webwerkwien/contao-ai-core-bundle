@@ -2,11 +2,13 @@
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Contracts\Service\Attribute\Required;
 
 /**
  * Write a Twig template to the correct path under templates/.
@@ -21,9 +23,17 @@ use Symfony\Component\Console\Output\OutputInterface;
 #[AsCommand(name: 'contao:template:write', description: 'Write a Twig template to the correct path under templates/')]
 class TemplateWriteCommand extends Command
 {
+    private LoggerInterface $logger;
+
     public function __construct(private readonly string $projectDir)
     {
         parent::__construct();
+    }
+
+    #[Required]
+    public function setLogger(LoggerInterface $logger): void
+    {
+        $this->logger = $logger;
     }
 
     protected function configure(): void
@@ -86,6 +96,12 @@ class TemplateWriteCommand extends Command
             $output->writeln(json_encode(['status' => 'error', 'message' => 'Cannot write template']));
             return self::FAILURE;
         }
+
+        $this->logger->info('contao-cli-bridge audit', [
+            'command' => $this->getName(),
+            'user'    => $_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent',
+            'payload' => ['path' => 'templates/' . $relPath, 'mode' => $mode, 'bytes' => strlen($content)],
+        ]);
 
         $output->writeln(json_encode([
             'status' => 'ok',

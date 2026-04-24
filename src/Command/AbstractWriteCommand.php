@@ -2,6 +2,7 @@
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -14,11 +15,18 @@ abstract class AbstractWriteCommand extends Command
     protected InputInterface $input;
     protected OutputInterface $output;
     protected VersionManager $versionManager;
+    protected LoggerInterface $logger;
 
     #[Required]
     public function setVersionManager(VersionManager $versionManager): void
     {
         $this->versionManager = $versionManager;
+    }
+
+    #[Required]
+    public function setLogger(LoggerInterface $logger): void
+    {
+        $this->logger = $logger;
     }
 
     protected function configure(): void
@@ -66,6 +74,11 @@ abstract class AbstractWriteCommand extends Command
 
     protected function outputSuccess(array $data): void
     {
+        $this->logger->info('contao-cli-bridge audit', [
+            'command'  => $this->getName(),
+            'user'     => $_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent',
+            'payload'  => $data,
+        ]);
         $this->output->writeln(json_encode(['status' => 'ok'] + $data, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
     }
 

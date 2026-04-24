@@ -4,22 +4,32 @@ namespace Webwerkwien\ContaoCliBridgeBundle\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Doctrine\DBAL\Connection;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Contracts\Service\Attribute\Required;
 use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
 
 #[AsCommand(name: 'contao:version:restore', description: 'Restore a record to a specific version')]
 class VersionRestoreCommand extends Command
 {
+    private LoggerInterface $logger;
+
     public function __construct(
         private readonly ContaoFramework $framework,
         private readonly VersionManager $versionManager,
         private readonly Connection $connection,
     ) {
         parent::__construct();
+    }
+
+    #[Required]
+    public function setLogger(LoggerInterface $logger): void
+    {
+        $this->logger = $logger;
     }
 
     protected function configure(): void
@@ -66,6 +76,12 @@ class VersionRestoreCommand extends Command
         }
         $this->connection->update('`' . $table . '`', $quotedData, ['id' => $id]);
         $this->versionManager->markActiveVersion($table, $id, $version);
+
+        $this->logger->info('contao-cli-bridge audit', [
+            'command' => $this->getName(),
+            'user'    => $_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent',
+            'payload' => ['table' => $table, 'id' => $id, 'restored_version' => $version],
+        ]);
 
         $output->writeln(json_encode([
             'status'           => 'ok',
