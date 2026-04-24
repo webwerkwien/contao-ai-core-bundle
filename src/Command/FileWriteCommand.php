@@ -78,6 +78,17 @@ class FileWriteCommand extends AbstractWriteCommand
 
         $absPath = rtrim($this->projectDir, '/') . '/' . $path;
 
+        // Realpath jail: walk up to deepest existing ancestor to catch symlinks
+        $jailRoot   = realpath($this->projectDir) . DIRECTORY_SEPARATOR;
+        $jailCheck  = $absPath;
+        while (!file_exists($jailCheck) && $jailCheck !== dirname($jailCheck)) {
+            $jailCheck = dirname($jailCheck);
+        }
+        $realAncestor = realpath($jailCheck);
+        if ($realAncestor === false || !str_starts_with($realAncestor . DIRECTORY_SEPARATOR, $jailRoot)) {
+            return $this->outputError('Access denied: path resolves outside allowed directory');
+        }
+
         // Create parent directories if needed
         $dir = dirname($absPath);
         if (!is_dir($dir) && !mkdir($dir, 0775, true)) {

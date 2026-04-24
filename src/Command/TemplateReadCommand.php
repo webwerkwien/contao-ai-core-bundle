@@ -39,6 +39,13 @@ class TemplateReadCommand extends AbstractReadCommand
             return $this->outputError("Template not found: {$path}");
         }
 
+        // Realpath jail: reject symlinks pointing outside projectDir
+        $real = realpath($absPath);
+        if ($real === false || !str_starts_with($real . DIRECTORY_SEPARATOR, realpath($this->projectDir) . DIRECTORY_SEPARATOR)) {
+            return $this->outputError('Access denied: path resolves outside allowed directory');
+        }
+        $absPath = $real;
+
         $size = filesize($absPath);
         if ($size === false) {
             return $this->outputError("Cannot determine file size: {$path}");

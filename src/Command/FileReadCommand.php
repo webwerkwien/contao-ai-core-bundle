@@ -42,6 +42,13 @@ class FileReadCommand extends AbstractReadCommand
             return $this->outputError("File not found: {$path}");
         }
 
+        // Realpath jail: reject symlinks pointing outside projectDir
+        $real = realpath($absPath);
+        if ($real === false || !str_starts_with($real . DIRECTORY_SEPARATOR, realpath($this->projectDir) . DIRECTORY_SEPARATOR)) {
+            return $this->outputError('Access denied: path resolves outside allowed directory');
+        }
+        $absPath = $real;
+
         $size = filesize($absPath);
         if ($size > self::MAX_BYTES) {
             return $this->outputError("File too large ({$size} bytes). Maximum is " . self::MAX_BYTES . " bytes.");

@@ -67,14 +67,31 @@ class TemplateWriteCommand extends Command
             return self::FAILURE;
         }
 
-        // Guard against path traversal in --base and --name
-        if (str_contains($base, '..') || str_contains($name, '..') || str_contains($base, '/..') || $name !== ltrim($name, '/')) {
+        // Guard against path traversal and absolute paths in --base and --name
+        if (
+            str_contains($base, '..')
+            || str_contains($name, '..')
+            || ($base !== '' && $base[0] === '/')
+            || $name !== ltrim($name, '/')
+        ) {
             $output->writeln(json_encode(['status' => 'error', 'message' => 'Invalid --base or --name value']));
             return self::FAILURE;
         }
 
         $relPath = $this->buildRelPath($mode, $base, $name);
         $absPath = rtrim($this->projectDir, '/') . '/templates/' . $relPath;
+
+        // Realpath jail: walk up to deepest existing ancestor to catch symlinks
+        $jailRoot  = realpath($this->projectDir) . DIRECTORY_SEPARATOR;
+        $jailCheck = $absPath;
+        while (!file_exists($jailCheck) && $jailCheck !== dirname($jailCheck)) {
+            $jailCheck = dirname($jailCheck);
+        }
+        $realAncestor = realpath($jailCheck);
+        if ($realAncestor === false || !str_starts_with($realAncestor . DIRECTORY_SEPARATOR, $jailRoot)) {
+            $output->writeln(json_encode(['status' => 'error', 'message' => 'Access denied: path resolves outside allowed directory']));
+            return self::FAILURE;
+        }
 
         if (!is_file($source)) {
             $output->writeln(json_encode(['status' => 'error', 'message' => 'Source file not found']));
