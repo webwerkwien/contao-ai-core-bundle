@@ -1,17 +1,17 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Tester\CommandTester;
-use Webwerkwien\ContaoCliBridgeBundle\Command\PageCreateCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\PageDeleteCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\PagePublishCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\PageReadCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\PageUpdateCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Command\PageCreateCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\PageDeleteCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\PagePublishCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\PageReadCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\PageUpdateCommand;
+use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 class PageCommandTest extends TestCase
 {

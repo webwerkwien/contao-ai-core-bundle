@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\MemberModel;

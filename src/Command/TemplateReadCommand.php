@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputOption;

@@ -1,10 +1,10 @@
 ﻿<?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Service;
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Service;
 
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
-use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 class VersionManagerTest extends TestCase
 {

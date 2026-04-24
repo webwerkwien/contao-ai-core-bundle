@@ -1,14 +1,14 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Tester\CommandTester;
-use Webwerkwien\ContaoCliBridgeBundle\Command\FileReadCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\FileWriteCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Command\FileReadCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\FileWriteCommand;
+use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 class FileCommandTest extends TestCase
 {

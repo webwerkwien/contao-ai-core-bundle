@@ -1,17 +1,17 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Tester\CommandTester;
-use Webwerkwien\ContaoCliBridgeBundle\Command\VersionCreateCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\VersionListCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\VersionReadCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\VersionRestoreCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Command\VersionCreateCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\VersionListCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\VersionReadCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\VersionRestoreCommand;
+use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 class VersionCommandTest extends TestCase
 {

@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\CalendarEventsModel;
 use Symfony\Component\Console\Attribute\AsCommand;

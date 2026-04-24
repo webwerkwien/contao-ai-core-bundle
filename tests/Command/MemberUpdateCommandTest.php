@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use PHPUnit\Framework\TestCase;
 

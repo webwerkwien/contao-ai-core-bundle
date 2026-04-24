@@ -1,16 +1,16 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Tester\CommandTester;
-use Webwerkwien\ContaoCliBridgeBundle\Command\CommentDeleteCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\CommentPublishCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\LayoutReadCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\MemberDeleteCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Command\CommentDeleteCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\CommentPublishCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\LayoutReadCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\MemberDeleteCommand;
+use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 class MiscCommandTest extends TestCase
 {

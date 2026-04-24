@@ -1,16 +1,16 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Tester\CommandTester;
-use Webwerkwien\ContaoCliBridgeBundle\Command\EventCreateCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\EventDeleteCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\EventReadCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\EventUpdateCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Command\EventCreateCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\EventDeleteCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\EventReadCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\EventUpdateCommand;
+use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 class EventCommandTest extends TestCase
 {

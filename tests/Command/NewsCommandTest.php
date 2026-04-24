@@ -1,16 +1,16 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Tester\CommandTester;
-use Webwerkwien\ContaoCliBridgeBundle\Command\NewsCreateCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\NewsDeleteCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\NewsReadCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\NewsUpdateCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Command\NewsCreateCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\NewsDeleteCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\NewsReadCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\NewsUpdateCommand;
+use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 class NewsCommandTest extends TestCase
 {

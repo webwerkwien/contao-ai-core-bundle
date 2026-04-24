@@ -1,12 +1,12 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle;
+namespace Webwerkwien\ContaoAiCoreBundle;
 
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 
-class ContaoCliBridgeBundle extends AbstractBundle
+class ContaoAiCoreBundle extends AbstractBundle
 {
     public function loadExtension(
         array $config,

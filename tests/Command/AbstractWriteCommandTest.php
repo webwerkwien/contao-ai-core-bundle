@@ -1,9 +1,9 @@
 <?php
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use PHPUnit\Framework\TestCase;
-use Webwerkwien\ContaoCliBridgeBundle\Command\AbstractWriteCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\AbstractWriteCommand;
 use Symfony\Component\Console\Command\Command;
 
 class ConcreteCommand extends AbstractWriteCommand

@@ -1,16 +1,16 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Tester\CommandTester;
-use Webwerkwien\ContaoCliBridgeBundle\Command\ArticleCreateCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\ArticleDeleteCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\ArticleReadCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\ArticleUpdateCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Command\ArticleCreateCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\ArticleDeleteCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\ArticleReadCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\ArticleUpdateCommand;
+use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 class ArticleCommandTest extends TestCase
 {

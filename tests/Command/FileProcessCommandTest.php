@@ -1,10 +1,10 @@
 <?php
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
-use Webwerkwien\ContaoCliBridgeBundle\Command\FileProcessCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\FileProcessCommand;
 use Contao\CoreBundle\Framework\ContaoFramework;
 
 class FileProcessCommandTest extends TestCase

@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Doctrine\DBAL\Connection;
@@ -11,7 +11,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Contracts\Service\Attribute\Required;
-use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 #[AsCommand(name: 'contao:version:restore', description: 'Restore a record to a specific version')]
 class VersionRestoreCommand extends Command
@@ -77,7 +77,7 @@ class VersionRestoreCommand extends Command
         $this->connection->update('`' . $table . '`', $quotedData, ['id' => $id]);
         $this->versionManager->markActiveVersion($table, $id, $version);
 
-        $this->logger->info('contao-cli-bridge audit', [
+        $this->logger->info('contao-ai-core-bundle audit', [
             'command' => $this->getName(),
             'user'    => $_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent',
             'payload' => ['table' => $table, 'id' => $id, 'restored_version' => $version],

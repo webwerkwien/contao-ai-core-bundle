@@ -3,34 +3,34 @@ services:
         autowire: true
         autoconfigure: true
 
-    Webwerkwien\ContaoCliBridgeBundle\:
+    Webwerkwien\ContaoAiCoreBundle\:
         resource: ../src
-        exclude: ../src/{ContaoManager,ContaoCliBridgeBundle.php}
+        exclude: ../src/{ContaoManager,ContaoAiCoreBundle.php}
 
-    Webwerkwien\ContaoCliBridgeBundle\Command\FolderCreateCommand:
+    Webwerkwien\ContaoAiCoreBundle\Command\FolderCreateCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
-    Webwerkwien\ContaoCliBridgeBundle\Command\FileProcessCommand:
+    Webwerkwien\ContaoAiCoreBundle\Command\FileProcessCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
-    Webwerkwien\ContaoCliBridgeBundle\Command\FileReadCommand:
+    Webwerkwien\ContaoAiCoreBundle\Command\FileReadCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
-    Webwerkwien\ContaoCliBridgeBundle\Command\FileWriteCommand:
+    Webwerkwien\ContaoAiCoreBundle\Command\FileWriteCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
-    Webwerkwien\ContaoCliBridgeBundle\Command\TemplateListCommand:
+    Webwerkwien\ContaoAiCoreBundle\Command\TemplateListCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
-    Webwerkwien\ContaoCliBridgeBundle\Command\TemplateReadCommand:
+    Webwerkwien\ContaoAiCoreBundle\Command\TemplateReadCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
-    Webwerkwien\ContaoCliBridgeBundle\Command\TemplateWriteCommand:
+    Webwerkwien\ContaoAiCoreBundle\Command\TemplateWriteCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'

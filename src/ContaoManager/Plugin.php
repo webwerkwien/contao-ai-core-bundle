@@ -1,19 +1,19 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\ContaoManager;
+namespace Webwerkwien\ContaoAiCoreBundle\ContaoManager;
 
 use Contao\CoreBundle\ContaoCoreBundle;
 use Contao\ManagerPlugin\Bundle\BundlePluginInterface;
 use Contao\ManagerPlugin\Bundle\Config\BundleConfig;
 use Contao\ManagerPlugin\Bundle\Parser\ParserInterface;
-use Webwerkwien\ContaoCliBridgeBundle\ContaoCliBridgeBundle;
+use Webwerkwien\ContaoAiCoreBundle\ContaoAiCoreBundle;
 
 class Plugin implements BundlePluginInterface
 {
     public function getBundles(ParserInterface $parser): array
     {
         return [
-            BundleConfig::create(ContaoCliBridgeBundle::class)
+            BundleConfig::create(ContaoAiCoreBundle::class)
                 ->setLoadAfter([ContaoCoreBundle::class]),
         ];
     }

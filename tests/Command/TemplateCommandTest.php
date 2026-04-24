@@ -1,13 +1,13 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Tester\CommandTester;
-use Webwerkwien\ContaoCliBridgeBundle\Command\TemplateListCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\TemplateReadCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\TemplateWriteCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\TemplateListCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\TemplateReadCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\TemplateWriteCommand;
 
 class TemplateCommandTest extends TestCase
 {

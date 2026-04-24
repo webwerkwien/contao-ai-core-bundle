@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -114,7 +114,7 @@ class TemplateWriteCommand extends Command
             return self::FAILURE;
         }
 
-        $this->logger->info('contao-cli-bridge audit', [
+        $this->logger->info('contao-ai-core-bundle audit', [
             'command' => $this->getName(),
             'user'    => $_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent',
             'payload' => ['path' => 'templates/' . $relPath, 'mode' => $mode, 'bytes' => strlen($content)],

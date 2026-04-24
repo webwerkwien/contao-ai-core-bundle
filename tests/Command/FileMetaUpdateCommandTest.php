@@ -1,9 +1,9 @@
 <?php
-namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
-use Webwerkwien\ContaoCliBridgeBundle\Command\FileMetaUpdateCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\FileMetaUpdateCommand;
 use Contao\CoreBundle\Framework\ContaoFramework;
 
 class FileMetaUpdateCommandTest extends TestCase

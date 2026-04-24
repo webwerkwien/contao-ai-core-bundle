@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -8,7 +8,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Contracts\Service\Attribute\Required;
-use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 abstract class AbstractWriteCommand extends Command
 {
@@ -74,7 +74,7 @@ abstract class AbstractWriteCommand extends Command
 
     protected function outputSuccess(array $data): void
     {
-        $this->logger->info('contao-cli-bridge audit', [
+        $this->logger->info('contao-ai-core-bundle audit', [
             'command'  => $this->getName(),
             'user'     => $_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent',
             'payload'  => $data,

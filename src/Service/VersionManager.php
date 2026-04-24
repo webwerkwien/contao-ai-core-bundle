@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Service;
+namespace Webwerkwien\ContaoAiCoreBundle\Service;
 
 use Doctrine\DBAL\Connection;
 

@@ -1,5 +1,5 @@
 {
-    "name": "webwerkwien/contao-cli-bridge",
+    "name": "webwerkwien/contao-ai-core-bundle",
     "description": "Contao 5 console commands for agent-driven CRUD operations",
     "type": "contao-bundle",
     "license": "proprietary",
@@ -14,15 +14,15 @@
     },
     "autoload": {
         "psr-4": {
-            "Webwerkwien\\ContaoCliBridgeBundle\\": "src/"
+            "Webwerkwien\\ContaoAiCoreBundle\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Webwerkwien\\ContaoCliBridgeBundle\\Tests\\": "tests/"
+            "Webwerkwien\\ContaoAiCoreBundle\\Tests\\": "tests/"
         }
     },
     "extra": {
-        "contao-manager-plugin": "Webwerkwien\\ContaoCliBridgeBundle\\ContaoManager\\Plugin"
+        "contao-manager-plugin": "Webwerkwien\\ContaoAiCoreBundle\\ContaoManager\\Plugin"
     }
 }

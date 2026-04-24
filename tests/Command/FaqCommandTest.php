@@ -1,16 +1,16 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Tester\CommandTester;
-use Webwerkwien\ContaoCliBridgeBundle\Command\FaqCreateCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\FaqDeleteCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\FaqReadCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\FaqUpdateCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Command\FaqCreateCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\FaqDeleteCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\FaqReadCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\FaqUpdateCommand;
+use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 class FaqCommandTest extends TestCase
 {

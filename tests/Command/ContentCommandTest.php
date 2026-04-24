@@ -1,16 +1,16 @@
 <?php declare(strict_types=1);
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Tester\CommandTester;
-use Webwerkwien\ContaoCliBridgeBundle\Command\ContentCreateCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\ContentDeleteCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\ContentReadCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\ContentUpdateCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Command\ContentCreateCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\ContentDeleteCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\ContentReadCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\ContentUpdateCommand;
+use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 class ContentCommandTest extends TestCase
 {

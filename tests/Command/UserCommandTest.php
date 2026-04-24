@@ -1,10 +1,10 @@
 <?php
 
-namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use PHPUnit\Framework\TestCase;
-use Webwerkwien\ContaoCliBridgeBundle\Command\UserUpdateCommand;
-use Webwerkwien\ContaoCliBridgeBundle\Command\UserDeleteCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\UserUpdateCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\UserDeleteCommand;
 
 class UserCommandTest extends TestCase
 {
