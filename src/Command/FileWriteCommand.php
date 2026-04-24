@@ -42,7 +42,6 @@ class FileWriteCommand extends AbstractWriteCommand
             return $this->outputError('Path must start with files/ and must not contain ".."');
         }
 
-        // TODO: restrict to var/bridge-uploads/ once agent scp_upload is updated
         $realSource = realpath($source);
         $uploadDir  = rtrim($this->projectDir, '/') . '/var/bridge-uploads/';
         $realUpload = realpath($uploadDir);
@@ -51,14 +50,8 @@ class FileWriteCommand extends AbstractWriteCommand
         }
         $realUpload = rtrim($realUpload, '/') . '/';
 
-        if (
-            $realSource === false
-            || (
-                !str_starts_with($realSource, '/tmp/')
-                && !str_starts_with($realSource, $realUpload)
-            )
-        ) {
-            return $this->outputError('--source must be under /tmp/ or var/bridge-uploads/');
+        if ($realSource === false || !str_starts_with($realSource, $realUpload)) {
+            return $this->outputError('--source must be under var/bridge-uploads/');
         }
 
         if (!is_file($realSource)) {
