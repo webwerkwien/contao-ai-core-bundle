@@ -41,7 +41,7 @@ class VersionManager
                 'fromTable' => $table,
                 'pid'       => $id,
                 'version'   => $max + 1,
-                'username'  => 'cli-agent',
+                'username'  => $_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent',
                 'active'    => 1,
                 'data'      => serialize($row),
             ]);
