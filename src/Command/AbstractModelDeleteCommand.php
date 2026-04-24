@@ -22,7 +22,7 @@ abstract class AbstractModelDeleteCommand extends AbstractWriteCommand
         $this->addArgument('id', InputArgument::REQUIRED, $this->entityName() . ' ID');
     }
 
-    protected function doExecute(array $fields): int
+    protected function doExecute(array $fields): int  // $fields intentionally unused — delete takes no field input
     {
         $this->framework->initialize();
         $id    = (int) $this->input->getArgument('id');
