@@ -3,6 +3,19 @@
     "description": "Contao 5 console commands for agent-driven CRUD operations",
     "type": "contao-bundle",
     "license": "MIT",
+    "authors": [
+        {
+            "name": "Michael Morgenbesser",
+            "homepage": "https://web.werk.wien",
+            "role": "Developer"
+        }
+    ],
+    "keywords": ["contao", "ai", "agent", "crud", "cli", "automation"],
+    "homepage": "https://github.com/webwerkwien/contao-ai-core-bundle",
+    "support": {
+        "issues": "https://github.com/webwerkwien/contao-ai-core-bundle/issues",
+        "source": "https://github.com/webwerkwien/contao-ai-core-bundle"
+    },
     "require": {
         "php": "^8.2",
         "contao/core-bundle": "^5.3"
