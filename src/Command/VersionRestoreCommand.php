@@ -55,6 +55,11 @@ class VersionRestoreCommand extends Command
         }
 
         unset($data['id']);
+
+        // Restrict to columns that currently exist — prevents "Unknown column" after schema migrations
+        $existingColumns = array_keys($this->connection->createSchemaManager()->listTableColumns($table));
+        $data = array_intersect_key(array_change_key_case($data, CASE_LOWER), array_flip($existingColumns));
+
         $quotedData = [];
         foreach ($data as $col => $val) {
             $quotedData[$this->connection->quoteIdentifier($col)] = $val;
