@@ -2,19 +2,37 @@
 
 namespace Webwerkwien\ContaoCliBridgeBundle\Tests\Command;
 
+use Contao\CoreBundle\Framework\ContaoFramework;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 use Webwerkwien\ContaoCliBridgeBundle\Command\FolderCreateCommand;
-use Contao\CoreBundle\Framework\ContaoFramework;
+use Webwerkwien\ContaoCliBridgeBundle\Service\VersionManager;
 
 class FolderCreateCommandTest extends TestCase
 {
+    private string $tmpDir;
+
+    protected function setUp(): void
+    {
+        $this->tmpDir = sys_get_temp_dir();
+    }
+
+    private function makeCommand(): FolderCreateCommand
+    {
+        $framework = $this->createMock(ContaoFramework::class);
+        $cmd = new FolderCreateCommand($framework, $this->tmpDir);
+        $cmd->setLogger($this->createMock(LoggerInterface::class));
+        $cmd->setVersionManager($this->createMock(VersionManager::class));
+        return $cmd;
+    }
+
     public function testMissingPathReturnsError(): void
     {
         $framework = $this->createMock(ContaoFramework::class);
         $framework->expects($this->never())->method('initialize');
 
-        $tester = new CommandTester(new FolderCreateCommand($framework, sys_get_temp_dir()));
+        $tester = new CommandTester(new FolderCreateCommand($framework, $this->tmpDir));
         $tester->execute([]);
 
         $output = json_decode($tester->getDisplay(), true);
@@ -27,7 +45,7 @@ class FolderCreateCommandTest extends TestCase
         $framework = $this->createMock(ContaoFramework::class);
         $framework->expects($this->never())->method('initialize');
 
-        $tester = new CommandTester(new FolderCreateCommand($framework, sys_get_temp_dir()));
+        $tester = new CommandTester(new FolderCreateCommand($framework, $this->tmpDir));
         $tester->execute(['--path' => '../escape/attempt']);
 
         $output = json_decode($tester->getDisplay(), true);

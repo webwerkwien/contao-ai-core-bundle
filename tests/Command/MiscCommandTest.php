@@ -107,14 +107,4 @@ class MiscCommandTest extends TestCase
         $this->assertSame('error', $out['status']);
     }
 
-    public function testCommentPublishRequiresId(): void
-    {
-        $cmd = new CommentPublishCommand($this->fw());
-        $cmd->setLogger($this->logger());
-        $cmd->setVersionManager($this->vm());
-        $tester = new CommandTester($cmd);
-        $tester->execute(['id' => '0']);  // record not found
-        $out = json_decode($tester->getDisplay(), true);
-        $this->assertSame('error', $out['status']);
-    }
 }

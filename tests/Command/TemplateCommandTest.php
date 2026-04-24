@@ -172,6 +172,7 @@ class TemplateCommandTest extends TestCase
         ]);
         $out = json_decode($tester->getDisplay(), true);
         $this->assertSame('error', $out['status']);
+        $this->assertStringContainsString('--base', $out['message']);
     }
 
     public function testWriteRejectsInvalidMode(): void

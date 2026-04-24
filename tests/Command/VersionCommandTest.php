@@ -56,6 +56,7 @@ class VersionCommandTest extends TestCase
         $tester->execute(['--table' => 'tl_content']);
         $out = json_decode($tester->getDisplay(), true);
         $this->assertSame('error', $out['status']);
+        $this->assertStringContainsString('--id', $out['message']);
     }
 
     public function testCreateRejectsDisallowedTable(): void
@@ -89,6 +90,7 @@ class VersionCommandTest extends TestCase
         $tester->execute(['--table' => 'tl_content']);
         $out = json_decode($tester->getDisplay(), true);
         $this->assertSame('error', $out['status']);
+        $this->assertStringContainsString('--id', $out['message']);
     }
 
     // --- VersionReadCommand ---
