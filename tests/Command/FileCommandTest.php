@@ -109,6 +109,29 @@ class FileCommandTest extends TestCase
         $this->assertSame('Hello World', $out['content']);
     }
 
+    public function testReadRejectsSymlinkEscapingRoot(): void
+    {
+        // Create a regular file outside the project root to link to
+        $externalFile = sys_get_temp_dir() . '/bridge_test_external_' . uniqid() . '.txt';
+        file_put_contents($externalFile, 'external');
+
+        $linkPath = $this->tmpDir . '/files/escape_link.txt';
+        if (!@symlink($externalFile, $linkPath)) {
+            @unlink($externalFile);
+            $this->markTestSkipped('Cannot create symlinks in this environment');
+        }
+
+        $cmd = new FileReadCommand($this->fw(), $this->tmpDir);
+        $tester = new CommandTester($cmd);
+        $tester->execute(['--path' => 'files/escape_link.txt']);
+        $out = json_decode($tester->getDisplay(), true);
+        $this->assertSame('error', $out['status']);
+        $this->assertStringContainsString('Access denied', $out['message']);
+
+        unlink($linkPath);
+        unlink($externalFile);
+    }
+
     // ======================
     // FileWriteCommand tests
     // ======================

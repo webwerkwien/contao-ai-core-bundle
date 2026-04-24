@@ -107,12 +107,14 @@ class MiscCommandTest extends TestCase
         $this->assertSame('error', $out['status']);
     }
 
-    public function testCommentPublishRejectsInvalidAction(): void
+    public function testCommentPublishRequiresId(): void
     {
-        // id=999 will fail with "comment not found" before checking action
-        // so we need a comment that exists — skip that, just verify action validation
-        // by testing with a command name check only
         $cmd = new CommentPublishCommand($this->fw());
-        $this->assertInstanceOf(CommentPublishCommand::class, $cmd);
+        $cmd->setLogger($this->logger());
+        $cmd->setVersionManager($this->vm());
+        $tester = new CommandTester($cmd);
+        $tester->execute(['id' => '0']);  // record not found
+        $out = json_decode($tester->getDisplay(), true);
+        $this->assertSame('error', $out['status']);
     }
 }
