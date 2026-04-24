@@ -62,7 +62,7 @@ class FileWriteCommand extends AbstractWriteCommand
         }
 
         if (!is_file($realSource)) {
-            return $this->outputError("Source file not found: {$source}");
+            return $this->outputError("Source file not found");
         }
 
         if (filesize($realSource) > self::MAX_SOURCE_BYTES) {
@@ -71,7 +71,7 @@ class FileWriteCommand extends AbstractWriteCommand
 
         $content = file_get_contents($realSource);
         if ($content === false) {
-            return $this->outputError("Cannot read source file: {$source}");
+            return $this->outputError('Cannot read source file');
         }
 
         $this->framework->initialize();
@@ -91,7 +91,7 @@ class FileWriteCommand extends AbstractWriteCommand
         }
 
         if (file_put_contents($absPath, $content) === false) {
-            return $this->outputError("Cannot write file: {$path}");
+            return $this->outputError('Cannot write file');
         }
 
         $bytes = strlen($content);

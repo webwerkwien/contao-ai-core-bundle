@@ -67,13 +67,13 @@ class TemplateWriteCommand extends Command
         $absPath = rtrim($this->projectDir, '/') . '/templates/' . $relPath;
 
         if (!is_file($source)) {
-            $output->writeln(json_encode(['status' => 'error', 'message' => "Source file not found: {$source}"]));
+            $output->writeln(json_encode(['status' => 'error', 'message' => 'Source file not found']));
             return self::FAILURE;
         }
 
         $content = file_get_contents($source);
         if ($content === false) {
-            $output->writeln(json_encode(['status' => 'error', 'message' => "Cannot read source file: {$source}"]));
+            $output->writeln(json_encode(['status' => 'error', 'message' => 'Cannot read source file']));
             return self::FAILURE;
         }
 
@@ -83,7 +83,7 @@ class TemplateWriteCommand extends Command
         }
 
         if (file_put_contents($absPath, $content) === false) {
-            $output->writeln(json_encode(['status' => 'error', 'message' => "Cannot write template: templates/{$relPath}"]));
+            $output->writeln(json_encode(['status' => 'error', 'message' => 'Cannot write template']));
             return self::FAILURE;
         }
 

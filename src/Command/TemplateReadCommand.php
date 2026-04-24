@@ -49,7 +49,7 @@ class TemplateReadCommand extends AbstractReadCommand
 
         $content = file_get_contents($absPath);
         if ($content === false) {
-            return $this->outputError("Cannot read template file: {$path}");
+            return $this->outputError('Cannot read template file');
         }
         $this->outputRecord(['path' => $path, 'content' => $content, 'size' => $size]);
 
