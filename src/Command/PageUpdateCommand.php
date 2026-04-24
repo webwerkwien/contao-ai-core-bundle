@@ -10,5 +10,4 @@ class PageUpdateCommand extends AbstractModelUpdateCommand
 {
     protected function modelClass(): string { return PageModel::class; }
     protected function entityName(): string { return 'Page'; }
-    protected function tableName(): string  { return 'tl_page'; }
 }

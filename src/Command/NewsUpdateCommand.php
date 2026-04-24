@@ -10,5 +10,4 @@ class NewsUpdateCommand extends AbstractModelUpdateCommand
 {
     protected function modelClass(): string { return NewsModel::class; }
     protected function entityName(): string { return 'News entry'; }
-    protected function tableName(): string  { return 'tl_news'; }
 }

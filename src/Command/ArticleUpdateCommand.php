@@ -10,5 +10,4 @@ class ArticleUpdateCommand extends AbstractModelUpdateCommand
 {
     protected function modelClass(): string { return ArticleModel::class; }
     protected function entityName(): string { return 'Article'; }
-    protected function tableName(): string  { return 'tl_article'; }
 }

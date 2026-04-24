@@ -10,5 +10,4 @@ class FaqUpdateCommand extends AbstractModelUpdateCommand
 {
     protected function modelClass(): string { return FaqModel::class; }
     protected function entityName(): string { return 'FAQ entry'; }
-    protected function tableName(): string  { return 'tl_faq'; }
 }

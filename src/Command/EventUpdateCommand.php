@@ -10,5 +10,4 @@ class EventUpdateCommand extends AbstractModelUpdateCommand
 {
     protected function modelClass(): string { return CalendarEventsModel::class; }
     protected function entityName(): string { return 'Event'; }
-    protected function tableName(): string  { return 'tl_calendar_events'; }
 }

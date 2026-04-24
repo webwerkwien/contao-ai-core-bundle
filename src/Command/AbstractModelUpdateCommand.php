@@ -10,7 +10,6 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
 {
     abstract protected function modelClass(): string;
     abstract protected function entityName(): string;
-    abstract protected function tableName(): string;
 
     public function __construct(protected readonly ContaoFramework $framework)
     {
@@ -40,7 +39,8 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
         foreach ($fields as $key => $value) {
             $record->$key = $value;
         }
-        $this->createVersion($this->tableName(), $id);
+        // createVersion snapshots pre-save state; tstamp marks the commit time.
+        $this->createVersion($class::getTable(), $id);
         $record->tstamp = time();
         $record->save();
 

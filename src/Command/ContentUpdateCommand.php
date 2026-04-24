@@ -10,5 +10,4 @@ class ContentUpdateCommand extends AbstractModelUpdateCommand
 {
     protected function modelClass(): string { return ContentModel::class; }
     protected function entityName(): string { return 'Content element'; }
-    protected function tableName(): string  { return 'tl_content'; }
 }
