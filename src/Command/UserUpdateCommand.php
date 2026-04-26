@@ -12,7 +12,7 @@ class UserUpdateCommand extends AbstractWriteCommand
 {
     // 'admin' and 'password' deliberately excluded to prevent privilege escalation
     private const ALLOWED_FIELDS = [
-        'name', 'email', 'language', 'backendTheme', 'fullscreen',
+        'username', 'name', 'email', 'language', 'backendTheme', 'fullscreen',
         'description', 'groups', 'inherit', 'modules', 'themes',
         'elements', 'fields', 'pagemounts', 'alpty', 'filemounts',
         'fop', 'forms', 'formp', 'disable', 'start', 'stop',
