@@ -1,4 +1,4 @@
-<?php declare(strict_types=1);
+﻿<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
@@ -6,6 +6,7 @@ use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\PageModel;
 use Contao\StringUtil;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
 
 #[AsCommand(name: 'contao:page:create', description: 'Create a Contao page')]

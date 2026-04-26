@@ -1,10 +1,11 @@
-<?php declare(strict_types=1);
+﻿<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\CommentsModel;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 
 #[AsCommand(name: 'contao:comment:publish', description: 'Publish or unpublish a comment')]

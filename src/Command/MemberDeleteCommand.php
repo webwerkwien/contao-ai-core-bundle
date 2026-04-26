@@ -1,10 +1,11 @@
-<?php declare(strict_types=1);
+﻿<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\MemberModel;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 
 #[AsCommand(name: 'contao:member:delete', description: 'Delete a frontend member')]

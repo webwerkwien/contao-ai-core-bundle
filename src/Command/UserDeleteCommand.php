@@ -35,6 +35,6 @@ class UserDeleteCommand extends AbstractWriteCommand
         $user->delete();
 
         $this->outputSuccess(['username' => $username, 'deleted_id' => (int) $id]);
-        return Command::SUCCESS;
+        return \Symfony\Component\Console\Command\Command::SUCCESS;
     }
 }
