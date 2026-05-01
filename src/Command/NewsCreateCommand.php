@@ -22,7 +22,13 @@ class NewsCreateCommand extends AbstractWriteCommand
         parent::configure();
         $this->addOption('headline', null, InputOption::VALUE_REQUIRED, 'News headline');
         $this->addOption('pid',      null, InputOption::VALUE_REQUIRED, 'News archive ID');
-        $this->addOption('date',     null, InputOption::VALUE_OPTIONAL, 'Publication date (Y-m-d)', date('Y-m-d'));
+        // Default 'now' (full current timestamp) instead of 'Y-m-d' midnight,
+        // so two news created via the agent on the same day get distinct
+        // `date` values — sorting by `date DESC` then yields the actual
+        // creation order. Same-day-tie was the trap behind the 2026-05-01
+        // "neueste" misinterpretation. Users can still pass an explicit date
+        // string ("2026-06-01", "tomorrow", "2026-06-01 10:00") via --date.
+        $this->addOption('date',     null, InputOption::VALUE_OPTIONAL, 'Publication date/time, accepts strtotime() format (default: now)', 'now');
     }
 
     protected function doExecute(array $fields): int

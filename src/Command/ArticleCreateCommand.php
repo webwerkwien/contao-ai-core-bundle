@@ -41,6 +41,7 @@ class ArticleCreateCommand extends AbstractWriteCommand
         $article->title    = $title;
         $article->alias    = StringUtil::generateAlias($title);
         $article->inColumn = $this->input->getOption('inColumn');
+        $article->author    = $this->resolveAuthorId();
         $article->published = '0';
 
         foreach ($fields as $key => $value) {

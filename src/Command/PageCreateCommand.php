@@ -43,6 +43,12 @@ class PageCreateCommand extends AbstractWriteCommand
         $page->type     = $this->input->getOption('type');
         $page->language = $this->input->getOption('language');
         $page->alias    = $this->input->getOption('alias') ?: StringUtil::generateAlias($title);
+        $page->cuser    = $this->resolveAuthorId();
+        // cgroup deliberately left at 0 — Contao's chmod system treats 0 as
+        // "no group ownership"; setting an arbitrary group could grant or
+        // deny access incorrectly. Admins can adjust via the regular backend
+        // module if a group ACL is needed.
+        $page->cgroup   = 0;
         $page->published = '0';
 
         foreach ($fields as $key => $value) {
