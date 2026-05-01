@@ -140,6 +140,7 @@ class RecordListCommand extends AbstractReadCommand
         }
 
         $out = [];
+        $usesId = false;
         foreach ($parts as $part) {
             if (1 !== preg_match('/^([a-zA-Z_][a-zA-Z0-9_]{0,63})(?:\s+(ASC|DESC))?$/i', $part, $m)) {
                 throw new \InvalidArgumentException("order: invalid clause: $part");
@@ -149,7 +150,18 @@ class RecordListCommand extends AbstractReadCommand
             if (!in_array($col, $allowedColumns, true)) {
                 throw new \InvalidArgumentException("order: unknown column: $col");
             }
+            if ('id' === $col) {
+                $usesId = true;
+            }
             $out[] = $this->connection->quoteIdentifier($col).' '.$dir;
+        }
+        // Stable tie-breaker: append id DESC unless the caller already orders
+        // by id. Prevents the "all rows share the same date" trap that broke
+        // the agent's "neueste" interpretation on 2026-05-01 — Contao stores
+        // tl_news.date at midnight, so two same-day records tie and MySQL's
+        // implicit ordering is undefined.
+        if (!$usesId && in_array('id', $allowedColumns, true)) {
+            $out[] = $this->connection->quoteIdentifier('id').' DESC';
         }
         return implode(', ', $out);
     }

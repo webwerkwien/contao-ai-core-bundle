@@ -22,6 +22,20 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
         $this->addArgument('id', InputArgument::REQUIRED, $this->entityName() . ' ID');
     }
 
+    /**
+     * Hook for subclasses to transform field values before write — e.g. wrap
+     * Contao input-unit fields like `tl_news.headline` in their canonical
+     * serialized array shape so create and update produce identical column
+     * payloads. Default: return $fields unchanged.
+     *
+     * @param array<string, mixed> $fields
+     * @return array<string, mixed>
+     */
+    protected function preProcessFields(array $fields, object $record): array
+    {
+        return $fields;
+    }
+
     protected function doExecute(array $fields): int
     {
         $this->framework->initialize();
@@ -35,6 +49,8 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
         if (empty($fields)) {
             return $this->outputError('No fields specified. Use --set field=value');
         }
+
+        $fields = $this->preProcessFields($fields, $record);
 
         foreach ($fields as $key => $value) {
             $record->$key = $value;
