@@ -41,7 +41,7 @@ class ArticleCreateCommand extends AbstractWriteCommand
         $article->title    = $title;
         $article->alias    = StringUtil::generateAlias($title);
         $article->inColumn = $this->input->getOption('inColumn');
-        $article->published = '1';
+        $article->published = '0';
 
         foreach ($fields as $key => $value) {
             $article->$key = $value;

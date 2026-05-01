@@ -43,7 +43,7 @@ class PageCreateCommand extends AbstractWriteCommand
         $page->type     = $this->input->getOption('type');
         $page->language = $this->input->getOption('language');
         $page->alias    = $this->input->getOption('alias') ?: StringUtil::generateAlias($title);
-        $page->published = '1';
+        $page->published = '0';
 
         foreach ($fields as $key => $value) {
             $page->$key = $value;

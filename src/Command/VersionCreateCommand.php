@@ -23,14 +23,16 @@ class VersionCreateCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('table', null, InputOption::VALUE_REQUIRED, 'Table name, e.g. tl_content')
-            ->addOption('id',    null, InputOption::VALUE_REQUIRED, 'Record ID');
+            ->addOption('table',    null, InputOption::VALUE_REQUIRED, 'Table name, e.g. tl_content')
+            ->addOption('id',       null, InputOption::VALUE_REQUIRED, 'Record ID')
+            ->addOption('operator', null, InputOption::VALUE_REQUIRED, 'Audit-trail user identifier (defaults to $_SERVER[USER])', '');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $table = $input->getOption('table');
-        $id    = (int) $input->getOption('id');
+        $table    = $input->getOption('table');
+        $id       = (int) $input->getOption('id');
+        $operator = (string) $input->getOption('operator');
 
         if (!$table || !$id) {
             $output->writeln(json_encode(['status' => 'error', 'message' => '--table and --id are required'], JSON_UNESCAPED_UNICODE));
@@ -43,7 +45,7 @@ class VersionCreateCommand extends Command
         }
 
         $this->framework->initialize();
-        $this->versionManager->createVersion($table, $id);
+        $this->versionManager->createVersion($table, $id, '' !== $operator ? $operator : null);
 
         $output->writeln(json_encode([
             'status' => 'ok',

@@ -42,8 +42,8 @@ class NewsCreateCommand extends AbstractWriteCommand
         $news->alias    = StringUtil::generateAlias($headline);
         $news->date     = strtotime($this->input->getOption('date'));
         $news->time     = $news->date;
-        $news->published = '1';
-        $news->author   = 1;
+        $news->published = '0';
+        $news->author   = $this->resolveAuthorId();
 
         foreach ($fields as $key => $value) {
             $news->$key = $value;

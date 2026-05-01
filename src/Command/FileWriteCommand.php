@@ -91,7 +91,7 @@ class FileWriteCommand extends AbstractWriteCommand
         $filesModel = FilesModel::findByPath($path);
         if ($filesModel !== null) {
             // Snapshot the record before overwrite — Contao convention: version = pre-change state
-            $this->versionManager->createVersion('tl_files', (int) $filesModel->id);
+            $this->versionManager->createVersion('tl_files', (int) $filesModel->id, $this->resolveOperator());
         }
 
         if (file_put_contents($absPath, $content) === false) {

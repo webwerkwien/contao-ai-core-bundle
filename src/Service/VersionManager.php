@@ -18,7 +18,12 @@ class VersionManager
         return in_array($table, self::ALLOWED_TABLES, true);
     }
 
-    public function createVersion(string $table, int $id): void
+    /**
+     * @param string|null $operator Audit-trail user identifier. When passed by the
+     *  backend bundle this carries the Contao `tl_user.username`. CLI invocations
+     *  fall back to `$_SERVER['USER']` so manual operator runs still get attributed.
+     */
+    public function createVersion(string $table, int $id, ?string $operator = null): void
     {
         $row = $this->connection->fetchAssociative(
             'SELECT * FROM `' . $table . '` WHERE id = ?', [$id]
@@ -27,7 +32,11 @@ class VersionManager
             return;
         }
 
-        $this->connection->transactional(function () use ($table, $id, $row): void {
+        $username = ($operator !== null && $operator !== '')
+            ? $operator
+            : ($_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent');
+
+        $this->connection->transactional(function () use ($table, $id, $row, $username): void {
             $max = (int) $this->connection->fetchOne(
                 'SELECT MAX(version) FROM tl_version WHERE fromTable = ? AND pid = ?',
                 [$table, $id]
@@ -41,7 +50,7 @@ class VersionManager
                 'fromTable' => $table,
                 'pid'       => $id,
                 'version'   => $max + 1,
-                'username'  => $_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent',
+                'username'  => $username,
                 'active'    => 1,
                 'data'      => serialize($row),
             ]);

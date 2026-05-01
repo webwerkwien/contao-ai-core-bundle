@@ -45,8 +45,8 @@ class EventCreateCommand extends AbstractWriteCommand
         $event->endDate   = strtotime($this->input->getOption('endDate'));
         $event->startTime = $event->startDate;
         $event->endTime   = $event->endDate;
-        $event->published = '1';
-        $event->author    = 1;
+        $event->published = '0';
+        $event->author    = $this->resolveAuthorId();
 
         foreach ($fields as $key => $value) {
             $event->$key = $value;

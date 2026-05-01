@@ -39,8 +39,8 @@ class FaqCreateCommand extends AbstractWriteCommand
         $faq->pid     = (int) $pid;
         $faq->question = $question;
         $faq->answer  = $this->input->getOption('answer');
-        $faq->published = '1';
-        $faq->author  = 1;
+        $faq->published = '0';
+        $faq->author  = $this->resolveAuthorId();
 
         foreach ($fields as $key => $value) {
             $faq->$key = $value;
