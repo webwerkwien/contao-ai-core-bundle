@@ -41,6 +41,12 @@ class ContentCreateCommand extends AbstractWriteCommand
         $el->type    = $type;
         $el->invisible = '';
 
+        // tl_content.headline is an input-unit field — wrap raw strings to keep
+        // create/update/read consistent (parity with NewsUpdate/ContentUpdate).
+        if (\array_key_exists('headline', $fields) && \is_string($fields['headline'])) {
+            $fields['headline'] = serialize(['unit' => 'h2', 'value' => $fields['headline']]);
+        }
+
         foreach ($fields as $key => $value) {
             $el->$key = $value;
         }
