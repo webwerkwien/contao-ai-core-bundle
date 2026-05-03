@@ -1,0 +1,9 @@
+# Geladen von ContaoAiCoreBundle::loadExtension() nur wenn \Contao\CommentsModel
+# (contao/comments-bundle) installiert ist.
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    Webwerkwien\ContaoAiCoreBundle\Command\CommentDeleteCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\CommentPublishCommand: ~

@@ -5,7 +5,21 @@ services:
 
     Webwerkwien\ContaoAiCoreBundle\:
         resource: ../src
-        exclude: ../src/{ContaoManager,ContaoAiCoreBundle.php}
+        # Plugin-bedingte Commands sind aus dem Auto-Discover ausgeschlossen
+        # und werden in services_{news,calendar,faq,comments}.yaml geladen,
+        # nur wenn das jeweilige Contao-Bundle (news, calendar, faq, comments)
+        # tatsächlich installiert ist (siehe ContaoAiCoreBundle::loadExtension).
+        exclude:
+            - ../src/{ContaoManager,ContaoAiCoreBundle.php}
+            - ../src/Command/News*.php
+            - ../src/Command/Event*.php
+            - ../src/Command/Faq*.php
+            - ../src/Command/Comment*.php
+            # Cloner sind plugin-bedingt und werden in services_<plugin>.yaml registriert.
+            - ../src/Service/Cloner/EntityClonerInterface.php
+            - ../src/Service/Cloner/News*.php
+            - ../src/Service/Cloner/Calendar*.php
+            - ../src/Service/Cloner/FaqCategory*.php
 
     Webwerkwien\ContaoAiCoreBundle\Command\FolderCreateCommand:
         arguments:

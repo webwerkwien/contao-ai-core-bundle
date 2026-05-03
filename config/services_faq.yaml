@@ -1,0 +1,17 @@
+# Geladen von ContaoAiCoreBundle::loadExtension() nur wenn \Contao\FaqModel
+# (contao/faq-bundle) installiert ist.
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    _instanceof:
+        Webwerkwien\ContaoAiCoreBundle\Service\Cloner\EntityClonerInterface:
+            tags: ['contao_ai.entity_cloner']
+
+    Webwerkwien\ContaoAiCoreBundle\Command\FaqCreateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\FaqReadCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\FaqUpdateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\FaqDeleteCommand: ~
+
+    Webwerkwien\ContaoAiCoreBundle\Service\Cloner\FaqCategoryCloner: ~

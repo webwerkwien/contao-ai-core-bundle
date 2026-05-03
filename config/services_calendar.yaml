@@ -1,0 +1,17 @@
+# Geladen von ContaoAiCoreBundle::loadExtension() nur wenn
+# \Contao\CalendarEventsModel (contao/calendar-bundle) installiert ist.
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    _instanceof:
+        Webwerkwien\ContaoAiCoreBundle\Service\Cloner\EntityClonerInterface:
+            tags: ['contao_ai.entity_cloner']
+
+    Webwerkwien\ContaoAiCoreBundle\Command\EventCreateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\EventReadCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\EventUpdateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\EventDeleteCommand: ~
+
+    Webwerkwien\ContaoAiCoreBundle\Service\Cloner\CalendarCloner: ~

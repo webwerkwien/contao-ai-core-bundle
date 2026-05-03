@@ -1,0 +1,19 @@
+# Geladen von ContaoAiCoreBundle::loadExtension() nur wenn \Contao\NewsModel
+# (contao/news-bundle) installiert ist.
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    # Auto-Tag aller Cloner aus diesem File. _instanceof greift nur per-File-Scope,
+    # daher hier wiederholen (gleiches Muster für künftige services_calendar.yaml etc.).
+    _instanceof:
+        Webwerkwien\ContaoAiCoreBundle\Service\Cloner\EntityClonerInterface:
+            tags: ['contao_ai.entity_cloner']
+
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsCreateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsReadCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsUpdateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsDeleteCommand: ~
+
+    Webwerkwien\ContaoAiCoreBundle\Service\Cloner\NewsArchiveCloner: ~

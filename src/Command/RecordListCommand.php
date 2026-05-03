@@ -258,6 +258,8 @@ class RecordListCommand extends AbstractReadCommand
             'tl_content'        => ['id', 'pid', 'ptable', 'type', 'headline', 'invisible', 'tstamp'],
             'tl_calendar'       => ['id', 'title', 'tstamp'],
             'tl_calendar_events'=> ['id', 'pid', 'title', 'startTime', 'endTime', 'published', 'tstamp'],
+            'tl_faq_category'   => ['id', 'title', 'tstamp'],
+            'tl_faq'            => ['id', 'pid', 'question', 'published', 'tstamp'],
             'tl_files'          => ['id', 'pid', 'name', 'type', 'extension', 'tstamp'],
             default             => ['id', 'tstamp'],
         };
