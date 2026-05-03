@@ -3,6 +3,13 @@ services:
         autowire: true
         autoconfigure: true
 
+    # Auto-Tag aller EntityCloner aus diesem File (PageCloner, da page/article/content
+    # zum contao/core-bundle gehören und immer geladen sind). Plugin-bedingte Cloner
+    # in services_<plugin>.yaml haben jeweils eigenes _instanceof (per-File-Scope).
+    _instanceof:
+        Webwerkwien\ContaoAiCoreBundle\Service\Cloner\EntityClonerInterface:
+            tags: ['contao_ai.entity_cloner']
+
     Webwerkwien\ContaoAiCoreBundle\:
         resource: ../src
         # Plugin-bedingte Commands sind aus dem Auto-Discover ausgeschlossen
