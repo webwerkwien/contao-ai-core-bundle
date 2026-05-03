@@ -31,8 +31,10 @@ class CalendarCloner implements EntityClonerInterface
         return 'tl_calendar' === $table;
     }
 
-    public function clone(int $sourceId, array $modifications, string $operator): array
+    public function clone(int $sourceId, array $modifications, string $operator, array $options = []): array
     {
+        // Calendar hat keine container-of-container-Hierarchie — `recursive`
+        // wird ignoriert. Signature-Kompat zur Interface-Erweiterung.
         $this->framework->initialize();
 
         $source = CalendarModel::findById($sourceId);

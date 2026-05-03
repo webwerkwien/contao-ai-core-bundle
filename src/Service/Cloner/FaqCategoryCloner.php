@@ -36,8 +36,10 @@ class FaqCategoryCloner implements EntityClonerInterface
         return 'tl_faq_category' === $table;
     }
 
-    public function clone(int $sourceId, array $modifications, string $operator): array
+    public function clone(int $sourceId, array $modifications, string $operator, array $options = []): array
     {
+        // FAQ-Categories haben keine container-of-container-Hierarchie — `recursive`
+        // wird ignoriert. Signature-Kompat zur Interface-Erweiterung.
         $this->framework->initialize();
 
         $source = FaqCategoryModel::findById($sourceId);

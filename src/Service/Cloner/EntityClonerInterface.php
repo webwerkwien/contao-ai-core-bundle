@@ -24,10 +24,12 @@ interface EntityClonerInterface
      * @param int                          $sourceId      ID of the source container record
      * @param array<string, scalar|null>   $modifications Field overrides for the cloned root record (e.g. ['title' => 'Pressemitteilungen 2026'])
      * @param string                       $operator      Audit-trail user identifier (Contao username for backend, $_SERVER[USER] for CLI)
+     * @param array<string, mixed>         $options       Cloner-specific flags. Recognised:
+     *   - `recursive` (bool): walk container-of-container hierarchies (e.g. PageCloner: clone the entire subpage tree, not just the root page). Default false.
      *
-     * @return array{id: int, table: string, count: int}  New root record id, source table name, number of cloned child records
+     * @return array{id: int, table: string, count: int}  New root record id, source table name, number of cloned child records (cloner-specific definition of "child")
      *
      * @throws \RuntimeException on missing source, transaction failure, or DCA violation
      */
-    public function clone(int $sourceId, array $modifications, string $operator): array;
+    public function clone(int $sourceId, array $modifications, string $operator, array $options = []): array;
 }

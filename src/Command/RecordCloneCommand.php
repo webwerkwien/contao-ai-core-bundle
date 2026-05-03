@@ -43,6 +43,7 @@ class RecordCloneCommand extends Command
         $this->addOption('source-id',     null, InputOption::VALUE_REQUIRED, 'ID of the source container record');
         $this->addOption('modifications', null, InputOption::VALUE_OPTIONAL, 'JSON object of root-record field overrides (e.g. {"title":"…"})', '{}');
         $this->addOption('operator',      null, InputOption::VALUE_REQUIRED, 'Audit-trail user identifier — backend integrations pass the Contao username, CLI falls back to $_SERVER[USER].', '');
+        $this->addOption('recursive',     null, InputOption::VALUE_NONE, 'Walk container-of-container hierarchies (e.g. PageCloner: clone the entire subpage tree, not just the root page).');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -64,14 +65,16 @@ class RecordCloneCommand extends Command
             }
         }
 
-        $sourceId = (int) $idRaw;
+        $sourceId  = (int) $idRaw;
+        $recursive = (bool) $input->getOption('recursive');
+        $clonerOptions = ['recursive' => $recursive];
 
         foreach ($this->cloners as $cloner) {
             if (!$cloner->supports($table)) {
                 continue;
             }
             try {
-                $result = $cloner->clone($sourceId, $modifications, $operator);
+                $result = $cloner->clone($sourceId, $modifications, $operator, $clonerOptions);
             } catch (\Throwable $e) {
                 return $this->error($output, $e->getMessage());
             }

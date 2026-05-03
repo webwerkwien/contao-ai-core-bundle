@@ -41,8 +41,10 @@ class NewsArchiveCloner implements EntityClonerInterface
         return 'tl_news_archive' === $table;
     }
 
-    public function clone(int $sourceId, array $modifications, string $operator): array
+    public function clone(int $sourceId, array $modifications, string $operator, array $options = []): array
     {
+        // News-Archive haben keine container-of-container-Hierarchie — `recursive`
+        // wird ignoriert. Signature-Kompat zur Interface-Erweiterung.
         $this->framework->initialize();
 
         $source = NewsArchiveModel::findById($sourceId);
