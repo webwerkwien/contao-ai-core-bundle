@@ -17,7 +17,7 @@ Dieses Paket ist Teil der **contao-ai**-Familie — einer Sammlung von Werkzeuge
 |---|---|---|
 | **contao-ai-core-bundle** *(this package)* | Contao bundle — exposes CMS operations as Symfony console commands / Contao-Bundle — stellt CMS-Operationen als Symfony-Console-Commands bereit | Required as the foundation layer. Install on any Contao site you want to manage via AI. / Wird als Grundlage benötigt. Auf jeder Contao-Seite installieren, die KI-gesteuert verwaltet werden soll. |
 | [contao-ai-cli](https://github.com/webwerkwien/contao-ai-cli) | Python CLI — connects to Contao via SSH and runs commands / Python-CLI — verbindet sich via SSH mit Contao und führt Commands aus | For developers and agencies: manage Contao from the terminal or hand control to an AI agent. / Für Entwickler und Agenturen: Contao vom Terminal aus verwalten oder die Kontrolle an einen KI-Agenten übergeben. |
-| contao-ai-backend-bundle *(planned / geplant)* | Contao backend module — browser-based AI chat interface with support for multiple AI providers (Anthropic Claude, OpenAI, and more) / Contao-Backend-Modul — browser-basierte KI-Chat-Oberfläche mit Unterstützung für mehrere KI-Anbieter (Anthropic Claude, OpenAI u.a.) | For end users and editors: use AI directly inside the Contao backend, no SSH or terminal needed. / Für Redakteure und Endnutzer: KI direkt im Contao-Backend nutzen, ohne SSH oder Terminal. |
+| [contao-ai-backend-bundle](https://github.com/webwerkwien/contao-ai-backend-bundle) | Contao backend module — browser-based AI chat interface with support for multiple AI providers (Anthropic Claude, OpenAI, and more) / Contao-Backend-Modul — browser-basierte KI-Chat-Oberfläche mit Unterstützung für mehrere KI-Anbieter (Anthropic Claude, OpenAI u.a.) | For end users and editors: use AI directly inside the Contao backend, no SSH or terminal needed. / Für Redakteure und Endnutzer: KI direkt im Contao-Backend nutzen, ohne SSH oder Terminal. |
 
 ---
 
@@ -61,6 +61,14 @@ All commands output JSON and follow a consistent `{"status":"ok", ...}` / `{"sta
 | Versions | `contao:version:list` `contao:version:read` `contao:version:create` `contao:version:restore` |
 | Search | `contao:search:query` |
 | Schema / Config | `contao:dca:schema` `contao:listing:config` |
+| Macros (since v0.2.0) | `contao:record:list` `contao:record:clone` |
+
+#### Macro commands
+
+- `contao:record:list <table>` — table-agnostic listing with Doctrine-parameterised filters, DCA-validated ORDER BY, pagination, curated default columns per table.
+- `contao:record:clone <table> <id> [--recursive]` — clone a container record (news archive, calendar, FAQ category, page) including all cascading children in one DB transaction. With `--recursive` PageCloner walks subpage trees (depth-cap 10, total-cap 50). Tagged-iterator EntityCloner registry — only registers cloners for plugins actually installed on the target site.
+
+> **`record_rewrite` lives in [contao-ai-backend-bundle](https://github.com/webwerkwien/contao-ai-backend-bundle), not here.** That command needs an LLM API key per call. Keeping core agnostic of LLM dependencies and key handling was a deliberate architecture decision.
 
 ### License
 
