@@ -119,7 +119,15 @@ class FileProcessCommand extends AbstractWriteCommand
 
     private function resizeIfNeeded(string $absPath, string $ext, int $maxW, int $maxH): ?bool
     {
-        [$srcW, $srcH] = @getimagesize($absPath);
+        // Guard against corrupt/invalid images: getimagesize() returns false,
+        // and destructuring false ([$a, $b] = false) would emit "Trying to
+        // access array offset on bool" warnings that could corrupt the JSON
+        // output. Check the result before destructuring (cf. Contao #9975).
+        $info = @getimagesize($absPath);
+        if ($info === false) {
+            return null;
+        }
+        [$srcW, $srcH] = $info;
         if (!$srcW || !$srcH) {
             return null;
         }

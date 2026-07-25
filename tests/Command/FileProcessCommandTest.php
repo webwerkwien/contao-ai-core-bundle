@@ -74,6 +74,26 @@ class FileProcessCommandTest extends TestCase
         $this->assertFalse($out['resized']);
     }
 
+    public function testInvalidImageReturnsCleanError(): void
+    {
+        // A file with an image extension but non-image content: getimagesize()
+        // returns false. The command must return a clean JSON error, not leak
+        // PHP warnings that corrupt the output (cf. Contao #9975 hardening).
+        $file = $this->tmpDir . '/files/broken.jpg';
+        file_put_contents($file, 'this is not a valid jpeg');
+
+        $tester = new CommandTester($this->makeCommand());
+        $tester->execute([
+            '--path'          => 'files/broken.jpg',
+            '--allowed-types' => 'jpg',
+            '--max-width'     => '800',
+        ]);
+        $out = json_decode($tester->getDisplay(), true);
+        $this->assertIsArray($out, 'Output must be valid JSON (no warning leakage)');
+        $this->assertSame('error', $out['status']);
+        $this->assertStringContainsStringIgnoringCase('image', $out['message']);
+    }
+
     public function testOversizedImageGetsResized(): void
     {
         $img  = imagecreatetruecolor(2000, 1500);
