@@ -39,13 +39,18 @@ class ContentCreateCommand extends AbstractWriteCommand
         $el->pid     = (int) $pid;
         $el->ptable  = $this->input->getOption('ptable');
         $el->type    = $type;
-        $el->invisible = '';
+        // invisible is a boolean column; '' fails under strict SQL mode (MariaDB
+        // rejects the empty string for an integer field). Default to visible (0).
+        $el->invisible = 0;
 
         // tl_content.headline is an input-unit field — wrap raw strings to keep
         // create/update/read consistent (parity with NewsUpdate/ContentUpdate).
         if (\array_key_exists('headline', $fields) && \is_string($fields['headline'])) {
             $fields['headline'] = serialize(['unit' => 'h2', 'value' => $fields['headline']]);
         }
+
+        // singleSRC and other fileTree fields need the binary UUID, not the string.
+        $fields = $this->convertFileTreeFields('tl_content', $fields);
 
         foreach ($fields as $key => $value) {
             $el->$key = $value;

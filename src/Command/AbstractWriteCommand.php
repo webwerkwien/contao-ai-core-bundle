@@ -2,6 +2,8 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
+use Contao\Controller;
+use Contao\StringUtil;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -113,6 +115,65 @@ abstract class AbstractWriteCommand extends Command
         }
         $user = \Contao\UserModel::findOneBy('username', $name);
         return $user ? (int) $user->id : 1;
+    }
+
+    /**
+     * Convert string UUID(s) into Contao's binary storage form for every
+     * `fileTree` DCA field of the given table (e.g. tl_content.singleSRC,
+     * tl_news.singleSRC, multiSRC/orderSRC).
+     *
+     * Contao references files by *binary* UUID; a raw UUID string written to
+     * such a column never resolves to a file, so the image/enclosure stays
+     * empty. This mirrors what the backend FileTree widget does on save, so a
+     * record created/updated via CLI behaves identically to a backend one.
+     * Values that are not a canonical UUID string are left untouched
+     * (defensive against re-runs, empty values or already-binary input).
+     *
+     * @param array<string, mixed> $fields
+     * @return array<string, mixed>
+     */
+    protected function convertFileTreeFields(string $table, array $fields): array
+    {
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+        $dca = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
+
+        foreach ($fields as $key => $value) {
+            if (!\is_string($value) || ($dca[$key]['inputType'] ?? null) !== 'fileTree') {
+                continue;
+            }
+            $multiple = (bool) ($dca[$key]['eval']['multiple'] ?? false);
+            $fields[$key] = $this->uuidStringsToBin($value, $multiple);
+        }
+
+        return $fields;
+    }
+
+    /**
+     * @param string $value    single UUID, or comma-separated list for multiple
+     * @param bool   $multiple whether the DCA field stores an array of UUIDs
+     */
+    private function uuidStringsToBin(string $value, bool $multiple): string
+    {
+        $pattern = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
+
+        if (!$multiple) {
+            $single = trim($value);
+            return preg_match($pattern, $single) ? StringUtil::uuidToBin($single) : $value;
+        }
+
+        $bins = [];
+        foreach (explode(',', $value) as $part) {
+            $part = trim($part);
+            if ($part !== '' && preg_match($pattern, $part)) {
+                $bins[] = StringUtil::uuidToBin($part);
+            }
+        }
+
+        // Nothing looked like a UUID → leave the raw value untouched rather
+        // than clobbering the field with an empty serialized array.
+        return $bins === [] ? $value : serialize($bins);
     }
 
     protected function outputSuccess(array $data): void

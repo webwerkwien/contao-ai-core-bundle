@@ -51,6 +51,9 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
         }
 
         $fields = $this->preProcessFields($fields, $record);
+        // Turn string UUIDs into binary for fileTree fields (singleSRC etc.) —
+        // DCA-driven, so this covers every table's file-reference fields.
+        $fields = $this->convertFileTreeFields($class::getTable(), $fields);
 
         foreach ($fields as $key => $value) {
             $record->$key = $value;

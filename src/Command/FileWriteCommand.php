@@ -3,7 +3,9 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
+use Contao\Dbafs;
 use Contao\FilesModel;
+use Contao\StringUtil;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
@@ -106,13 +108,34 @@ class FileWriteCommand extends AbstractWriteCommand
             $filesModel->save();
             $version = true;
         } else {
+            // New file: register it in the DBAFS so it receives a tl_files
+            // record (and thus a UUID). Without this the file exists on disk
+            // but stays invisible to Contao until the next contao:filesync —
+            // which is exactly what blocks referencing it in a content element.
             $version = false;
+            try {
+                $filesModel = Dbafs::addResource($path);
+            } catch (\Throwable $e) {
+                $this->logger->warning('contao:file:write DBAFS sync failed', [
+                    'path'  => $path,
+                    'error' => $e->getMessage(),
+                ]);
+                $filesModel = null;
+            }
         }
+
+        // Expose the file UUID so callers can reference the file (e.g. set
+        // tl_content.singleSRC) without a second lookup. Null only if the
+        // DBAFS sync above failed.
+        $uuid = ($filesModel !== null && $filesModel->uuid !== null)
+            ? StringUtil::binToUuid($filesModel->uuid)
+            : null;
 
         $this->outputSuccess([
             'path'    => $path,
             'bytes'   => $bytes,
             'version' => $version,
+            'uuid'    => $uuid,
         ]);
 
         return Command::SUCCESS;
