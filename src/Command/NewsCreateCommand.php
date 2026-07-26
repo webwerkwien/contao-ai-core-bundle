@@ -29,6 +29,7 @@ class NewsCreateCommand extends AbstractWriteCommand
         // "neueste" misinterpretation. Users can still pass an explicit date
         // string ("2026-06-01", "tomorrow", "2026-06-01 10:00") via --date.
         $this->addOption('date',     null, InputOption::VALUE_OPTIONAL, 'Publication date/time, accepts strtotime() format (default: now)', 'now');
+        $this->addOption('unit',     null, InputOption::VALUE_OPTIONAL, 'Headline level (h1–h6)', 'h1');
     }
 
     protected function doExecute(array $fields): int
@@ -44,7 +45,12 @@ class NewsCreateCommand extends AbstractWriteCommand
         $news           = new NewsModel();
         $news->tstamp   = time();
         $news->pid      = (int) $pid;
-        $news->headline = serialize(['unit' => 'h1', 'value' => $headline]);
+        $unit = (string) $this->input->getOption('unit');
+        if (!\in_array($unit, ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'], true)) {
+            $unit = 'h1';
+        }
+        // Canonical Contao order: value first, then unit (matches backend/SQL default).
+        $news->headline = serialize(['value' => $headline, 'unit' => $unit]);
         $news->alias    = StringUtil::generateAlias($headline);
         $news->date     = strtotime($this->input->getOption('date'));
         $news->time     = $news->date;

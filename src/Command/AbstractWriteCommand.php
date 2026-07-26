@@ -176,6 +176,98 @@ abstract class AbstractWriteCommand extends Command
         return $bins === [] ? $value : serialize($bins);
     }
 
+    /**
+     * Serialize Contao "inputUnit" fields (e.g. tl_content.headline,
+     * tl_news.headline) into their canonical {value, unit} storage form.
+     *
+     * Contao stores these as serialize(['value' => ..., 'unit' => ...]) — note
+     * the key order (value first), matching the backend and the column's SQL
+     * default (a:2:{s:5:"value";...;s:4:"unit";...}). The unit is resolved in
+     * this order:
+     *   1. a companion "<field>_unit" key in the --set payload
+     *   2. a JSON object value {"unit":"h1","value":"..."} given as the field
+     *   3. the unit of the record's current value (update path, via $record)
+     *   4. $defaultUnit
+     * The unit is validated against the field's DCA options; an invalid unit
+     * falls back to the default. Companion "<field>_unit" keys are consumed so
+     * they never reach the model as unknown columns.
+     *
+     * @param array<string, mixed> $fields
+     * @return array<string, mixed>
+     */
+    protected function convertInputUnitFields(string $table, array $fields, string $defaultUnit = 'h2', ?object $record = null): array
+    {
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+        $dca = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
+
+        foreach ($fields as $key => $value) {
+            if (!\is_string($key) || str_ends_with($key, '_unit')) {
+                continue; // companion keys are handled alongside their base field
+            }
+            if (($dca[$key]['inputType'] ?? null) !== 'inputUnit' || !\is_string($value)) {
+                continue;
+            }
+
+            $options = $dca[$key]['options'] ?? [];
+            $val     = $value;
+            $unit    = null;
+
+            // (2) the value itself is a {"unit","value"} JSON object.
+            // NOTE: json_decode() + is_array() instead of json_validate(), which
+            // only exists from PHP 8.3 — this bundle supports PHP ^8.2. If the
+            // minimum PHP requirement is ever raised to 8.3+, this can be
+            // simplified with json_validate() before decoding.
+            $decoded = json_decode($value, true);
+            if (\is_array($decoded) && \array_key_exists('value', $decoded)) {
+                $val  = (string) $decoded['value'];
+                $unit = isset($decoded['unit']) ? (string) $decoded['unit'] : null;
+            }
+
+            // (1) explicit companion "<field>_unit" wins
+            $unitKey = $key . '_unit';
+            if (\array_key_exists($unitKey, $fields) && \is_string($fields[$unitKey]) && '' !== $fields[$unitKey]) {
+                $unit = $fields[$unitKey];
+            }
+
+            // (3) preserve the record's existing unit on update
+            if (null === $unit && null !== $record) {
+                $current = $record->$key ?? null;
+                if (\is_string($current) && '' !== $current) {
+                    $prev = @unserialize($current, ['allowed_classes' => false]);
+                    if (\is_array($prev) && isset($prev['unit']) && \is_string($prev['unit'])) {
+                        $unit = $prev['unit'];
+                    }
+                }
+            }
+
+            // (4) fall back to the default
+            if (null === $unit || '' === $unit) {
+                $unit = $defaultUnit;
+            }
+
+            // validate against the DCA options; invalid → default (or first option)
+            if (!empty($options) && !\in_array($unit, $options, true)) {
+                $unit = \in_array($defaultUnit, $options, true) ? $defaultUnit : (string) $options[0];
+            }
+
+            $fields[$key] = serialize(['value' => $val, 'unit' => $unit]);
+        }
+
+        // Drop consumed / orphan "<field>_unit" companion keys for inputUnit
+        // fields so they are never written as (non-existent) columns.
+        foreach (array_keys($fields) as $k) {
+            if (\is_string($k) && str_ends_with($k, '_unit')
+                && ($dca[substr($k, 0, -5)]['inputType'] ?? null) === 'inputUnit'
+            ) {
+                unset($fields[$k]);
+            }
+        }
+
+        return $fields;
+    }
+
     protected function outputSuccess(array $data): void
     {
         $this->logger->info('contao-ai-core-bundle audit', [

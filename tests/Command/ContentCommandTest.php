@@ -151,4 +151,67 @@ class ContentCommandTest extends TestCase
         $this->assertSame($uuid, $out['text']);
         unset($GLOBALS['TL_DCA']['tl_content']);
     }
+
+    // --- inputUnit headline conversion (unit + value) ---
+
+    private function unitConv(): object
+    {
+        return new class($this->fw()) extends ContentCreateCommand {
+            public function expose(string $t, array $f, string $d = 'h2', ?object $r = null): array
+            {
+                return $this->convertInputUnitFields($t, $f, $d, $r);
+            }
+        };
+    }
+
+    private function seedHeadlineDca(): void
+    {
+        $GLOBALS['TL_DCA']['tl_content']['fields']['headline'] = [
+            'inputType' => 'inputUnit',
+            'options'   => ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+        ];
+    }
+
+    public function testHeadlineDefaultUnitCanonicalOrder(): void
+    {
+        $this->seedHeadlineDca();
+        $out = $this->unitConv()->expose('tl_content', ['headline' => 'Titel']);
+        // canonical Contao order: value first, then unit
+        $this->assertSame(serialize(['value' => 'Titel', 'unit' => 'h2']), $out['headline']);
+        unset($GLOBALS['TL_DCA']['tl_content']);
+    }
+
+    public function testHeadlineCompanionUnitConsumed(): void
+    {
+        $this->seedHeadlineDca();
+        $out = $this->unitConv()->expose('tl_content', ['headline' => 'Titel', 'headline_unit' => 'h1']);
+        $this->assertSame(serialize(['value' => 'Titel', 'unit' => 'h1']), $out['headline']);
+        $this->assertArrayNotHasKey('headline_unit', $out, 'companion key must not reach the model');
+        unset($GLOBALS['TL_DCA']['tl_content']);
+    }
+
+    public function testHeadlineJsonValue(): void
+    {
+        $this->seedHeadlineDca();
+        $out = $this->unitConv()->expose('tl_content', ['headline' => '{"unit":"h3","value":"Titel"}']);
+        $this->assertSame(serialize(['value' => 'Titel', 'unit' => 'h3']), $out['headline']);
+        unset($GLOBALS['TL_DCA']['tl_content']);
+    }
+
+    public function testHeadlineInvalidUnitFallsBackToDefault(): void
+    {
+        $this->seedHeadlineDca();
+        $out = $this->unitConv()->expose('tl_content', ['headline' => 'Titel', 'headline_unit' => 'h9']);
+        $this->assertSame(serialize(['value' => 'Titel', 'unit' => 'h2']), $out['headline']);
+        unset($GLOBALS['TL_DCA']['tl_content']);
+    }
+
+    public function testHeadlineUnitPreservedOnUpdate(): void
+    {
+        $this->seedHeadlineDca();
+        $record = (object) ['headline' => serialize(['value' => 'Alt', 'unit' => 'h4'])];
+        $out = $this->unitConv()->expose('tl_content', ['headline' => 'Neu'], 'h2', $record);
+        $this->assertSame(serialize(['value' => 'Neu', 'unit' => 'h4']), $out['headline']);
+        unset($GLOBALS['TL_DCA']['tl_content']);
+    }
 }

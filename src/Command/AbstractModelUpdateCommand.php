@@ -36,6 +36,16 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
         return $fields;
     }
 
+    /**
+     * Default unit for inputUnit fields (headline) when neither an explicit
+     * value nor an existing record value provides one. Subclasses override
+     * where Contao's field default differs (e.g. News → h1).
+     */
+    protected function defaultInputUnit(): string
+    {
+        return 'h2';
+    }
+
     protected function doExecute(array $fields): int
     {
         $this->framework->initialize();
@@ -51,6 +61,9 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
         }
 
         $fields = $this->preProcessFields($fields, $record);
+        // inputUnit fields (headline): serialize to {value, unit}; unit via
+        // <field>_unit companion / JSON value / existing record value / default.
+        $fields = $this->convertInputUnitFields($class::getTable(), $fields, $this->defaultInputUnit(), $record);
         // Turn string UUIDs into binary for fileTree fields (singleSRC etc.) —
         // DCA-driven, so this covers every table's file-reference fields.
         $fields = $this->convertFileTreeFields($class::getTable(), $fields);

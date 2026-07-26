@@ -43,11 +43,9 @@ class ContentCreateCommand extends AbstractWriteCommand
         // rejects the empty string for an integer field). Default to visible (0).
         $el->invisible = 0;
 
-        // tl_content.headline is an input-unit field — wrap raw strings to keep
-        // create/update/read consistent (parity with NewsUpdate/ContentUpdate).
-        if (\array_key_exists('headline', $fields) && \is_string($fields['headline'])) {
-            $fields['headline'] = serialize(['unit' => 'h2', 'value' => $fields['headline']]);
-        }
+        // headline is an inputUnit field ({value, unit}); --set headline_unit=h1
+        // (or a JSON value) controls the level, default h2.
+        $fields = $this->convertInputUnitFields('tl_content', $fields, 'h2');
 
         // singleSRC and other fileTree fields need the binary UUID, not the string.
         $fields = $this->convertFileTreeFields('tl_content', $fields);
