@@ -69,7 +69,6 @@ class FileProcessCommandTest extends TestCase
         $img  = imagecreatetruecolor(1, 1);
         $file = $this->tmpDir . '/files/tiny.jpg';
         imagejpeg($img, $file, 90);
-        imagedestroy($img);
 
         $tester = new CommandTester($this->makeCommand());
         $tester->execute([
@@ -108,7 +107,6 @@ class FileProcessCommandTest extends TestCase
         $img  = imagecreatetruecolor(2000, 1500);
         $file = $this->tmpDir . '/files/big.jpg';
         imagejpeg($img, $file, 85);
-        imagedestroy($img);
 
         $tester = new CommandTester($this->makeCommand());
         $tester->execute([

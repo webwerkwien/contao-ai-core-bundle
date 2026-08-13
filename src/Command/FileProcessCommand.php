@@ -179,8 +179,10 @@ class FileProcessCommand extends AbstractWriteCommand
             default       => false,
         };
 
-        imagedestroy($src);
-        imagedestroy($dst);
+        // No imagedestroy(): GD resources became GdImage objects in PHP 8.0 and
+        // are released by the garbage collector, so the call has had no effect
+        // since then — and PHP 8.5 deprecates it. Dropping it keeps the bundle
+        // notice-free across the whole ^8.2 range.
 
         return $saved;
     }
