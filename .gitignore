@@ -1,6 +1,5 @@
-
-# PHPUnit
-/.phpunit.cache/
+/vendor/
 /.worktrees/
 /docs/superpowers/
-/vendor/
+/.phpunit.cache/
+/composer.lock
