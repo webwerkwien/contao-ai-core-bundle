@@ -1,19 +1,51 @@
 <?php declare(strict_types=1);
 
 /**
- * Test bootstrap.
+ * Test bootstrap with two modes.
  *
- * The command tests drive real Contao model classes through a mocked
- * ContaoFramework. Because `initialize()` is mocked away, the table→model map
- * that Contao normally builds from each bundle's `config/config.php` is never
- * populated, and `Model::findByPk()` fails with
- * "There is no class for table "tl_x" registered in $GLOBALS['TL_MODELS']".
+ * WITHOUT `CONTAO_ROOT` (plain `vendor/bin/phpunit`):
+ *   Only seeds the table→model map. Contao normally builds it while booting
+ *   the framework, but the command tests mock the framework away, so
+ *   Model::findByPk() would fail with "no class for table". Tests that merely
+ *   check argument handling and output shape pass in this mode. Tests that
+ *   actually resolve a model do not — Model::findByPk() reaches DcaExtractor,
+ *   which needs a real Symfony container and a database. They error out; see
+ *   the second mode.
  *
- * Seeding the map here keeps that plumbing out of the individual test classes —
- * they only care about command behaviour, not about how Contao wires models.
+ * WITH `CONTAO_ROOT` pointing at a Contao installation:
+ *   Boots that installation's kernel and initialises the framework, giving the
+ *   suite a real container and database. The full suite passes in this mode.
+ *
+ *   CONTAO_ROOT=/var/www/.../web vendor/bin/phpunit
+ *
+ * Verified on c5.axeltest.at (Contao 5.7.11): 114 tests, 183 assertions,
+ * 0 errors, 0 failures, 4 incomplete.
  */
 
-require_once __DIR__ . '/../vendor/autoload.php';
+// Absent when the tests are run from inside a Contao installation (where the
+// bundle is loaded from that installation's vendor/ instead).
+$ownAutoload = __DIR__ . '/../vendor/autoload.php';
+if (is_file($ownAutoload)) {
+    require_once $ownAutoload;
+}
+
+$contaoRoot = getenv('CONTAO_ROOT') ?: null;
+
+if (null !== $contaoRoot && is_file($contaoRoot . '/vendor/autoload.php')) {
+    require_once $contaoRoot . '/vendor/autoload.php';
+
+    $kernel = \Contao\ManagerBundle\HttpKernel\ContaoKernel::fromInput(
+        $contaoRoot,
+        new \Symfony\Component\Console\Input\ArgvInput(['console', '--env=prod'])
+    );
+    $kernel->boot();
+
+    $container = $kernel->getContainer();
+    \Contao\System::setContainer($container);
+    $container->get('contao.framework')->initialize();
+
+    return;
+}
 
 $models = [
     'tl_article'          => Contao\ArticleModel::class,
