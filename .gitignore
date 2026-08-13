@@ -1,3 +1,6 @@
-/vendor/
+
+# PHPUnit
+/.phpunit.cache/
 /.worktrees/
 /docs/superpowers/
+/vendor/

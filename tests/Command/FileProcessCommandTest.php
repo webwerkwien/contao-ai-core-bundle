@@ -3,8 +3,10 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 use Webwerkwien\ContaoAiCoreBundle\Command\FileProcessCommand;
+use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 use Contao\CoreBundle\Framework\ContaoFramework;
 
 class FileProcessCommandTest extends TestCase
@@ -27,7 +29,14 @@ class FileProcessCommandTest extends TestCase
     private function makeCommand(): FileProcessCommand
     {
         $framework = $this->createMock(ContaoFramework::class);
-        return new FileProcessCommand($framework, $this->tmpDir);
+        $cmd = new FileProcessCommand($framework, $this->tmpDir);
+        // Both are #[Required] setters — Symfony injects them at runtime, so a
+        // hand-built command must wire them or outputSuccess() hits an
+        // uninitialised typed property.
+        $cmd->setLogger($this->createMock(LoggerInterface::class));
+        $cmd->setVersionManager($this->createMock(VersionManager::class));
+
+        return $cmd;
     }
 
     public function testMissingPathReturnsError(): void

@@ -1,4 +1,4 @@
-﻿<?php declare(strict_types=1);
+<?php declare(strict_types=1);
 
 namespace Webwerkwien\ContaoAiCoreBundle\Tests\Service;
 
@@ -93,13 +93,17 @@ class VersionManagerTest extends TestCase
                         && $data['version'] === 2
                         && $data['fromTable'] === 'tl_article'
                         && $data['pid'] === 1
-                        && $data['username'] === 'cli-agent'
+                        && $data['username'] === 'j.wilson'
                         && is_string($data['data']);
                 })
             );
 
         $vm = new VersionManager($conn);
-        $vm->createVersion('tl_article', 1);
+        // Operator passed explicitly: without it the username falls back to
+        // $_SERVER[USER]/[USERNAME], which makes the assertion depend on the
+        // machine running the suite (it read "booki" on Windows, and would
+        // read the CI user on Linux).
+        $vm->createVersion('tl_article', 1, 'j.wilson');
     }
 
     public function testMarkActiveVersionCallsExecuteStatementTwice(): void

@@ -174,6 +174,10 @@ class FileCommandTest extends TestCase
 
     public function testWriteRejectsSourceOutsideAllowedDirs(): void
     {
+        // The command checks the upload directory before validating the source,
+        // so it has to exist — otherwise this asserts the wrong error message.
+        mkdir($this->tmpDir . '/var/bridge-uploads', 0775, true);
+
         // Source not under /tmp/ or var/bridge-uploads/ → error
         $cmd = new FileWriteCommand($this->fw(), $this->tmpDir);
         $cmd->setLogger($this->logger());
