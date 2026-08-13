@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.7 — 2026-08-13
+
+### Fixed
+
+- Removed the `imagedestroy()` calls in `FileProcessCommand`. GD resources became `GdImage` objects in PHP 8.0 and are released by the garbage collector, so the calls have had no effect since then — and **PHP 8.5 deprecates the function**, which made the bundle emit deprecation notices on a version its own `php: ^8.2` constraint covers.
+
+### Notes
+
+The suite was run across the supported PHP range for the first time, against Contao 5.3.49 (the declared `^5.3` minimum): PHP 8.2, 8.4 and 8.5 all give 126 tests and 200 assertions, with 8.5 now free of deprecations. PHP 8.3 could not be covered locally — winget's package returns a 404 for the archived build.
+
+Testing against 8.2 requires Composer to resolve for that platform (`composer config platform.php 8.2.33 && composer update`); dependencies resolved under 8.4 pull in packages requiring `>= 8.4.1`, and the generated `platform_check.php` then aborts. Note that Contao 5.7.9+ itself requires `php: ^8.3`, so PHP 8.2 is only reachable in combination with Contao 5.3–5.6.
+
 ## v0.2.6 — 2026-08-13
 
 ### Changed
