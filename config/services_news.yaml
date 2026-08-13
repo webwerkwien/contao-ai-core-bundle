@@ -15,5 +15,6 @@ services:
     Webwerkwien\ContaoAiCoreBundle\Command\NewsReadCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\NewsUpdateCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\NewsDeleteCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsRepairHeadlinesCommand: ~
 
     Webwerkwien\ContaoAiCoreBundle\Service\Cloner\NewsArchiveCloner: ~
