@@ -35,11 +35,9 @@ class MemberUpdateCommand extends AbstractWriteCommand
         $this->framework->initialize();
         $username = $this->input->getArgument('username');
 
-        $member = MemberModel::findByUsername($username);
-        if ($member === null) {
-            return $this->outputError("Member not found: $username");
-        }
-
+        // Input is validated before the record is loaded: a rejected field must
+        // not depend on whether the member happens to exist, and the check stays
+        // reachable without a database — which is what makes it testable.
         if (empty($fields)) {
             return $this->outputError('No fields specified. Use --set field=value');
         }
@@ -47,6 +45,11 @@ class MemberUpdateCommand extends AbstractWriteCommand
         $disallowedFields = array_diff(array_keys($fields), self::ALLOWED_FIELDS);
         if (!empty($disallowedFields)) {
             return $this->outputError('Field(s) not allowed: ' . implode(', ', $disallowedFields));
+        }
+
+        $member = MemberModel::findByUsername($username);
+        if ($member === null) {
+            return $this->outputError("Member not found: $username");
         }
 
         foreach ($fields as $key => $value) {

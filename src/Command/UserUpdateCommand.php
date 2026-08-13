@@ -34,11 +34,9 @@ class UserUpdateCommand extends AbstractWriteCommand
         $this->framework->initialize();
         $username = $this->input->getArgument('username');
 
-        $user = UserModel::findByUsername($username);
-        if ($user === null) {
-            return $this->outputError("User not found: $username");
-        }
-
+        // Input is validated before the record is loaded: a rejected field must
+        // not depend on whether the user happens to exist, and the check stays
+        // reachable without a database — which is what makes it testable.
         if (empty($fields)) {
             return $this->outputError('No fields specified. Use --set field=value');
         }
@@ -46,6 +44,11 @@ class UserUpdateCommand extends AbstractWriteCommand
         $disallowedFields = array_diff(array_keys($fields), self::ALLOWED_FIELDS);
         if (!empty($disallowedFields)) {
             return $this->outputError('Field(s) not allowed: ' . implode(', ', $disallowedFields));
+        }
+
+        $user = UserModel::findByUsername($username);
+        if ($user === null) {
+            return $this->outputError("User not found: $username");
         }
 
         foreach ($fields as $key => $value) {
