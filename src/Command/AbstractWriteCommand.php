@@ -106,15 +106,28 @@ abstract class AbstractWriteCommand extends Command
      */
     protected function resolveAuthorId(): int
     {
+        return $this->resolveOperatorUserId(1);
+    }
+
+    /**
+     * Contao user ID behind the current operator name, or $fallback when the
+     * operator is empty, unknown to Contao, or the lookup fails.
+     *
+     * The fallback differs by purpose: `author` on create wants id=1 so a byline
+     * is never empty, while `tl_undo.pid` wants 0 — that column means "the backend
+     * user who deleted this", and a plain CLI deletion had no backend user.
+     */
+    protected function resolveOperatorUserId(int $fallback): int
+    {
         $name = $this->resolveOperator();
         if ('' === $name) {
-            return 1;
+            return $fallback;
         }
         if (!class_exists(\Contao\UserModel::class)) {
-            return 1;
+            return $fallback;
         }
         $user = \Contao\UserModel::findOneBy('username', $name);
-        return $user ? (int) $user->id : 1;
+        return $user ? (int) $user->id : $fallback;
     }
 
     /**

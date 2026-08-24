@@ -62,7 +62,7 @@ abstract class AbstractModelDeleteCommand extends AbstractWriteCommand
 
         // One undo entry for the whole set, in the shape DC_Table::undo() expects:
         // [table => [row, ...]]. Restoring brings the children back with the parent.
-        $this->snapshotToUndo($table, $id, $rows, $record->row());
+        $this->snapshotToUndo($table, $id, $rows);
 
         $deleted = $this->deleteRows($collected);
 
@@ -131,9 +131,8 @@ abstract class AbstractModelDeleteCommand extends AbstractWriteCommand
 
     /**
      * @param array<string, list<array<string, mixed>>> $rows
-     * @param array<string, mixed>                      $rootRow
      */
-    private function snapshotToUndo(string $table, int $id, array $rows, array $rootRow): void
+    private function snapshotToUndo(string $table, int $id, array $rows): void
     {
         if (!$rows) {
             return;
@@ -141,8 +140,15 @@ abstract class AbstractModelDeleteCommand extends AbstractWriteCommand
 
         $affected = array_sum(array_map('\count', $rows));
 
+        // tl_undo.pid is the backend user who deleted the record — DC_Table writes
+        // BackendUser::getInstance()->id here, and the undo module filters on it for
+        // non-admins. It is not the record's author: using that put the entry in the
+        // undo list of whoever happened to write the record, and left it at 0 on
+        // tables without an author column. A plain CLI deletion has no backend user,
+        // so it stays 0 and only admins see it; the backend bundle passes the real
+        // editor via --operator.
         $this->connection->insert('tl_undo', [
-            'pid'           => (int) ($rootRow['author'] ?? 0),
+            'pid'           => $this->resolveOperatorUserId(0),
             'tstamp'        => time(),
             'fromTable'     => $table,
             'query'         => \sprintf('DELETE FROM %s WHERE id=%d', $table, $id),

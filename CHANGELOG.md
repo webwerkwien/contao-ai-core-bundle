@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.9 - 2026-08-24
+
+### Fixed
+
+- **`tl_undo.pid` carried the record's author instead of the user who deleted it.** That column means "the backend user who performed the deletion" - `DC_Table::delete()` writes `BackendUser::getInstance()->id` - and the undo module filters on it for everyone who is not an admin. Writing the author put the entry into the undo list of whoever happened to write the record, and left it at 0 on the tables that have no `author` column (`tl_page`, `tl_content`), where only admins could then see it.
+
+  `tl_undo.pid` is now the Contao user behind `--operator`, which the backend bundle already passes on every write command. A plain CLI deletion has no backend user and stays at 0, so it remains admin-visible - that is the honest value rather than an arbitrary attribution.
+
+### Changed
+
+- `resolveAuthorId()` is now a thin wrapper over the new `resolveOperatorUserId(int $fallback)`. The fallback differs by purpose: `author` on create keeps id=1 so a byline is never empty, while `tl_undo.pid` falls back to 0.
+
+### Notes
+
+Verified live on Contao 5.7.11: deleting without `--operator` writes `pid=0`, deleting with `--operator j.wilson` writes that user's id, so the entry appears in their own undo list.
+
 ## v0.2.8 — 2026-08-24
 
 ### Fixed
