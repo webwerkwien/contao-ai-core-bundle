@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.10 - 2026-08-24
+
+### Fixed
+
+- **`page:publish <id> unpublish` and `comment:publish <id> unpublish` threw instead of unpublishing.** Both wrote `''` into `published`, which is `tinyint(4) NOT NULL`. An empty string is not a falsy tinyint, it is an invalid one: a lax server silently coerces it to 0, a server running `STRICT_ALL_TABLES` / `TRADITIONAL` raises `SQLSTATE[22007] Incorrect integer value: ''`. Publishing worked, so only one of the two directions was ever broken - and only on strict servers.
+
+  The value now comes from a shared `AbstractWriteCommand::booleanFlag()`, so the reason is written down once rather than duplicated into the next command that needs a boolean column.
+
+  Same shape as the `invisible = ''` bug fixed in v0.2.1, and the answer to the follow-up left open in [#1](https://github.com/webwerkwien/contao-ai-core-bundle/issues/1): the create commands do **not** share the pattern, these two publish commands did.
+
+### Notes
+
+Verified live on Contao 5.7.11 with `sql_mode=TRADITIONAL,STRICT_ALL_TABLES`: both directions return `{"status":"ok","published":true|false}` and the column holds 1 or 0.
+
 ## v0.2.9 - 2026-08-24
 
 ### Fixed

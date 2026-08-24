@@ -104,6 +104,19 @@ abstract class AbstractWriteCommand extends Command
      * Falls back to id=1 when the operator is empty (CLI), unknown to Contao,
      * or the user lookup fails — keeps existing CLI behaviour intact.
      */
+    /**
+     * Value for Contao's boolean columns (published, invisible, …).
+     *
+     * They are `tinyint NOT NULL`, so an empty string is not a falsy value but an
+     * invalid one: a lax server coerces it to 0, a server running STRICT_ALL_TABLES
+     * throws "Incorrect integer value: ''". That is how `page:publish <id> unpublish`
+     * came to fail with a DriverException while publishing worked.
+     */
+    public function booleanFlag(bool $on): string
+    {
+        return $on ? '1' : '0';
+    }
+
     protected function resolveAuthorId(): int
     {
         return $this->resolveOperatorUserId(1);

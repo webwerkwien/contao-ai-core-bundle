@@ -23,6 +23,18 @@ class ConcreteCommand extends AbstractWriteCommand
 
 class AbstractWriteCommandTest extends TestCase
 {
+    /**
+     * Regression: '' is not a falsy tinyint, it is an invalid one. Under
+     * STRICT_ALL_TABLES it threw instead of unpublishing.
+     */
+    public function testBooleanFlagNeverYieldsAnEmptyString(): void
+    {
+        $cmd = new ConcreteCommand();
+        $this->assertSame('1', $cmd->booleanFlag(true));
+        $this->assertSame('0', $cmd->booleanFlag(false));
+        $this->assertNotSame('', $cmd->booleanFlag(false));
+    }
+
     public function testParseSetOptions(): void
     {
         $cmd = new ConcreteCommand();

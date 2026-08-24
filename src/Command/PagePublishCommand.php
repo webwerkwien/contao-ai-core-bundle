@@ -37,7 +37,7 @@ class PagePublishCommand extends AbstractWriteCommand
             return $this->outputError("Invalid action '$action'. Use: publish or unpublish");
         }
 
-        $page->published = ($action === 'publish') ? '1' : '';
+        $page->published = $this->booleanFlag('publish' === $action);
         $page->tstamp    = time();
         $page->save();
 

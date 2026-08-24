@@ -37,7 +37,7 @@ class CommentPublishCommand extends AbstractWriteCommand
             return $this->outputError("Invalid action '$action'. Use: publish or unpublish");
         }
 
-        $comment->published = ($action === 'publish') ? '1' : '';
+        $comment->published = $this->booleanFlag('publish' === $action);
         $comment->tstamp    = time();
         $comment->save();
 
