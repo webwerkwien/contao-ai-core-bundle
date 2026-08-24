@@ -4,6 +4,33 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.8 — 2026-08-24
+
+### Fixed
+
+- **Deleting a record left its children behind as orphans.** `AbstractModelDeleteCommand` called `Contao\Model::delete()`, which is a plain single-row `DELETE`. Deleting a page therefore removed the page and left its articles and their content elements in the database — invisible in the back end, and unreachable by anything Contao offers: there are no foreign keys in the schema, and the Automator's fourteen tasks are all `purge*` for caches, logs and tokens. Nothing reclaims an orphan, because Contao prevents them instead, in `DC_Table::delete()`.
+
+  `DC_Table` cannot be called from the console — it runs `denyAccessUnlessGranted(new DeleteAction(...))` and there is no security token on the CLI. The new `RecordCascadeCollector` therefore mirrors its collection step: the whole descendant subtree for tree tables (`tl_page`), recursive descent through the DCA `ctable`, `dynamicPtable` children matched on pid *and* ptable, and `doNotDeleteRecords` honoured. Nested content elements — `tl_content` has `ctable => ['tl_content']` — are included, which the old code missed even when deleting a single element.
+
+- The `tl_undo` snapshot now covers **every** collected row rather than only the record named on the command line, in the `[table => [row, …]]` shape `DC_Table::undo()` expects. Restoring brings the children back with the parent, as it does in the back end.
+
+### Changed
+
+- The delete commands report what they took: `"cascade": {"tl_page": 2, "tl_article": 2, "tl_content": 3}, "rowsTotal": 7`. Silence about a cascade is how the orphans went unnoticed.
+- Rows are removed children-first, so an interrupted run cannot leave a parent pointing at rows that are already gone.
+
+### Added
+
+- 10 unit tests for the traversal in `tests/Service/RecordCascadeCollectorTest.php`, against DCA and row fixtures rather than a live installation: subtree collection, recursive `ctable` descent, `dynamicPtable` discrimination, nested content, `doNotDeleteRecords`, self-referencing rows, and root-table ordering.
+
+### Notes
+
+Verified live on Contao 5.7.11: a disposable page tree (2 pages, 2 articles, 3 content elements of which one nested) deleted in one call — `rowsTotal: 7`, zero orphans afterwards, and the single `tl_undo` entry replayed all seven rows back into place across all three tables.
+
+Affects the browser chat as much as the console: `page_delete` and its siblings in contao-ai-backend-bundle run through these same commands.
+
+`tl_undo.pid` still carries the record's author rather than the deleting user, so on tables without an `author` column the entry is admin-only. Known and accepted — see the project notes.
+
 ## v0.2.7 — 2026-08-13
 
 ### Fixed
