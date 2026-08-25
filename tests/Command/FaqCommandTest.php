@@ -11,9 +11,12 @@ use Webwerkwien\ContaoAiCoreBundle\Command\FaqDeleteCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\FaqReadCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\FaqUpdateCommand;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Tests\NeedsContaoContainerTrait;
 
 class FaqCommandTest extends TestCase
 {
+    use NeedsContaoContainerTrait;
+
     private function fw(): ContaoFramework
     {
         return $this->createMock(ContaoFramework::class);
@@ -58,6 +61,7 @@ class FaqCommandTest extends TestCase
 
     public function testReadReturnsErrorForMissingRecord(): void
     {
+        $this->skipWithoutContaoContainer();
         $cmd = new FaqReadCommand($this->fw());
         $tester = new CommandTester($cmd);
         $tester->execute(['id' => '0']);
@@ -69,6 +73,7 @@ class FaqCommandTest extends TestCase
 
     public function testDeleteReturnsErrorForMissingRecord(): void
     {
+        $this->skipWithoutContaoContainer();
         $cmd = new FaqDeleteCommand($this->fw());
         $cmd->setLogger($this->logger());
         $cmd->setVersionManager($this->vm());

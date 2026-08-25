@@ -11,9 +11,12 @@ use Webwerkwien\ContaoAiCoreBundle\Command\CommentPublishCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\LayoutReadCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\MemberDeleteCommand;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Tests\NeedsContaoContainerTrait;
 
 class MiscCommandTest extends TestCase
 {
+    use NeedsContaoContainerTrait;
+
     private function fw(): ContaoFramework
     {
         return $this->createMock(ContaoFramework::class);
@@ -40,6 +43,7 @@ class MiscCommandTest extends TestCase
 
     public function testLayoutReadReturnsErrorForMissingRecord(): void
     {
+        $this->skipWithoutContaoContainer();
         $cmd = new LayoutReadCommand($this->fw());
         $tester = new CommandTester($cmd);
         $tester->execute(['id' => '0']);
@@ -58,6 +62,7 @@ class MiscCommandTest extends TestCase
 
     public function testMemberDeleteReturnsErrorForMissingMember(): void
     {
+        $this->skipWithoutContaoContainer();
         $cmd = new MemberDeleteCommand($this->fw());
         $cmd->setLogger($this->logger());
         $cmd->setVersionManager($this->vm());
@@ -78,6 +83,7 @@ class MiscCommandTest extends TestCase
 
     public function testCommentDeleteReturnsErrorForMissingComment(): void
     {
+        $this->skipWithoutContaoContainer();
         $cmd = new CommentDeleteCommand($this->fw());
         $cmd->setLogger($this->logger());
         $cmd->setVersionManager($this->vm());
@@ -98,6 +104,7 @@ class MiscCommandTest extends TestCase
 
     public function testCommentPublishReturnsErrorForMissingComment(): void
     {
+        $this->skipWithoutContaoContainer();
         $cmd = new CommentPublishCommand($this->fw());
         $cmd->setLogger($this->logger());
         $cmd->setVersionManager($this->vm());

@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## Unreleased
+
+### Changed
+
+- **The test suite is no longer red by design.** Every plain `vendor/bin/phpunit` reported 17 errors - all of them `RuntimeException: The Symfony container is not available` from tests that resolve a Contao model. That is a documented consequence of running without `CONTAO_ROOT` (see `tests/bootstrap.php`), but a suite that is red on purpose is a suite nobody reads: the next real regression arrives as error number 18 and looks like the weather.
+
+  They are now skipped instead, with the reason and the fix in the skip message. Same information, and a failure stays visible as a failure. The guard checks whether a container is actually there rather than whether `CONTAO_ROOT` is set, because the container is what the test needs; who supplied it is beside the point.
+
+  `vendor/bin/phpunit` → 151 tests, 18 skipped, 0 errors. `CONTAO_ROOT=… vendor/bin/phpunit` → 151 tests, 252 assertions, no skips.
+
+  No production code changed, and `tests/` is `export-ignore`d, so the distributed package is byte-identical to v0.2.13 - hence no version tag.
+
+### Notes
+
+The 17 behaviours were separately verified against a live container before skipping them, so the skip is not hiding anything: every one of the commands returns `{"status":"error","message":"… not found: 0"}` on Contao 5.7.11.
+
+`README.md` now documents both test modes; they were only described in a docblock in `tests/bootstrap.php`.
+
 ## v0.2.13 - 2026-08-25
 
 ### Fixed

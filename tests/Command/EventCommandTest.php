@@ -11,9 +11,12 @@ use Webwerkwien\ContaoAiCoreBundle\Command\EventDeleteCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\EventReadCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\EventUpdateCommand;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Tests\NeedsContaoContainerTrait;
 
 class EventCommandTest extends TestCase
 {
+    use NeedsContaoContainerTrait;
+
     private function fw(): ContaoFramework
     {
         return $this->createMock(ContaoFramework::class);
@@ -58,6 +61,7 @@ class EventCommandTest extends TestCase
 
     public function testReadReturnsErrorForMissingRecord(): void
     {
+        $this->skipWithoutContaoContainer();
         $cmd = new EventReadCommand($this->fw());
         $tester = new CommandTester($cmd);
         $tester->execute(['id' => '0']);
@@ -69,6 +73,7 @@ class EventCommandTest extends TestCase
 
     public function testDeleteReturnsErrorForMissingRecord(): void
     {
+        $this->skipWithoutContaoContainer();
         $cmd = new EventDeleteCommand($this->fw());
         $cmd->setLogger($this->logger());
         $cmd->setVersionManager($this->vm());

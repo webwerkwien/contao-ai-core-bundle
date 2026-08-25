@@ -76,6 +76,32 @@ with `contao:version:restore`, plus a `tl_undo` entry for deletions.
 
 Failed commands are not logged — a rejected `--set` changed nothing.
 
+## Tests
+
+```bash
+vendor/bin/phpunit
+```
+
+Runs in two modes, and the difference is not cosmetic.
+
+**Without `CONTAO_ROOT`** the framework is mocked away. Everything that only checks
+argument handling and output shape runs; the 17 tests that resolve a model through
+`Model::findById()` are **skipped**, because that call reaches `DcaExtractor` and needs
+a real Symfony container and a database.
+
+**With `CONTAO_ROOT`** pointing at a Contao installation, its kernel is booted and the
+whole suite runs:
+
+```bash
+CONTAO_ROOT=/var/www/example/web vendor/bin/phpunit
+```
+
+The package ships without `tests/` (`export-ignore`), so to run this mode against an
+installation, copy `tests/` and `phpunit.xml.dist` somewhere, install PHPUnit there, and
+point `CONTAO_ROOT` at the installation.
+
+Verified on Contao 5.7.11: 151 tests, 252 assertions, no skips.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

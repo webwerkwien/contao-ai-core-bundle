@@ -12,9 +12,12 @@ use Webwerkwien\ContaoAiCoreBundle\Command\PagePublishCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\PageReadCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\PageUpdateCommand;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Tests\NeedsContaoContainerTrait;
 
 class PageCommandTest extends TestCase
 {
+    use NeedsContaoContainerTrait;
+
     private function fw(): ContaoFramework
     {
         return $this->createMock(ContaoFramework::class);
@@ -48,6 +51,7 @@ class PageCommandTest extends TestCase
 
     public function testReadReturnsErrorForMissingRecord(): void
     {
+        $this->skipWithoutContaoContainer();
         $cmd = new PageReadCommand($this->fw());
         $tester = new CommandTester($cmd);
         $tester->execute(['id' => '0']);
@@ -59,6 +63,7 @@ class PageCommandTest extends TestCase
 
     public function testDeleteReturnsErrorForMissingRecord(): void
     {
+        $this->skipWithoutContaoContainer();
         $cmd = new PageDeleteCommand($this->fw());
         $cmd->setLogger($this->logger());
         $cmd->setVersionManager($this->vm());
@@ -80,6 +85,7 @@ class PageCommandTest extends TestCase
 
     public function testPublishReturnsErrorForMissingRecord(): void
     {
+        $this->skipWithoutContaoContainer();
         $cmd = new PagePublishCommand($this->fw());
         $cmd->setLogger($this->logger());
         $cmd->setVersionManager($this->vm());

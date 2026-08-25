@@ -29,6 +29,12 @@ if (is_file($ownAutoload)) {
     require_once $ownAutoload;
 }
 
+// Required, not autoloaded: the Tests\ PSR-4 mapping lives in autoload-dev, which
+// is absent when the tests run against an installation's own vendor/ (see below).
+// Test classes survive that because PHPUnit includes their files directly — a
+// trait they reference does not.
+require_once __DIR__ . '/NeedsContaoContainerTrait.php';
+
 $contaoRoot = getenv('CONTAO_ROOT') ?: null;
 
 if (null !== $contaoRoot && is_file($contaoRoot . '/vendor/autoload.php')) {

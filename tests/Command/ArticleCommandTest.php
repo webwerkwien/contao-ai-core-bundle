@@ -11,9 +11,12 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ArticleDeleteCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\ArticleReadCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\ArticleUpdateCommand;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Tests\NeedsContaoContainerTrait;
 
 class ArticleCommandTest extends TestCase
 {
+    use NeedsContaoContainerTrait;
+
     private function fw(): ContaoFramework
     {
         return $this->createMock(ContaoFramework::class);
@@ -58,6 +61,7 @@ class ArticleCommandTest extends TestCase
 
     public function testReadReturnsErrorForMissingRecord(): void
     {
+        $this->skipWithoutContaoContainer();
         // id=0 passes argument validation but finds no record → error response
         $cmd = new ArticleReadCommand($this->fw());
         $tester = new CommandTester($cmd);
@@ -70,6 +74,7 @@ class ArticleCommandTest extends TestCase
 
     public function testDeleteReturnsErrorForMissingRecord(): void
     {
+        $this->skipWithoutContaoContainer();
         $cmd = new ArticleDeleteCommand($this->fw());
         $cmd->setLogger($this->logger());
         $cmd->setVersionManager($this->vm());

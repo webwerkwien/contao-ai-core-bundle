@@ -13,9 +13,12 @@ use Webwerkwien\ContaoAiCoreBundle\Command\NewsReadCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\NewsRepairHeadlinesCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\NewsUpdateCommand;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Tests\NeedsContaoContainerTrait;
 
 class NewsCommandTest extends TestCase
 {
+    use NeedsContaoContainerTrait;
+
     private function fw(): ContaoFramework
     {
         return $this->createMock(ContaoFramework::class);
@@ -61,6 +64,7 @@ class NewsCommandTest extends TestCase
 
     public function testReadReturnsErrorForMissingRecord(): void
     {
+        $this->skipWithoutContaoContainer();
         $cmd = new NewsReadCommand($this->fw());
         $tester = new CommandTester($cmd);
         $tester->execute(['id' => '0']);
@@ -72,6 +76,7 @@ class NewsCommandTest extends TestCase
 
     public function testDeleteReturnsErrorForMissingRecord(): void
     {
+        $this->skipWithoutContaoContainer();
         $cmd = new NewsDeleteCommand($this->fw());
         $cmd->setLogger($this->logger());
         $cmd->setVersionManager($this->vm());
