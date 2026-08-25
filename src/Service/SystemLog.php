@@ -3,6 +3,7 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Service;
 
 use Contao\CoreBundle\Monolog\ContaoContext;
+use Contao\CoreBundle\Routing\ScopeMatcher;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -41,6 +42,7 @@ class SystemLog
         #[Autowire(service: 'monolog.logger.contao.general')]
         private readonly LoggerInterface $logger,
         private readonly RequestStack $requestStack,
+        private readonly ScopeMatcher $scopeMatcher,
     ) {
     }
 
@@ -56,12 +58,18 @@ class SystemLog
         string $username,
         string $action = ContaoContext::GENERAL,
     ): void {
-        // Only claim CLI when there really is no request. contao-ai-backend-bundle
-        // runs these very commands in-process during a back-end request, and those
-        // are BE writes - labelling them CLI would misattribute an editor's change
-        // to the console. With source left null, ContaoTableProcessor reads the
-        // request and fills in BE (or FE) itself.
-        $source = null === $this->requestStack->getCurrentRequest() ? self::SOURCE : null;
+        // Hand the column back to Contao only for a real back-end request.
+        // contao-ai-backend-bundle runs these very commands in-process while an
+        // editor is in the back end, and those are BE writes - ContaoTableProcessor
+        // labels them correctly when the source stays null.
+        //
+        // "Has a request" is not the test. contao-ai-cli's macro bridge posts to
+        // /_ai_cli/macro, which sits outside /contao/* on purpose (the back-end
+        // firewall would redirect it), so it carries no backend scope: the
+        // processor would call it FE, when it is the CLI reaching in over HTTP.
+        $request  = $this->requestStack->getCurrentRequest();
+        $isEditor = null !== $request && $this->scopeMatcher->isBackendRequest($request);
+        $source   = $isEditor ? null : self::SOURCE;
 
         $this->logger->info($text, ['contao' => new ContaoContext(
             func: '' !== $func ? $func : 'contao-ai-core-bundle',

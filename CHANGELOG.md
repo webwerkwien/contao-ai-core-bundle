@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.13 - 2026-08-25
+
+### Fixed
+
+- **Macro-bridge writes were labelled `FE`.** v0.2.12 decided the `tl_log.source` column on "is a request running", which is the wrong question. contao-ai-cli's macro bridge posts to `/_ai_cli/macro`, deliberately routed outside `/contao/*` so the back-end firewall cannot redirect it - so it carries no backend scope, and `ContaoTableProcessor` filed the CLI under `FE`.
+
+  The test is now `ScopeMatcher::isBackendRequest()`, the same one the processor itself uses: a real back-end request is handed back to Contao (`BE`), everything else - console and bridge alike - is `CLI`.
+
+  Verified on the console; the back-end and bridge branches are read from Contao's `ContaoTableProcessor` and the bridge route definition rather than measured.
+
 ## v0.2.12 - 2026-08-25
 
 ### Fixed

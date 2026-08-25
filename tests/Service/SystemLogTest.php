@@ -3,6 +3,7 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Tests\Service;
 
 use Contao\CoreBundle\Monolog\ContaoContext;
+use Contao\CoreBundle\Routing\ScopeMatcher;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -28,7 +29,7 @@ class SystemLogTest extends TestCase
             })
         ;
 
-        (new SystemLog($logger, new RequestStack()))->write('contao:page:update {"id":1}', 'contao:page:update', 'webwerkwien');
+        (new SystemLog($logger, new RequestStack(), $this->scopeMatcher(false)))->write('contao:page:update {"id":1}', 'contao:page:update', 'webwerkwien');
 
         $this->assertInstanceOf(ContaoContext::class, $captured['contao'] ?? null);
     }
@@ -48,7 +49,7 @@ class SystemLogTest extends TestCase
             }
         );
 
-        (new SystemLog($logger, new RequestStack()))->write('text', 'contao:news:create', 'webwerkwien', ContaoContext::FILES);
+        (new SystemLog($logger, new RequestStack(), $this->scopeMatcher(false)))->write('text', 'contao:news:create', 'webwerkwien', ContaoContext::FILES);
 
         $this->assertSame('CLI', $captured->getSource());
         $this->assertSame('webwerkwien', $captured->getUsername());
@@ -66,7 +67,7 @@ class SystemLogTest extends TestCase
             }
         );
 
-        (new SystemLog($logger, new RequestStack()))->write('text', 'contao:page:update', 'webwerkwien');
+        (new SystemLog($logger, new RequestStack(), $this->scopeMatcher(false)))->write('text', 'contao:page:update', 'webwerkwien');
 
         $this->assertSame(ContaoContext::GENERAL, $captured->getAction());
     }
@@ -86,7 +87,7 @@ class SystemLogTest extends TestCase
             }
         );
 
-        (new SystemLog($logger, new RequestStack()))->write('text', '', '');
+        (new SystemLog($logger, new RequestStack(), $this->scopeMatcher(false)))->write('text', '', '');
 
         $this->assertNotSame('', $captured->getFunc());
         $this->assertSame('cli-agent', $captured->getUsername());
@@ -101,7 +102,7 @@ class SystemLogTest extends TestCase
             ->with('contao:content:update {"id":5}', $this->anything())
         ;
 
-        (new SystemLog($logger, new RequestStack()))->write('contao:content:update {"id":5}', 'contao:content:update', 'cli');
+        (new SystemLog($logger, new RequestStack(), $this->scopeMatcher(false)))->write('contao:content:update {"id":5}', 'contao:content:update', 'cli');
     }
 
     /**
@@ -109,7 +110,7 @@ class SystemLogTest extends TestCase
      * in-process during a back-end request. Stamping those CLI attributed an
      * editor's change to the console.
      */
-    public function testDoesNotClaimCliWhenARequestIsRunning(): void
+    public function testHandsTheColumnBackToContaoForABackEndRequest(): void
     {
         $captured = null;
         $logger = $this->createMock(LoggerInterface::class);
@@ -122,9 +123,42 @@ class SystemLogTest extends TestCase
         $stack = new RequestStack();
         $stack->push(Request::create('/contao'));
 
-        (new SystemLog($logger, $stack))->write('text', 'contao:page:update', 'webwerkwien');
+        (new SystemLog($logger, $stack, $this->scopeMatcher(true)))
+            ->write('text', 'contao:page:update', 'webwerkwien');
 
-        // null lets ContaoTableProcessor read the request and decide BE vs FE.
+        // null lets ContaoTableProcessor read the request and write BE.
         $this->assertNull($captured->getSource());
+    }
+
+    /**
+     * Regression (v0.2.13): a request alone is not the test. The macro bridge
+     * posts to /_ai_cli/macro, deliberately outside /contao/*, so it carries no
+     * backend scope - the processor would have called the CLI "FE".
+     */
+    public function testStillClaimsCliForANonBackendRequest(): void
+    {
+        $captured = null;
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->method('info')->willReturnCallback(
+            static function (string $message, array $context) use (&$captured): void {
+                $captured = $context['contao'];
+            }
+        );
+
+        $stack = new RequestStack();
+        $stack->push(Request::create('/_ai_cli/macro', 'POST'));
+
+        (new SystemLog($logger, $stack, $this->scopeMatcher(false)))
+            ->write('text', 'contao:record:clone', 'cli');
+
+        $this->assertSame('CLI', $captured->getSource());
+    }
+
+    private function scopeMatcher(bool $isBackend): ScopeMatcher
+    {
+        $matcher = $this->createMock(ScopeMatcher::class);
+        $matcher->method('isBackendRequest')->willReturn($isBackend);
+
+        return $matcher;
     }
 }
