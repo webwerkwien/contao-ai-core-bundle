@@ -8,16 +8,26 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Contracts\Service\Attribute\Required;
+use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 #[AsCommand(name: 'contao:version:create', description: 'Manually create a version snapshot for a record')]
 class VersionCreateCommand extends Command
 {
+    private ?SystemLog $systemLog = null;
+
     public function __construct(
         private readonly ContaoFramework $framework,
         private readonly VersionManager $versionManager,
     ) {
         parent::__construct();
+    }
+
+    #[Required]
+    public function setSystemLog(SystemLog $systemLog): void
+    {
+        $this->systemLog = $systemLog;
     }
 
     protected function configure(): void
@@ -46,6 +56,18 @@ class VersionCreateCommand extends Command
 
         $this->framework->initialize();
         $this->versionManager->createVersion($table, $id, '' !== $operator ? $operator : null);
+
+        // Contao logs "Version X of record ... has been created" whenever its own
+        // Versions class runs. VersionManager writes tl_version directly, so that
+        // line has to come from here.
+        $this->systemLog?->write(
+            sprintf('%s %s', $this->getName(), json_encode(
+                ['table' => $table, 'id' => $id],
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            )),
+            (string) $this->getName(),
+            '' !== $operator ? $operator : (string) ($_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent'),
+        );
 
         $output->writeln(json_encode([
             'status' => 'ok',

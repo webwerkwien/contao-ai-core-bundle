@@ -3,6 +3,7 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
+use Contao\CoreBundle\Monolog\ContaoContext;
 use Contao\Dbafs;
 use Contao\FilesModel;
 use Contao\StringUtil;
@@ -20,6 +21,13 @@ class FileWriteCommand extends AbstractWriteCommand
         private readonly string $projectDir,
     ) {
         parent::__construct();
+    }
+
+    // File operations belong under the FILES action, the same bucket the back
+    // end's own file manager writes to.
+    protected function systemLogAction(): string
+    {
+        return ContaoContext::FILES;
     }
 
     protected function configure(): void

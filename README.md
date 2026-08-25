@@ -57,6 +57,25 @@ All commands output JSON and follow a consistent `{"status":"ok", ...}` / `{"sta
 
 > **`record_rewrite` lives in [contao-ai-backend-bundle](https://github.com/webwerkwien/contao-ai-backend-bundle), not here.** That command needs an LLM API key per call. Keeping core agnostic of LLM dependencies and key handling was a deliberate architecture decision.
 
+## Audit trail
+
+Every successful write leaves two traces.
+
+**Contao's system log (`tl_log`)**, visible in the back end under *System > System log*:
+
+| Column | Value |
+| --- | --- |
+| `source` | `CLI` — Contao itself only writes `BE` and `FE`, so console writes are filterable on their own |
+| `action` | `GENERAL` for records, `FILES` for file, folder and template commands |
+| `username` | the `--operator` when one is passed, otherwise the shell user (`$_SERVER['USER']`) |
+| `func` | the command name, e.g. `contao:page:update` |
+| `text` | command name plus the JSON payload the command returned |
+
+**A version snapshot (`tl_version`)** for the ten tables `VersionManager` covers, restorable
+with `contao:version:restore`, plus a `tl_undo` entry for deletions.
+
+Failed commands are not logged — a rejected `--set` changed nothing.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

@@ -3,6 +3,7 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
+use Contao\CoreBundle\Monolog\ContaoContext;
 use Contao\FilesModel;
 use Contao\StringUtil;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -21,6 +22,13 @@ class FileMetaUpdateCommand extends AbstractWriteCommand
     public function __construct(private readonly ContaoFramework $framework)
     {
         parent::__construct();
+    }
+
+    // File operations belong under the FILES action, the same bucket the back
+    // end's own file manager writes to.
+    protected function systemLogAction(): string
+    {
+        return ContaoContext::FILES;
     }
 
     protected function configure(): void

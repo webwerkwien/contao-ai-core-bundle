@@ -3,6 +3,7 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
+use Contao\CoreBundle\Monolog\ContaoContext;
 use Doctrine\DBAL\Connection;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -11,12 +12,14 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Contracts\Service\Attribute\Required;
+use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 #[AsCommand(name: 'contao:version:restore', description: 'Restore a record to a specific version')]
 class VersionRestoreCommand extends Command
 {
     private LoggerInterface $logger;
+    private ?SystemLog $systemLog = null;
 
     public function __construct(
         private readonly ContaoFramework $framework,
@@ -30,6 +33,12 @@ class VersionRestoreCommand extends Command
     public function setLogger(LoggerInterface $logger): void
     {
         $this->logger = $logger;
+    }
+
+    #[Required]
+    public function setSystemLog(SystemLog $systemLog): void
+    {
+        $this->systemLog = $systemLog;
     }
 
     protected function configure(): void
@@ -77,11 +86,20 @@ class VersionRestoreCommand extends Command
         $this->connection->update('`' . $table . '`', $quotedData, ['id' => $id]);
         $this->versionManager->markActiveVersion($table, $id, $version);
 
+        $payload = ['table' => $table, 'id' => $id, 'restored_version' => $version];
+        $user    = $_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent';
+
         $this->logger->info('contao-ai-core-bundle audit', [
             'command' => $this->getName(),
-            'user'    => $_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent',
-            'payload' => ['table' => $table, 'id' => $id, 'restored_version' => $version],
+            'user'    => $user,
+            'payload' => $payload,
         ]);
+
+        $this->systemLog?->write(
+            sprintf('%s %s', $this->getName(), json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
+            (string) $this->getName(),
+            (string) $user,
+        );
 
         $output->writeln(json_encode([
             'status'           => 'ok',

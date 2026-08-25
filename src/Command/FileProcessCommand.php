@@ -3,6 +3,7 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
+use Contao\CoreBundle\Monolog\ContaoContext;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
@@ -17,6 +18,13 @@ class FileProcessCommand extends AbstractWriteCommand
         private readonly string $projectDir,
     ) {
         parent::__construct();
+    }
+
+    // File operations belong under the FILES action, the same bucket the back
+    // end's own file manager writes to.
+    protected function systemLogAction(): string
+    {
+        return ContaoContext::FILES;
     }
 
     protected function configure(): void

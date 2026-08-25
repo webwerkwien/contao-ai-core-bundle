@@ -3,6 +3,7 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\Controller;
+use Contao\CoreBundle\Monolog\ContaoContext;
 use Contao\StringUtil;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -10,6 +11,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Contracts\Service\Attribute\Required;
+use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 abstract class AbstractWriteCommand extends Command
@@ -18,6 +20,12 @@ abstract class AbstractWriteCommand extends Command
     protected OutputInterface $output;
     protected VersionManager $versionManager;
     protected LoggerInterface $logger;
+
+    /**
+     * Nullable on purpose: the command tests construct commands by hand, without
+     * a container. In the container it is always injected (see setSystemLog).
+     */
+    protected ?SystemLog $systemLog = null;
 
     #[Required]
     public function setVersionManager(VersionManager $versionManager): void
@@ -29,6 +37,12 @@ abstract class AbstractWriteCommand extends Command
     public function setLogger(LoggerInterface $logger): void
     {
         $this->logger = $logger;
+    }
+
+    #[Required]
+    public function setSystemLog(SystemLog $systemLog): void
+    {
+        $this->systemLog = $systemLog;
     }
 
     protected function configure(): void
@@ -294,6 +308,33 @@ abstract class AbstractWriteCommand extends Command
         return $fields;
     }
 
+    /**
+     * Which `tl_log` action a command's entries carry. GENERAL matches what
+     * Contao writes for record changes; the file commands override this with
+     * ContaoContext::FILES so the back end's action filter keeps working.
+     */
+    protected function systemLogAction(): string
+    {
+        return ContaoContext::GENERAL;
+    }
+
+    /**
+     * The line shown in the back end's log list.
+     *
+     * Deliberately the raw payload rather than prose: the same success data the
+     * caller already gets, so the log never says something different from what
+     * the command returned. Prose would mean 30+ hand-written strings, each one
+     * a chance to drift from the record it describes.
+     */
+    protected function systemLogText(array $data): string
+    {
+        return trim(sprintf(
+            '%s %s',
+            (string) $this->getName(),
+            json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE),
+        ));
+    }
+
     protected function outputSuccess(array $data): void
     {
         $this->logger->info('contao-ai-core-bundle audit', [
@@ -301,6 +342,14 @@ abstract class AbstractWriteCommand extends Command
             'user'     => $this->resolveOperator(),
             'payload'  => $data,
         ]);
+        // Above goes to var/logs (and in a Managed Edition often nowhere at all);
+        // this is the entry an editor can actually find, under System > System log.
+        $this->systemLog?->write(
+            $this->systemLogText($data),
+            (string) $this->getName(),
+            $this->resolveOperator(),
+            $this->systemLogAction(),
+        );
         $this->output->writeln(json_encode(['status' => 'ok'] + $data, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
     }
 

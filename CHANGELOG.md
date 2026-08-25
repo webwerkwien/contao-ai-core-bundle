@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.11 - 2026-08-25
+
+### Added
+
+- **Every write now appears in Contao's system log (`tl_log`).** Until this release nothing this bundle did was visible in the back end, and the log line it *did* write went nowhere: `outputSuccess()` logged through the plain app-channel `LoggerInterface`, and in a Managed Edition that channel reaches neither `tl_log` nor `var/logs`. Measured on a production site after weeks of CLI edits - `grep -r "contao-ai-core-bundle audit" var/logs/` returned zero hits, and `tl_log` held nothing but cron and back-end entries. Two graphics had been swapped through the CLI; the only trace left was a `tstamp` on `tl_files`.
+
+  Reaching `tl_log` takes two things, and the bundle had neither. The entry must go through a `contao.*` Monolog channel, which Contao's `LoggerChannelPass` decorates with its `SystemLogger`; and the log context must carry a `ContaoContext`, because `ContaoTableHandler::handle()` returns early without one. The new `Service\SystemLog` does both. It passes its own context rather than letting the decorator build one, because `ContaoTableProcessor` only fills what is still null - and on the console there is no request and no security token, so an auto-built context would land as `username = N/A`, `source = FE`.
+
+  Covered: every command through `AbstractWriteCommand::outputSuccess()` (create, update, delete, publish), plus `contao:template:write`, `contao:version:create`, `contao:version:restore` and `contao:record:clone`, which have their own success paths.
+
+  `contao:version:create` is a special case worth naming: Contao writes *"Version X of record ... has been created"* whenever its own `Versions` class runs, but `VersionManager` writes `tl_version` directly and so bypassed that line entirely.
+
+- **`tl_log.source` is `CLI` for console writes.** Contao itself only ever writes `BE` or `FE`. A console write is neither, and calling it `BE` would be a lie in the one column an operator reads to ask "did a person do this?". The back-end filter falls back to the raw value when no translation exists, so it shows as `CLI` rather than a translated label.
+
+  Attribution follows what the command was given: `--operator` when the backend bundle passes a Contao username, otherwise the shell user. `action` is `GENERAL` for records and `FILES` for the file, folder and template commands.
+
+### Notes
+
+Failed commands are still not logged. A rejected `--set` changed nothing, and logging validation errors would bury the real writes.
+
+Verified live on Contao 5.7.11 (Managed Edition): `page:create`, `page:update`, `page:publish`, `page:delete`, `version:create` and `folder:create` each produced exactly one `tl_log` row with `source=CLI`, the right action, the operator as username and the command name in `func`. Test records and the test folder were removed afterwards, `tl_version` and `tl_undo` left with no orphans.
+
 ## v0.2.10 - 2026-08-24
 
 ### Fixed

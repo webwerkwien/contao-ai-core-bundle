@@ -2,6 +2,7 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
+use Contao\CoreBundle\Monolog\ContaoContext;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -9,6 +10,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Contracts\Service\Attribute\Required;
+use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 
 /**
  * Write a Twig template to the correct path under templates/.
@@ -24,6 +26,7 @@ use Symfony\Contracts\Service\Attribute\Required;
 class TemplateWriteCommand extends Command
 {
     private LoggerInterface $logger;
+    private ?SystemLog $systemLog = null;
 
     public function __construct(private readonly string $projectDir)
     {
@@ -34,6 +37,12 @@ class TemplateWriteCommand extends Command
     public function setLogger(LoggerInterface $logger): void
     {
         $this->logger = $logger;
+    }
+
+    #[Required]
+    public function setSystemLog(SystemLog $systemLog): void
+    {
+        $this->systemLog = $systemLog;
     }
 
     protected function configure(): void
@@ -114,11 +123,21 @@ class TemplateWriteCommand extends Command
             return self::FAILURE;
         }
 
+        $payload = ['path' => 'templates/' . $relPath, 'mode' => $mode, 'bytes' => strlen($content)];
+        $user    = $_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent';
+
         $this->logger->info('contao-ai-core-bundle audit', [
             'command' => $this->getName(),
-            'user'    => $_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent',
-            'payload' => ['path' => 'templates/' . $relPath, 'mode' => $mode, 'bytes' => strlen($content)],
+            'user'    => $user,
+            'payload' => $payload,
         ]);
+
+        $this->systemLog?->write(
+            sprintf('%s %s', $this->getName(), json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
+            (string) $this->getName(),
+            (string) $user,
+            ContaoContext::FILES,
+        );
 
         $output->writeln(json_encode([
             'status' => 'ok',

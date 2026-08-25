@@ -8,7 +8,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\DependencyInjection\Attribute\TaggedIterator;
+use Symfony\Contracts\Service\Attribute\Required;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\EntityClonerInterface;
+use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 
 /**
  * CLI surface for the Phase-9 macro clone primitive. Routes the request to
@@ -27,6 +29,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\EntityClonerInterface;
 )]
 class RecordCloneCommand extends Command
 {
+    private ?SystemLog $systemLog = null;
+
     /**
      * @param iterable<EntityClonerInterface> $cloners Tagged-iterator over every registered cloner.
      */
@@ -35,6 +39,12 @@ class RecordCloneCommand extends Command
         private readonly iterable $cloners = [],
     ) {
         parent::__construct();
+    }
+
+    #[Required]
+    public function setSystemLog(SystemLog $systemLog): void
+    {
+        $this->systemLog = $systemLog;
     }
 
     protected function configure(): void
@@ -78,6 +88,15 @@ class RecordCloneCommand extends Command
             } catch (\Throwable $e) {
                 return $this->error($output, $e->getMessage());
             }
+            $this->systemLog?->write(
+                sprintf('%s %s', $this->getName(), json_encode(
+                    ['sourceTable' => $table, 'sourceId' => $sourceId, 'recursive' => $recursive] + $result,
+                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
+                )),
+                (string) $this->getName(),
+                '' !== $operator ? $operator : (string) ($_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent'),
+            );
+
             $output->writeln(json_encode(
                 ['status' => 'ok'] + $result,
                 JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE
