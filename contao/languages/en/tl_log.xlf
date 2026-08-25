@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Adds the label for the "CLI" origin this bundle writes into tl_log.source.
+  Contao itself only ships BE and FE; without this the back end's filter shows
+  the raw value. ValueFormatter falls back to it (guarded with isset), so the
+  page never breaks over a missing key — it just reads worse.
+-->
+<xliff version="1.1">
+  <file datatype="php" original="contao/languages/en/tl_log.php" source-language="en">
+    <body>
+      <trans-unit id="tl_log.CLI">
+        <source>Command line</source>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>

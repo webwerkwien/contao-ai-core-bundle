@@ -25,6 +25,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 #[AsCommand(name: 'contao:template:write', description: 'Write a Twig template to the correct path under templates/')]
 class TemplateWriteCommand extends Command
 {
+    use OperatorOptionTrait;
+
     private LoggerInterface $logger;
     private ?SystemLog $systemLog = null;
 
@@ -52,6 +54,8 @@ class TemplateWriteCommand extends Command
             ->addOption('base',   null, InputOption::VALUE_REQUIRED, 'Base template path without extension, e.g. content_element/text')
             ->addOption('name',   null, InputOption::VALUE_OPTIONAL, 'Variant name (required for mode=variant)', '')
             ->addOption('source', null, InputOption::VALUE_REQUIRED, 'Absolute path of temp file on the server to read content from');
+
+        $this->addOperatorOption();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -124,7 +128,7 @@ class TemplateWriteCommand extends Command
         }
 
         $payload = ['path' => 'templates/' . $relPath, 'mode' => $mode, 'bytes' => strlen($content)];
-        $user    = $_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent';
+        $user    = $this->resolveOperatorName($input);
 
         $this->logger->info('contao-ai-core-bundle audit', [
             'command' => $this->getName(),

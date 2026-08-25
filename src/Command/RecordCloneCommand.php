@@ -29,6 +29,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 )]
 class RecordCloneCommand extends Command
 {
+    use OperatorOptionTrait;
+
     private ?SystemLog $systemLog = null;
 
     /**
@@ -52,7 +54,7 @@ class RecordCloneCommand extends Command
         $this->addOption('source-table',  null, InputOption::VALUE_REQUIRED, 'Container table to clone (e.g. tl_news_archive)');
         $this->addOption('source-id',     null, InputOption::VALUE_REQUIRED, 'ID of the source container record');
         $this->addOption('modifications', null, InputOption::VALUE_OPTIONAL, 'JSON object of root-record field overrides (e.g. {"title":"…"})', '{}');
-        $this->addOption('operator',      null, InputOption::VALUE_REQUIRED, 'Audit-trail user identifier — backend integrations pass the Contao username, CLI falls back to $_SERVER[USER].', '');
+        $this->addOperatorOption();
         $this->addOption('recursive',     null, InputOption::VALUE_NONE, 'Walk container-of-container hierarchies (e.g. PageCloner: clone the entire subpage tree, not just the root page).');
     }
 
@@ -94,7 +96,7 @@ class RecordCloneCommand extends Command
                     JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
                 )),
                 (string) $this->getName(),
-                '' !== $operator ? $operator : (string) ($_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent'),
+                $this->resolveOperatorName($input),
             );
 
             $output->writeln(json_encode(

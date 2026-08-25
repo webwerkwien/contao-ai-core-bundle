@@ -15,6 +15,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 #[AsCommand(name: 'contao:version:create', description: 'Manually create a version snapshot for a record')]
 class VersionCreateCommand extends Command
 {
+    use OperatorOptionTrait;
+
     private ?SystemLog $systemLog = null;
 
     public function __construct(
@@ -34,8 +36,9 @@ class VersionCreateCommand extends Command
     {
         $this
             ->addOption('table',    null, InputOption::VALUE_REQUIRED, 'Table name, e.g. tl_content')
-            ->addOption('id',       null, InputOption::VALUE_REQUIRED, 'Record ID')
-            ->addOption('operator', null, InputOption::VALUE_REQUIRED, 'Audit-trail user identifier (defaults to $_SERVER[USER])', '');
+            ->addOption('id',       null, InputOption::VALUE_REQUIRED, 'Record ID');
+
+        $this->addOperatorOption();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -66,7 +69,7 @@ class VersionCreateCommand extends Command
                 JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
             )),
             (string) $this->getName(),
-            '' !== $operator ? $operator : (string) ($_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent'),
+            $this->resolveOperatorName($input),
         );
 
         $output->writeln(json_encode([

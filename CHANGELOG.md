@@ -4,7 +4,15 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
-## Unreleased
+## v0.2.14 - 2026-08-25
+
+### Added
+
+- **`--operator` on `contao:version:restore` and `contao:template:write`.** Both wrote the shell user into `tl_log.username` no matter who was acting. That was harmless before v0.2.11, when nothing reached the system log at all; now it is a wrong name in the audit trail. It also failed quietly rather than loudly: contao-ai-backend-bundle only passes `--operator` to commands whose definition declares it (`AbstractCoreCommandTool::runCommand()`), so a missing option costs the attribution without raising anything.
+
+  The option, its description and the `$_SERVER['USER']` fallback now live in one `OperatorOptionTrait`, shared by the four commands that do not extend `AbstractWriteCommand` — `version:create` and `record:clone` had their own copies of the same three lines.
+
+- **A label for `CLI` in the back end's origin filter.** `tl_log.source` is rendered through a reference lookup; Contao ships `BE` and `FE`, so a console write showed as the raw string. The bundle now carries `contao/languages/{en,de}/tl_log.xlf` with `tl_log.CLI` → *Command line* / *Kommandozeile*. This is the first `contao/` resource directory in the bundle; nothing else was needed to make Contao find it.
 
 ### Changed
 
@@ -12,15 +20,15 @@ This file was reconstructed from the git history on 2026-08-13, so entries befor
 
   They are now skipped instead, with the reason and the fix in the skip message. Same information, and a failure stays visible as a failure. The guard checks whether a container is actually there rather than whether `CONTAO_ROOT` is set, because the container is what the test needs; who supplied it is beside the point.
 
-  `vendor/bin/phpunit` → 151 tests, 18 skipped, 0 errors. `CONTAO_ROOT=… vendor/bin/phpunit` → 151 tests, 252 assertions, no skips.
+  Before skipping anything, all 17 behaviours were verified against a live container, so the skip is not hiding a defect.
 
-  No production code changed, and `tests/` is `export-ignore`d, so the distributed package is byte-identical to v0.2.13 - hence no version tag.
+  `README.md` now documents both test modes; they were only described in a docblock nobody opens.
 
 ### Notes
 
-The 17 behaviours were separately verified against a live container before skipping them, so the skip is not hiding anything: every one of the commands returns `{"status":"error","message":"… not found: 0"}` on Contao 5.7.11.
+Verified live on Contao 5.7.11: `version:create`, `version:restore` and `template:write` with `--operator webwerkwien` all land in `tl_log` under that name (`CLI`/`GENERAL` and `CLI`/`FILES` respectively), and `System::loadLanguageFile('tl_log')` resolves `CLI` to *Command line* in English and *Kommandozeile* in German. Test template, version rows and the patched vendor files were removed afterwards.
 
-`README.md` now documents both test modes; they were only described in a docblock in `tests/bootstrap.php`.
+Suite: `vendor/bin/phpunit` → 158 tests, 18 skipped, 0 errors. `CONTAO_ROOT=… vendor/bin/phpunit` → no skips.
 
 ## v0.2.13 - 2026-08-25
 

@@ -18,6 +18,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 #[AsCommand(name: 'contao:version:restore', description: 'Restore a record to a specific version')]
 class VersionRestoreCommand extends Command
 {
+    use OperatorOptionTrait;
+
     private LoggerInterface $logger;
     private ?SystemLog $systemLog = null;
 
@@ -47,6 +49,8 @@ class VersionRestoreCommand extends Command
             ->addOption('table', null, InputOption::VALUE_REQUIRED, 'Table name, e.g. tl_content')
             ->addOption('id',    null, InputOption::VALUE_REQUIRED, 'Record ID')
             ->addOption('ver',   null, InputOption::VALUE_REQUIRED, 'Version number to restore');
+
+        $this->addOperatorOption();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -87,7 +91,7 @@ class VersionRestoreCommand extends Command
         $this->versionManager->markActiveVersion($table, $id, $version);
 
         $payload = ['table' => $table, 'id' => $id, 'restored_version' => $version];
-        $user    = $_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent';
+        $user    = $this->resolveOperatorName($input);
 
         $this->logger->info('contao-ai-core-bundle audit', [
             'command' => $this->getName(),

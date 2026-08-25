@@ -65,9 +65,9 @@ Every successful write leaves two traces.
 
 | Column | Value |
 | --- | --- |
-| `source` | `CLI` for console and macro-bridge writes — Contao itself only writes `BE` and `FE`, so they are filterable on their own. When contao-ai-backend-bundle runs the same command inside a back-end request, Contao labels it `BE` as usual. |
+| `source` | `CLI` for console and macro-bridge writes, shown as *Command line* / *Kommandozeile* in the origin filter — Contao itself only writes `BE` and `FE`, so they are filterable on their own. When contao-ai-backend-bundle runs the same command inside a back-end request, Contao labels it `BE` as usual. |
 | `action` | `GENERAL` for records, `FILES` for file, folder and template commands |
-| `username` | the `--operator` when one is passed, otherwise the shell user (`$_SERVER['USER']`) |
+| `username` | the `--operator` when one is passed, otherwise the shell user (`$_SERVER['USER']`). Every write command accepts it. |
 | `func` | the command name, e.g. `contao:page:update` |
 | `text` | command name plus the JSON payload the command returned |
 
