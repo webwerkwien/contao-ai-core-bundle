@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.12 - 2026-08-25
+
+### Fixed
+
+- **Back-end writes were labelled `CLI`.** v0.2.11 hard-coded `tl_log.source` to `CLI`, which is right for a console write and wrong for everything else: contao-ai-backend-bundle runs these very commands in-process during a back-end request (`AbstractCoreCommandTool::runCommand()`), so an editor's change through the AI chat was attributed to the console.
+
+  `SystemLog` now sets the source only when there is no request. With it left null, `ContaoTableProcessor` reads the request and fills in `BE` (or `FE`) itself - the same answer Contao gives for any other back-end write. Shipped in v0.2.11 and found the same day, before any back-end write had been made against it.
+
 ## v0.2.11 - 2026-08-25
 
 ### Added

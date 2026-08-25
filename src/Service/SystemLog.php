@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service;
 use Contao\CoreBundle\Monolog\ContaoContext;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Writes an entry into Contao's system log (tl_log).
@@ -39,6 +40,7 @@ class SystemLog
     public function __construct(
         #[Autowire(service: 'monolog.logger.contao.general')]
         private readonly LoggerInterface $logger,
+        private readonly RequestStack $requestStack,
     ) {
     }
 
@@ -54,11 +56,18 @@ class SystemLog
         string $username,
         string $action = ContaoContext::GENERAL,
     ): void {
+        // Only claim CLI when there really is no request. contao-ai-backend-bundle
+        // runs these very commands in-process during a back-end request, and those
+        // are BE writes - labelling them CLI would misattribute an editor's change
+        // to the console. With source left null, ContaoTableProcessor reads the
+        // request and fills in BE (or FE) itself.
+        $source = null === $this->requestStack->getCurrentRequest() ? self::SOURCE : null;
+
         $this->logger->info($text, ['contao' => new ContaoContext(
             func: '' !== $func ? $func : 'contao-ai-core-bundle',
             action: $action,
             username: '' !== $username ? $username : 'cli-agent',
-            source: self::SOURCE,
+            source: $source,
         )]);
     }
 }
