@@ -17,6 +17,9 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
  */
 class CalendarCloner implements EntityClonerInterface
 {
+    use CopiesSourceRows;
+    use FiltersModifications;
+
     private const ALLOWED_CALENDAR_MODIFICATIONS = ['title'];
 
     public function __construct(
@@ -42,16 +45,14 @@ class CalendarCloner implements EntityClonerInterface
             throw new \RuntimeException(\sprintf('Calendar %d nicht gefunden.', $sourceId));
         }
 
-        $filteredMods = [];
-        foreach ($modifications as $key => $value) {
-            if (\in_array($key, self::ALLOWED_CALENDAR_MODIFICATIONS, true)) {
-                $filteredMods[$key] = $value;
-            }
-        }
+        ['accepted' => $filteredMods, 'ignored' => $ignoredMods] = $this->partitionModifications(
+            $modifications,
+            self::ALLOWED_CALENDAR_MODIFICATIONS,
+        );
 
         $authorId = $this->resolveAuthorId($operator);
 
-        return $this->connection->transactional(function () use ($source, $sourceId, $filteredMods, $operator, $authorId): array {
+        return $this->connection->transactional(function () use ($source, $sourceId, $filteredMods, $ignoredMods, $operator, $authorId): array {
             $newId = $this->cloneCalendarRow($source, $filteredMods);
             $this->versionManager->createVersion('tl_calendar', $newId, $operator);
 
@@ -69,6 +70,8 @@ class CalendarCloner implements EntityClonerInterface
                 'id'    => $newId,
                 'table' => 'tl_calendar',
                 'count' => $count,
+                // Overrides this cloner refused. Empty on a clean call; never omitted.
+                'ignored_modifications' => $ignoredMods,
             ];
         });
     }
@@ -79,12 +82,7 @@ class CalendarCloner implements EntityClonerInterface
     private function cloneCalendarRow(CalendarModel $source, array $modifications): int
     {
         $clone = new CalendarModel();
-        foreach ($source->row() as $key => $value) {
-            if ('id' === $key) {
-                continue;
-            }
-            $clone->$key = $value;
-        }
+        $this->copySourceRow($clone, $this->fetchSourceRow('tl_calendar', (int) $source->id));
         $clone->tstamp = time();
 
         foreach ($modifications as $key => $value) {
@@ -101,12 +99,7 @@ class CalendarCloner implements EntityClonerInterface
     private function cloneEventRow(CalendarEventsModel $source, int $newCalendarId, int $authorId): int
     {
         $clone = new CalendarEventsModel();
-        foreach ($source->row() as $key => $value) {
-            if ('id' === $key) {
-                continue;
-            }
-            $clone->$key = $value;
-        }
+        $this->copySourceRow($clone, $this->fetchSourceRow('tl_calendar_events', (int) $source->id));
         $clone->tstamp    = time();
         $clone->pid       = $newCalendarId;
         $clone->author    = $authorId;

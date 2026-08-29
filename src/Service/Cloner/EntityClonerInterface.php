@@ -27,7 +27,11 @@ interface EntityClonerInterface
      * @param array<string, mixed>         $options       Cloner-specific flags. Recognised:
      *   - `recursive` (bool): walk container-of-container hierarchies (e.g. PageCloner: clone the entire subpage tree, not just the root page). Default false.
      *
-     * @return array{id: int, table: string, count: int}  New root record id, source table name, number of cloned child records (cloner-specific definition of "child")
+     * @return array{id: int, table: string, count: int, ignored_modifications: list<string>}  New root record id,
+     *   source table name, number of cloned child records (cloner-specific definition of "child"), and the names of
+     *   any $modifications the cloner refused. The last key is always present — empty list on a clean call — so a
+     *   caller can distinguish an applied override from a discarded one. Before 2026-08-29 refused keys vanished
+     *   silently, which is how two pages meant to stay unpublished went live.
      *
      * @throws \RuntimeException on missing source, transaction failure, or DCA violation
      */

@@ -53,7 +53,15 @@ class RecordCloneCommand extends Command
     {
         $this->addOption('source-table',  null, InputOption::VALUE_REQUIRED, 'Container table to clone (e.g. tl_news_archive)');
         $this->addOption('source-id',     null, InputOption::VALUE_REQUIRED, 'ID of the source container record');
-        $this->addOption('modifications', null, InputOption::VALUE_OPTIONAL, 'JSON object of root-record field overrides (e.g. {"title":"…"})', '{}');
+        $this->addOption('modifications', null, InputOption::VALUE_OPTIONAL, implode(' ', [
+            'JSON object of root-record field overrides (e.g. {"title":"…"}).',
+            'Each cloner accepts a fixed set of fields only:',
+            'tl_page = title, pageTitle, description, published, hide;',
+            'tl_faq_category = title, headline;',
+            'tl_news_archive and tl_calendar = title.',
+            'Anything else is refused and listed back as "ignored_modifications" in the response.',
+            'Note that "alias" is never taken from here — it is always regenerated from the title with a uniqueness suffix.',
+        ]), '{}');
         $this->addOperatorOption();
         $this->addOption('recursive',     null, InputOption::VALUE_NONE, 'Walk container-of-container hierarchies (e.g. PageCloner: clone the entire subpage tree, not just the root page).');
     }

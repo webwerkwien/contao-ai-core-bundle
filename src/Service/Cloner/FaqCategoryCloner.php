@@ -22,6 +22,9 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
  */
 class FaqCategoryCloner implements EntityClonerInterface
 {
+    use CopiesSourceRows;
+    use FiltersModifications;
+
     private const ALLOWED_CATEGORY_MODIFICATIONS = ['title', 'headline'];
 
     public function __construct(
@@ -47,16 +50,14 @@ class FaqCategoryCloner implements EntityClonerInterface
             throw new \RuntimeException(\sprintf('FAQ-Kategorie %d nicht gefunden.', $sourceId));
         }
 
-        $filteredMods = [];
-        foreach ($modifications as $key => $value) {
-            if (\in_array($key, self::ALLOWED_CATEGORY_MODIFICATIONS, true)) {
-                $filteredMods[$key] = $value;
-            }
-        }
+        ['accepted' => $filteredMods, 'ignored' => $ignoredMods] = $this->partitionModifications(
+            $modifications,
+            self::ALLOWED_CATEGORY_MODIFICATIONS,
+        );
 
         $authorId = $this->resolveAuthorId($operator);
 
-        return $this->connection->transactional(function () use ($source, $sourceId, $filteredMods, $operator, $authorId): array {
+        return $this->connection->transactional(function () use ($source, $sourceId, $filteredMods, $ignoredMods, $operator, $authorId): array {
             $newId = $this->cloneCategoryRow($source, $filteredMods);
             $this->versionManager->createVersion('tl_faq_category', $newId, $operator);
 
@@ -74,6 +75,8 @@ class FaqCategoryCloner implements EntityClonerInterface
                 'id'    => $newId,
                 'table' => 'tl_faq_category',
                 'count' => $count,
+                // Overrides this cloner refused. Empty on a clean call; never omitted.
+                'ignored_modifications' => $ignoredMods,
             ];
         });
     }
@@ -84,12 +87,7 @@ class FaqCategoryCloner implements EntityClonerInterface
     private function cloneCategoryRow(FaqCategoryModel $source, array $modifications): int
     {
         $clone = new FaqCategoryModel();
-        foreach ($source->row() as $key => $value) {
-            if ('id' === $key) {
-                continue;
-            }
-            $clone->$key = $value;
-        }
+        $this->copySourceRow($clone, $this->fetchSourceRow('tl_faq_category', (int) $source->id));
         $clone->tstamp = time();
 
         foreach ($modifications as $key => $value) {
@@ -106,12 +104,7 @@ class FaqCategoryCloner implements EntityClonerInterface
     private function cloneFaqRow(FaqModel $source, int $newCategoryId, int $authorId): int
     {
         $clone = new FaqModel();
-        foreach ($source->row() as $key => $value) {
-            if ('id' === $key) {
-                continue;
-            }
-            $clone->$key = $value;
-        }
+        $this->copySourceRow($clone, $this->fetchSourceRow('tl_faq', (int) $source->id));
         $clone->tstamp    = time();
         $clone->pid       = $newCategoryId;
         $clone->author    = $authorId;

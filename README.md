@@ -31,6 +31,8 @@ composer require webwerkwien/contao-ai-core-bundle
 
 All commands output JSON and follow a consistent `{"status":"ok", ...}` / `{"status":"error", ...}` format.
 
+> **One caveat on reading:** a `tinyint` column comes back as `true`/`false`, never as a number, because Doctrine maps every `tinyint` to boolean and Contao casts accordingly on read. A record storing `stunden = 2` answers `{"stunden": true}` — the stored value is unharmed, only this reading of it is lossy. For flags (`published`, `hide`) that is correct; it bites where a project declared a *number* as `tinyint`. Do not write such a value back (`2` returns as `true` and would be stored as `1`); setting a field outright with `--set stunden=2` is unaffected, as it passes a string. Declare numeric fields as `smallint(5) unsigned`, which is what Contao's own DCA does.
+
 | Area | Commands |
 |---|---|
 | Pages | `contao:page:read` `contao:page:create` `contao:page:update` `contao:page:delete` `contao:page:publish` |

@@ -32,7 +32,35 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
  */
 class PageCloner implements EntityClonerInterface
 {
-    private const ALLOWED_PAGE_MODIFICATIONS = ['title', 'pageTitle', 'description'];
+    use CopiesSourceRows;
+    use FiltersModifications;
+
+    /**
+     * `published` and `hide` were added on 2026-08-29.
+     *
+     * The line this list draws: **an override is accepted when it controls
+     * whether and where the clone becomes visible.** That is the core of
+     * cloning — copy it, but do not surface it yet. The cloned content elements
+     * are already forced to `invisible = '1'` for the same reason; the page
+     * itself had no counterpart, and saying otherwise was discarded in silence.
+     *
+     * `published` covers "not live". `hide` covers the case after that: a clone
+     * that will be published but must stay out of the navigation — a test
+     * variant, a landing page, anything reachable only by its URL. Without it
+     * that needs a second write, and the page sits in the menu in between.
+     *
+     * `protected` deliberately stays out. It is access control, not visibility:
+     * a `protected: ""` on the clone of a protected page would expose its
+     * content, which is the kind of mistake this list exists to prevent.
+     */
+    private const ALLOWED_PAGE_MODIFICATIONS = ['title', 'pageTitle', 'description', 'published', 'hide'];
+
+    /**
+     * Whitelisted overrides that address a tinyint flag column and therefore
+     * must not be written verbatim — see FiltersModifications::normaliseFlag().
+     * Every entry here must also appear in ALLOWED_PAGE_MODIFICATIONS.
+     */
+    private const FLAG_PAGE_MODIFICATIONS = ['published', 'hide'];
 
     /**
      * Maximum descent depth for subpage-recursion. Stock Contao installs
@@ -69,17 +97,21 @@ class PageCloner implements EntityClonerInterface
             throw new \RuntimeException(\sprintf('Page %d nicht gefunden.', $sourceId));
         }
 
-        $filteredMods = [];
-        foreach ($modifications as $key => $value) {
-            if (\in_array($key, self::ALLOWED_PAGE_MODIFICATIONS, true)) {
-                $filteredMods[$key] = $value;
+        ['accepted' => $filteredMods, 'ignored' => $ignoredMods] = $this->partitionModifications(
+            $modifications,
+            self::ALLOWED_PAGE_MODIFICATIONS,
+        );
+
+        foreach (self::FLAG_PAGE_MODIFICATIONS as $flag) {
+            if (\array_key_exists($flag, $filteredMods)) {
+                $filteredMods[$flag] = $this->normaliseFlag($filteredMods[$flag]);
             }
         }
 
         $authorId  = $this->resolveAuthorId($operator);
         $recursive = (bool) ($options['recursive'] ?? false);
 
-        return $this->connection->transactional(function () use ($source, $filteredMods, $operator, $authorId, $recursive): array {
+        return $this->connection->transactional(function () use ($source, $filteredMods, $ignoredMods, $operator, $authorId, $recursive): array {
             $stats = ['articles' => 0, 'contents' => 0, 'subpages' => 0, 'capped' => false];
 
             $newRootId = $this->doClone(
@@ -101,6 +133,9 @@ class PageCloner implements EntityClonerInterface
                 'content_count'  => $stats['contents'],
                 'subpage_count'  => $stats['subpages'],
                 'capped'         => $stats['capped'],
+                // Overrides this cloner refused. Empty on a clean call; never omitted,
+                // so a caller can check the key instead of guessing.
+                'ignored_modifications' => $ignoredMods,
             ];
         });
     }
@@ -216,12 +251,7 @@ class PageCloner implements EntityClonerInterface
     private function clonePageRow(PageModel $source, array $modifications, ?int $parentNewId): int
     {
         $clone = new PageModel();
-        foreach ($source->row() as $key => $value) {
-            if ('id' === $key) {
-                continue;
-            }
-            $clone->$key = $value;
-        }
+        $this->copySourceRow($clone, $this->fetchSourceRow('tl_page', (int) $source->id));
         $clone->tstamp = time();
         if (null !== $parentNewId) {
             $clone->pid = $parentNewId;
@@ -246,12 +276,7 @@ class PageCloner implements EntityClonerInterface
     private function cloneArticleRow(ArticleModel $source, int $newPageId, int $authorId): int
     {
         $clone = new ArticleModel();
-        foreach ($source->row() as $key => $value) {
-            if ('id' === $key) {
-                continue;
-            }
-            $clone->$key = $value;
-        }
+        $this->copySourceRow($clone, $this->fetchSourceRow('tl_article', (int) $source->id));
         $clone->tstamp    = time();
         $clone->pid       = $newPageId;
         $clone->author    = $authorId;
@@ -273,12 +298,7 @@ class PageCloner implements EntityClonerInterface
     private function cloneContentRow(ContentModel $source, int $newPid): int
     {
         $clone = new ContentModel();
-        foreach ($source->row() as $key => $value) {
-            if ('id' === $key) {
-                continue;
-            }
-            $clone->$key = $value;
-        }
+        $this->copySourceRow($clone, $this->fetchSourceRow('tl_content', (int) $source->id));
         $clone->tstamp    = time();
         $clone->pid       = $newPid;
         $clone->invisible = '1'; // Klon-Inhalte unsichtbar bis Operator-Review

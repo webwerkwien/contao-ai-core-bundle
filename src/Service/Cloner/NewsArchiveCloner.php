@@ -23,6 +23,9 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
  */
 class NewsArchiveCloner implements EntityClonerInterface
 {
+    use CopiesSourceRows;
+    use FiltersModifications;
+
     /**
      * Field allow-list for the `modifications` payload when cloning the
      * tl_news_archive root. Anything else is silently ignored.
@@ -52,17 +55,15 @@ class NewsArchiveCloner implements EntityClonerInterface
             throw new \RuntimeException(\sprintf('News-Archiv %d nicht gefunden.', $sourceId));
         }
 
-        $filteredMods = [];
-        foreach ($modifications as $key => $value) {
-            if (\in_array($key, self::ALLOWED_ARCHIVE_MODIFICATIONS, true)) {
-                $filteredMods[$key] = $value;
-            }
-        }
+        ['accepted' => $filteredMods, 'ignored' => $ignoredMods] = $this->partitionModifications(
+            $modifications,
+            self::ALLOWED_ARCHIVE_MODIFICATIONS,
+        );
 
         $authorId = $this->resolveAuthorId($operator);
 
         // Atomic cascade: archive + all children commit together or not at all.
-        return $this->connection->transactional(function () use ($source, $sourceId, $filteredMods, $operator, $authorId): array {
+        return $this->connection->transactional(function () use ($source, $sourceId, $filteredMods, $ignoredMods, $operator, $authorId): array {
             $newArchiveId = $this->cloneArchiveRow($source, $filteredMods);
             $this->versionManager->createVersion('tl_news_archive', $newArchiveId, $operator);
 
@@ -80,6 +81,8 @@ class NewsArchiveCloner implements EntityClonerInterface
                 'id'    => $newArchiveId,
                 'table' => 'tl_news_archive',
                 'count' => $count,
+                // Overrides this cloner refused. Empty on a clean call; never omitted.
+                'ignored_modifications' => $ignoredMods,
             ];
         });
     }
@@ -90,12 +93,7 @@ class NewsArchiveCloner implements EntityClonerInterface
     private function cloneArchiveRow(NewsArchiveModel $source, array $modifications): int
     {
         $clone = new NewsArchiveModel();
-        foreach ($source->row() as $key => $value) {
-            if ('id' === $key) {
-                continue;
-            }
-            $clone->$key = $value;
-        }
+        $this->copySourceRow($clone, $this->fetchSourceRow('tl_news_archive', (int) $source->id));
         $clone->tstamp = time();
 
         foreach ($modifications as $key => $value) {
@@ -112,12 +110,7 @@ class NewsArchiveCloner implements EntityClonerInterface
     private function cloneNewsRow(NewsModel $source, int $newArchiveId, int $authorId): int
     {
         $clone = new NewsModel();
-        foreach ($source->row() as $key => $value) {
-            if ('id' === $key) {
-                continue;
-            }
-            $clone->$key = $value;
-        }
+        $this->copySourceRow($clone, $this->fetchSourceRow('tl_news', (int) $source->id));
         $clone->tstamp    = time();
         $clone->pid       = $newArchiveId;
         $clone->author    = $authorId;
