@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
-## Unreleased
+## v0.2.16 - 2026-08-29
 
 ### Changed
 
