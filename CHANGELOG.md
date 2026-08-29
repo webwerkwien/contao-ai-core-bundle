@@ -4,6 +4,48 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.15 - 2026-08-29
+
+### Fixed
+
+- **`record:clone` reduced every `tinyint` value to 1.** Cloning a tour page turned walking time 2 into 1, difficulty 2 into 1, severity 4 into 1, driving time 2 into 1 and the participant cap 4 into 1 — practically the whole fact table — while the command reported `status: ok`. `0` survived, and `smallint` and `varchar` were untouched, which is what pointed at a boolean cast rather than at the clone logic.
+
+  The value was already gone before the cloner saw it. Doctrine DBAL maps every MySQL `tinyint` to `Types::BOOLEAN` regardless of the declared length (`AbstractMySQLPlatform`: `'tinyint' => Types::BOOLEAN`), Contao's `Model::convertToPhpValue()` honours that mapping on read, and so `Model::row()` hands out `true` for a stored `2`. Assigning that to the clone and saving it writes `1` back, because `Database\Statement::set()` binds a PHP boolean as `ParameterType::BOOLEAN`. A normal `page:update --set stunden=2` was never affected — it passes a string, which never meets the cast.
+
+  All four cloners now read the source record with a plain `SELECT *` and copy the stored values. That is how stock Contao avoids the same trap: the back end never reads a record through the model layer — `DataContainer::preloadCurrentRecords()` runs a plain `SELECT *` over DBAL, and `DC_Table::copy()` takes its source row from there via `getCurrentRecord()`, which is why copying inside the back end was never affected. The shared `CopiesSourceRows` trait covers the nine copy loops across `PageCloner`, `NewsArchiveCloner`, `CalendarCloner` and `FaqCategoryCloner`; a test fails if a cloner goes back to `Model::row()`.
+
+  **What this deliberately does not change:** read commands still report a `tinyint` column as `true`/`false`. Mapping `tinyint` to boolean is Contao's convention rather than a defect — its own DCA uses `smallint(5)` and `int(10)` for numbers and reserves `tinyint` for flags, and the cast table is generated from the DCA (`ContaoCacheWarmer::generateColumnCastTypes()`), not from the live schema. Returning raw values instead would make `published` come back as `"1"` rather than `true`, putting this bundle at odds with the back end and every other consumer. A column that stores a number and is declared `tinyint` is mis-declared, and the fix belongs in the DCA that owns it. A cloner is the exception, because it has to reproduce stored values whatever their type.
+
+- **`record:clone` discarded `--modifications` it did not accept, in silence.** Anything outside a cloner's allow-list was dropped with no error, no warning and nothing in the response. A call carrying `{"published":"","hide":"1"}` therefore produced two pages that inherited `published = 1` from their source and were publicly reachable for about three minutes; the command had said `status: ok`.
+
+  Every cloner response now carries `ignored_modifications`, always present and empty on a clean call, so a caller can tell an applied override from a discarded one. The `--modifications` description names each cloner's accepted fields and states that `alias` is never taken from there — it is always regenerated from the title with a uniqueness suffix, which was equally undocumented.
+
+- **`published` and `hide` are now accepted modifications for `tl_page`.** "Clone it, but do not put it live yet" is the normal case, not the exception: the cloned content elements are already forced to `invisible = '1'` for exactly that reason, and the page itself had no counterpart. `hide` covers the case after that — a clone that will be published but has to stay out of the navigation, such as a test variant or a page reachable only by its URL; without it that took a second write, with the page sitting in the menu in between.
+
+  Both are normalised to `'0'`/`'1'` first. Callers write `""` for "off", and an empty string in a `tinyint NOT NULL` column is the write that had to be fixed in v0.2.10 — extending the allow-list without normalising would have reintroduced it.
+
+  The allow-list now follows a stated rule rather than accreting field by field: **an override is accepted when it controls whether and where the clone becomes visible.** `protected` and `groups` are deliberately excluded — those are access control, and a `protected: ""` on the clone of a protected page would expose its content, which is what the allow-list exists to prevent. A test pins the policy in both directions, including the invariant that every normalised flag is also whitelisted.
+
+- **Read commands returned binary file references, destroying them on the way out.** A `fileTree` column holds Contao's 16-byte binary UUID. The read path handed it straight to `json_encode()`, and `JSON_INVALID_UTF8_SUBSTITUTE` replaced every byte that is not valid UTF-8 with U+FFFD, so `contao:page:read 98` answered with `"navigationImage": "GW<FFFD>V+8<0x11><FFFD><FFFD><NUL><NUL>(<FFFD>T"`. The reference was gone before anything left the server; the database and the transport both had it intact.
+
+  A caller could therefore not tell which file a record points at. It also crashed contao-ai-cli on a cp1252 console, which is how it was found.
+
+  `AbstractModelReadCommand::convertFileTreeFieldsToUuid()` is the missing inverse of `AbstractWriteCommand::convertFileTreeFields()`, which has converted UUID strings to binary on write since v0.2.1. DCA-driven, handles `multiple` fields, and leaves anything that is not a binary UUID alone.
+
+### Added
+
+- **`--ids` on every entity update command.** `contao:page:update --ids=39,40,41 --set max_teiln=4` applies the same values to many records in one invocation. Inherited by all `AbstractModelUpdateCommand` subclasses, so page, news, event, FAQ, article and content all have it.
+
+  Setting one field on 174 pages previously took about four minutes: 1.4 s per record, of which 0.67 s was establishing the SSH connection and nothing else. The only alternative was `bridge rewrite`, an LLM loop that bills API tokens to write a constant.
+
+  **Each record keeps its own version and its own system-log entry** — the audit trail is the reason writes go through the console at all, and it is not what was slow. Only the connection is shared. The response is a summary (`total`, `succeeded`, `failed`, `ids`, `errors`) and the exit code is non-zero when any record failed, so a shell loop notices. A malformed entry in the list is named and refused rather than skipped: a silent skip is exactly how the bulk run of 2026-08-29 managed to look successful while changing one record out of 174.
+
+  The ID argument stays a single-record path with an unchanged response shape; giving both is an error, as is giving neither.
+
+### Notes
+
+Suite: `vendor/bin/phpunit` → 202 tests, 18 skipped, 0 errors (158 before).
+
 ## v0.2.14 - 2026-08-25
 
 ### Added
