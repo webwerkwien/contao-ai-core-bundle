@@ -13,6 +13,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Contracts\Service\Attribute\Required;
 use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
+use Webwerkwien\ContaoAiCoreBundle\Service\Writer\RecordWriterInterface;
 
 abstract class AbstractWriteCommand extends Command
 {
@@ -43,6 +44,40 @@ abstract class AbstractWriteCommand extends Command
     public function setSystemLog(SystemLog $systemLog): void
     {
         $this->systemLog = $systemLog;
+    }
+
+    /**
+     * Where a record is actually written. Nullable for the same reason as
+     * $systemLog: the command tests construct commands by hand, without a
+     * container. See RecordWriterInterface for why the write path sits behind
+     * an interface rather than in these commands.
+     */
+    protected ?RecordWriterInterface $recordWriter = null;
+
+    #[Required]
+    public function setRecordWriter(RecordWriterInterface $recordWriter): void
+    {
+        $this->recordWriter = $recordWriter;
+    }
+
+    /**
+     * The writer, or a message that says what to do about its absence.
+     *
+     * In the container it is always injected. It can only be missing in a test
+     * that builds a command by hand — and no test reached this point when the
+     * writer was introduced, because they all exercise error paths that return
+     * before anything is written. The first one that does exercise a successful
+     * write should get this sentence rather than a null-pointer.
+     */
+    protected function writer(): RecordWriterInterface
+    {
+        return $this->recordWriter ?? throw new \LogicException(\sprintf(
+            'No RecordWriter on %s. The container injects it via #[Required]; a test '
+            . 'constructing this command by hand must call setRecordWriter() — with a real '
+            . 'ModelWriter if it asserts a successful write, since a bare mock returns null '
+            . 'and would read as "record not found".',
+            static::class,
+        ));
     }
 
     protected function configure(): void

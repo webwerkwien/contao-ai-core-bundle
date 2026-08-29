@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## Unreleased
+
+### Changed
+
+- **The write path sits behind an interface.** `RecordWriterInterface` now owns persisting a record and everything a write owes the audit trail; `ModelWriter` is implementation A and writes through Contao's model layer exactly as the commands did inline. This was a move, not a rewrite — the response shapes, the version ordering, the cascade order and the `tl_undo` payload are unchanged, and verified as such against a live install.
+
+  The reason is not the Contao 6.1 core operations, though they are why it is an *interface*. It is that the rules around a write accreted one bugfix at a time and each landed somewhere else: the cascade and undo entry in v0.2.8/v0.2.9, the `''`-in-a-tinyint normalisation in v0.2.10, the system log in v0.2.11–v0.2.13, the `tinyint` read in v0.2.15. None of them could be tested without booting a container, which is why several shipped uncovered — the cascade order and the `tl_undo.pid` correction among them.
+
+  They can be now. `ModelWriterTest` exercises the delete path against a mocked `Connection` and cascade collector: children before parents, one undo row for the whole set, filed under the deleting user, nothing filed when the snapshot is empty. Five tests where there were none.
+
+  Both abstract bases delegate, so every `contao:*:update` and `contao:*:delete` command inherits the seam without a change of its own. `AbstractWriteCommand::writer()` throws a sentence naming `setRecordWriter()` if it is missing, because no existing test reached the write path — they all assert error paths that return earlier — and the first one that does should not meet a null.
+
+  **Create commands stay outside for now.** They build their model with per-entity knowledge (which fields a page create takes, how an alias is derived) before saving, and that knowledge belongs in the command rather than the writer; their version snapshot already goes through the shared `createVersion()` helper. Folding them in means giving the interface a field-based `insert()`, which is worth doing when the create commands are next touched.
+
+  Signatures speak tables, ids and fields rather than `Contao\Model` objects on purpose: an implementation built on core operations would never see a model, so a model-shaped interface would look swappable without being it.
+
+### Notes
+
+Suite: `vendor/bin/phpunit` → 210 tests, 18 skipped, 0 errors (202 before).
+
+Verified live: clone → update → delete on a test install. Update wrote version 2 under the right operator; delete returned the unchanged payload (`cascade`, `rowsTotal: 3`), wrote one `tl_undo` row with `affectedRows: 3` and `pid: 0` for a CLI deletion, and left no orphans behind.
+
 ## v0.2.15 - 2026-08-29
 
 ### Fixed

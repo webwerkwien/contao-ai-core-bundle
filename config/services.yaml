@@ -55,3 +55,9 @@ services:
     Webwerkwien\ContaoAiCoreBundle\Command\TemplateWriteCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'
+
+    # The write path behind its interface. Autowiring does not alias an interface
+    # to its single implementation on its own, and without this every command's
+    # #[Required] setRecordWriter() fails to resolve at compile time.
+    Webwerkwien\ContaoAiCoreBundle\Service\Writer\RecordWriterInterface:
+        alias: Webwerkwien\ContaoAiCoreBundle\Service\Writer\ModelWriter

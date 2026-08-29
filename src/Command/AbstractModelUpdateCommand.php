@@ -201,6 +201,10 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
             return null;
         }
 
+        // The record is read here for the DCA conversions below, which need the
+        // stored value to preserve an existing inputUnit, and again inside the
+        // writer. Contao's Model\Registry serves the second lookup from memory,
+        // so this costs no query — and it keeps the writer free of entity knowledge.
         $fields = $this->preProcessFields($fields, $record);
         // inputUnit fields (headline): serialize to {value, unit}; unit via
         // <field>_unit companion / JSON value / existing record value / default.
@@ -209,14 +213,11 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
         // DCA-driven, so this covers every table's file-reference fields.
         $fields = $this->convertFileTreeFields($class::getTable(), $fields);
 
-        foreach ($fields as $key => $value) {
-            $record->$key = $value;
-        }
-        // createVersion snapshots pre-save state; tstamp marks the commit time.
-        $this->createVersion($class::getTable(), $id);
-        $record->tstamp = time();
-        $record->save();
-
-        return array_keys($fields);
+        return $this->writer()->update(
+            $class::getTable(),
+            $id,
+            $fields,
+            $this->resolveOperator(),
+        );
     }
 }
