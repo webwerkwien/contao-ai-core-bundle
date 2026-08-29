@@ -335,7 +335,15 @@ abstract class AbstractWriteCommand extends Command
         ));
     }
 
-    protected function outputSuccess(array $data): void
+    /**
+     * Write the audit rows for one changed record, without answering the caller.
+     *
+     * Split out from outputSuccess() for the bulk path: `--ids` touches N records
+     * and must leave the same per-record trail a single update leaves — that trail
+     * is the whole reason writes go through the console rather than SQL — while
+     * the caller gets one summary instead of N lines.
+     */
+    protected function logSuccess(array $data): void
     {
         $this->logger->info('contao-ai-core-bundle audit', [
             'command'  => $this->getName(),
@@ -350,6 +358,11 @@ abstract class AbstractWriteCommand extends Command
             $this->resolveOperator(),
             $this->systemLogAction(),
         );
+    }
+
+    protected function outputSuccess(array $data): void
+    {
+        $this->logSuccess($data);
         $this->output->writeln(json_encode(['status' => 'ok'] + $data, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
     }
 
