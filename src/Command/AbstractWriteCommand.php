@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 use Contao\Controller;
 use Contao\CoreBundle\Monolog\ContaoContext;
 use Contao\StringUtil;
+use Contao\Widget;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -239,8 +240,62 @@ abstract class AbstractWriteCommand extends Command
     {
         $fields = $this->convertFileTreeFields($table, $fields);
         $fields = $this->convertOptionFields($table, $fields);
+        $fields = $this->convertMultipleFields($table, $fields);
 
-        return $this->convertMultipleFields($table, $fields);
+        // Last on purpose: the three above leave empty values alone, and this
+        // one turns them into something that is no longer the empty string.
+        return $this->convertEmptyValues($table, $fields);
+    }
+
+    /**
+     * An empty `--set field=` becomes the empty value that column can hold.
+     *
+     * `--set teaser=` clears a text column and always worked. `--set addFile=`
+     * did not: `tl_newsletter.addFile` is `['type' => 'boolean']`, and MySQL in
+     * strict mode answers an empty string with *Incorrect integer value*. The
+     * DBAL exception escaped uncaught — a stack trace and exit 255 out of a
+     * command whose entire contract is a JSON result. Same syntax, two
+     * outcomes, decided by a column type the caller cannot see.
+     *
+     * 🎯 **Contao already answers this, and it publishes the answer.**
+     * `Widget::getEmptyValueByFieldType()` takes the DCA `sql` definition and
+     * returns the empty value for that column: `null` where the column is
+     * nullable, `0` for the integer family, `false` for `boolean`, `''`
+     * otherwise. `DC_Table::save()` calls it for exactly this purpose.
+     *
+     * So this is not a rule of ours. Refusing the empty value instead — the
+     * first instinct — would have made the CLI stricter than the back end at a
+     * place where Contao has a considered answer and hands it over as a public
+     * static method. No `protected` to reach around, no shape to guess.
+     *
+     * Because it returns `''` for string columns, it needs no special-casing:
+     * running every empty value through it leaves text fields exactly as they
+     * were.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @return array<string, mixed>
+     */
+    protected function convertEmptyValues(string $table, array $fields): array
+    {
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+
+        foreach ($fields as $name => $value) {
+            if ('' !== $value) {
+                continue;
+            }
+
+            $sql = $GLOBALS['TL_DCA'][$table]['fields'][$name]['sql'] ?? null;
+            if (null === $sql) {
+                continue;
+            }
+
+            $fields[$name] = Widget::getEmptyValueByFieldType($sql);
+        }
+
+        return $fields;
     }
 
     /**

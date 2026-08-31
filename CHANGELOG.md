@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.25 - 2026-08-31
+
+### Fixed
+
+- **`--set field=` crashed on boolean and integer columns** ([#24](https://github.com/webwerkwien/contao-ai-core-bundle/issues/24)). `--set teaser=` cleared a text column and always worked; `--set addFile=` died with *Incorrect integer value* and an uncaught DBAL exception — a stack trace and exit 255 out of a command whose whole contract is a JSON result. Same syntax, two outcomes, decided by a column type the caller cannot see. Affects create and update on every table: 159 `boolean` and 124 `int … NOT NULL default 0` columns in a stock Contao 5.7.12.
+
+  🎯 **Contao already answers this, and it publishes the answer.** `Widget::getEmptyValueByFieldType($sql)` is `public static`, takes the DCA `sql` definition and returns the empty value that column can hold — `null` where nullable, `0` for the integer family, `false` for `boolean`, `''` otherwise. `DC_Table::save()` calls it for exactly this purpose.
+
+  Refusing the empty value was the first instinct and would have been wrong: it would have made this bundle stricter than the back end at a place where Contao has a considered answer and hands it over without a `protected` to reach around. Because the mapping returns `''` for a NOT NULL string column, every empty value can run through it and text fields come out unchanged — no special-casing.
+
+  `convertEmptyValues()` runs last inside `convertFields()`, since the three conversions before it leave empty values alone on purpose.
+
 ## v0.2.24 - 2026-08-31
 
 ### Added
