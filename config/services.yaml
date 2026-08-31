@@ -30,6 +30,12 @@ services:
             - ../src/Command/Calendar*.php
             - ../src/Command/Faq*.php
             - ../src/Command/Comment*.php
+            # Newsletter*.php wird von News*.php oben bereits mit erfasst —
+            # fnmatch("News*.php", "NewsletterCreateCommand.php") trifft zu.
+            # Trotzdem eigene Zeile: die Newsletter-Commands hängen am
+            # newsletter-bundle, nicht am news-bundle, und würden sonst still
+            # durchfallen, sobald das News-Muster je enger gefasst wird.
+            - ../src/Command/Newsletter*.php
             # Cloner sind plugin-bedingt und werden in services_<plugin>.yaml registriert.
             - ../src/Service/Cloner/EntityClonerInterface.php
             - ../src/Service/Cloner/News*.php

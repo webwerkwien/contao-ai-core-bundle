@@ -1,0 +1,27 @@
+# Geladen von ContaoAiCoreBundle::loadExtension() nur wenn
+# \Contao\NewsletterChannelModel (contao/newsletter-bundle) installiert ist.
+#
+# Es gibt bewusst KEIN Send-Command: der Versand bleibt bei einem Menschen im
+# Backend (Entscheidung 2026-08-31, im Projektfile begründet). NewsletterSendGuard
+# erzwingt das auf dem Schreibpfad, ist aber eine reine Static-Klasse ohne
+# Service — sie wird vom exclude-Muster mit erfasst und braucht hier keinen
+# Eintrag.
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    # tl_newsletter_channel — der Wurzelknoten, an dem Newsletter UND Empfänger hängen.
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsletterChannelCreateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsletterChannelUpdateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsletterChannelDeleteCommand: ~
+
+    # tl_newsletter
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsletterCreateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsletterUpdateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsletterDeleteCommand: ~
+
+    # tl_newsletter_recipients
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsletterRecipientCreateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsletterRecipientUpdateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsletterRecipientDeleteCommand: ~

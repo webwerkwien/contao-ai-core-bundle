@@ -5,9 +5,9 @@ namespace Webwerkwien\ContaoAiCoreBundle;
 use Contao\CalendarEventsModel;
 use Contao\CommentsModel;
 use Contao\FaqModel;
+use Contao\NewsletterChannelModel;
 use Contao\NewsModel;
 // Hinweis für künftige Erweiterungen (Phase 9.4+):
-//   - contao/newsletter-bundle → \Contao\NewsletterModel
 //   - contao/listing-bundle    → braucht aktuell keinen Guard, weil der bestehende
 //     ListingConfigCommand nur \Contao\ModuleModel (Core) referenziert.
 // Sobald Commands für diese Plugins entstehen, hier nach demselben Muster
@@ -40,6 +40,12 @@ class ContaoAiCoreBundle extends AbstractBundle
         }
         if (class_exists(CommentsModel::class)) {
             $containerConfigurator->import('../config/services_comments.yaml');
+        }
+        // Der Guard hängt am Kanal-Modell, nicht an NewsletterModel: der Kanal
+        // ist die Wurzeltabelle, ohne die weder Newsletter noch Empfänger
+        // existieren können — und alle neun Commands brauchen ihn.
+        if (class_exists(NewsletterChannelModel::class)) {
+            $containerConfigurator->import('../config/services_newsletter.yaml');
         }
     }
 }

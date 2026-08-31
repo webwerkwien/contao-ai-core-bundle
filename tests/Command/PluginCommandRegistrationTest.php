@@ -41,6 +41,11 @@ class PluginCommandRegistrationTest extends TestCase
         'calendar' => ['CalendarModel', 'CalendarEventsModel', 'CalendarFeedModel'],
         'faq'      => ['FaqModel', 'FaqCategoryModel'],
         'comments' => ['CommentsModel'],
+        // NewsletterModel steht bewusst hinter den Kanal- und Empfänger-Modellen:
+        // die Erkennung nimmt den ersten Treffer, und NewsletterCreateCommand
+        // referenziert beide. Für die Zuordnung zum Suffix ist das egal — alle
+        // drei zeigen auf services_newsletter.yaml.
+        'newsletter' => ['NewsletterChannelModel', 'NewsletterRecipientsModel', 'NewsletterDenyListModel', 'NewsletterModel'],
     ];
 
     private function commandDir(): string
@@ -148,7 +153,7 @@ class PluginCommandRegistrationTest extends TestCase
     public function testTheScanFoundBothCommandsAndPatterns(): void
     {
         $this->assertGreaterThanOrEqual(
-            16,
+            25,
             \count($this->pluginDependentCommands()),
             'Plugin-dependent commands were not found — the model detection has drifted.',
         );

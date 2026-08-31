@@ -4,6 +4,36 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.24 - 2026-08-31
+
+### Added
+
+- **The newsletter can be written.** Nine commands over the module's three tables — `contao:newsletter-channel:*`, `contao:newsletter:*` and `contao:newsletter-recipient:*`, each with create, update and delete. It was the last entry in the back end menu that could be read and not written.
+
+  Registered only where `contao/newsletter-bundle` is installed: excluded from auto-discovery via `Newsletter*.php` and loaded from `config/services_newsletter.yaml` behind `class_exists(NewsletterChannelModel::class)`.
+
+  ⚠️ The `News*.php` exclude pattern already matches `Newsletter*.php` — `fnmatch` does not care about the word boundary. The explicit line is there anyway, because these commands hang off the newsletter bundle rather than the news bundle and would fall through silently the day that pattern is narrowed.
+
+  Nothing new was needed for the field rules. `tl_newsletter.files` is mandatory only inside the `addFile` subpalette, and `missingMandatoryFields()` already covered both levels; `files` is a `fileTree` with `multiple` and `jumpTo` a `pageTree`, both handled by `convertFields()`.
+
+### Changed
+
+- **`newsletter send` does not exist, and `sent` cannot be written.** Contao's send routine is browser-driven — each cycle ends with a JavaScript timer that loads the next batch — so there is nothing to hand through to a console command, and a mail that has gone out cannot be recalled. Sending stays with a person in the back end.
+
+  🎯 **A refusal only in the CLI would be a detour sign, not a boundary.** `NewsletterSendGuard` therefore sits on the write path itself and refuses `sent` and `date` on create, update and the bulk `--ids` form alike. Setting `sent=1` sends nothing: it marks the newsletter as sent *and publishes it in the front end archive*, because `NewsletterModel::findSentByPid()` filters on exactly that flag. It is the one substitute an agent would reach for, and it is worse than doing nothing.
+
+- **Recipients follow Contao's own CSV import, not the front end subscribe module.** Valid address, no duplicate in the channel, and not on the channel's deny list — the three rules of `Newsletter::importRecipients()`. Its permission check is dropped on purpose: it gates a back end user against their module rights, and whoever reaches a console command already has shell access.
+
+  `active` defaults to off and `addedOn` stays empty, so the back end labels the row "added manually" rather than presenting it as an opt-in it never was.
+
+  🎯 **The deny list carries more weight than it looks.** Both opt-out paths write the entry and then *delete* the recipient row (`BlockRecipientListener`, `ModuleUnsubscribe`), so the duplicate check finds nothing for someone who unsubscribed — the row is gone. The deny list is the only thing left that remembers it, and it is not administratively removable: `tl_newsletter_deny_list` has no `dataContainer` and no back end module. Only `ModuleSubscribe::activateRecipient()` clears an entry, after a confirmed opt-in (Contao #4999) — the person who opted out is the only one who can lift it.
+
+- **Address fields are validated.** `tl_newsletter_channel.sender`, `tl_newsletter.sender` and `tl_newsletter_recipients.email` carry `rgxp => 'email'`, which `DC_Table` enforces through the widget and this write path does not. Checked explicitly for now; the write layer validates no `rgxp` at all, which is its own gap and its own release.
+
+### Fixed
+
+- **`active` was written as an empty string.** `tl_newsletter_recipients.active` is declared `['type' => 'boolean']` — a real tinyint, not the `char(1)` older DCAs use for flags — and MySQL in strict mode rejects `''` for it with *Incorrect integer value*. Only the default path died; passing `--active` wrote `'1'` and worked, which is what hid it. Found on the first live write, not by the suite: mocked tests cannot see a column type.
+
 ## v0.2.23 - 2026-08-31
 
 ### Added
