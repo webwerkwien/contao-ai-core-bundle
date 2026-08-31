@@ -18,6 +18,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 #[AsCommand(name: 'contao:version:restore', description: 'Restore a record to a specific version')]
 class VersionRestoreCommand extends Command
 {
+    use JsonErrorBoundary;
+
     use OperatorOptionTrait;
 
     private LoggerInterface $logger;
@@ -54,6 +56,11 @@ class VersionRestoreCommand extends Command
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        return $this->guarded($output, fn (): int => $this->doExecute($input, $output));
+    }
+
+    protected function doExecute(InputInterface $input, OutputInterface $output): int
     {
         $table   = $input->getOption('table');
         $id      = (int) $input->getOption('id');

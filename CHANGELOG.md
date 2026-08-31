@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.26 - 2026-08-31
+
+### Changed
+
+- **An uncaught exception now leaves the same JSON error every other failure leaves.** Deliberate failures answer `{"status":"error","message":…,"code":1}` and exit 1. An exception that got past a command answered a PHP stack trace on stdout and exit 255 — not a worse message but *no* message, in a shape nothing here expects. The caller is a script or an agent parsing JSON.
+
+  `JsonErrorBoundary` catches `\Throwable`, not just DBAL: a caller cannot act differently on a `TypeError` than on a `DriverException` — both mean "this command did not do the thing" — and a boundary that lists the exceptions it knows about only holds until the next one nobody listed.
+
+  🎯 **The objection to catching everything is real: it hides the stack trace you want while developing.** So the boundary has a vent — at `-vvv` (`VERBOSITY_DEBUG`) the exception is rethrown untouched and Symfony renders it as before. Nothing in the CLI passes `-vvv`, so the vent costs the normal path nothing.
+
+  Exit code is **1**, the same as every other error here, not 255. The exit code answers one question — "did it work" — and telling a database error from a usage error is what the message is for. The message keeps the exception's short class name (`DriverException: …`), which is the one piece that says which layer failed.
+
+  Applied to **every** command, not only those extending the two base classes: the seven that extend Symfony's `Command` directly (`RecordClone`, `TemplateList`, `TemplateWrite`, `Version*`) use the trait themselves. A boundary that holds for most commands is not a boundary, and which is which is invisible from the outside — `JsonErrorBoundaryTest` fails by name if a command falls outside it.
+
+  Verified live against c5: a 600-character value into `tl_newsletter.alias` (varchar 255) now answers `DriverException: … Data too long for column 'alias'` with exit 1, where it previously produced a stack trace and exit 255.
+
 ## v0.2.25 - 2026-08-31
 
 ### Fixed

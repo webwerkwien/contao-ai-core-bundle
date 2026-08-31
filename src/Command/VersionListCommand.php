@@ -13,6 +13,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 #[AsCommand(name: 'contao:version:list', description: 'List version history for a record')]
 class VersionListCommand extends Command
 {
+    use JsonErrorBoundary;
+
     public function __construct(
         private readonly ContaoFramework $framework,
         private readonly Connection $connection,
@@ -28,6 +30,11 @@ class VersionListCommand extends Command
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        return $this->guarded($output, fn (): int => $this->doExecute($input, $output));
+    }
+
+    protected function doExecute(InputInterface $input, OutputInterface $output): int
     {
         $table = $input->getOption('table');
         $id    = (int) $input->getOption('id');

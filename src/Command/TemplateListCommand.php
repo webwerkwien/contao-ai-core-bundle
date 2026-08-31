@@ -12,6 +12,8 @@ use Symfony\Component\Finder\Finder;
 #[AsCommand(name: 'contao:template:list', description: 'List custom templates under templates/')]
 class TemplateListCommand extends Command
 {
+    use JsonErrorBoundary;
+
     public function __construct(private readonly string $projectDir)
     {
         parent::__construct();
@@ -23,6 +25,11 @@ class TemplateListCommand extends Command
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        return $this->guarded($output, fn (): int => $this->doExecute($input, $output));
+    }
+
+    protected function doExecute(InputInterface $input, OutputInterface $output): int
     {
         $tplDir = rtrim($this->projectDir, '/') . '/templates';
 

@@ -15,6 +15,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 #[AsCommand(name: 'contao:version:create', description: 'Manually create a version snapshot for a record')]
 class VersionCreateCommand extends Command
 {
+    use JsonErrorBoundary;
+
     use OperatorOptionTrait;
 
     private ?SystemLog $systemLog = null;
@@ -42,6 +44,11 @@ class VersionCreateCommand extends Command
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        return $this->guarded($output, fn (): int => $this->doExecute($input, $output));
+    }
+
+    protected function doExecute(InputInterface $input, OutputInterface $output): int
     {
         $table    = $input->getOption('table');
         $id       = (int) $input->getOption('id');

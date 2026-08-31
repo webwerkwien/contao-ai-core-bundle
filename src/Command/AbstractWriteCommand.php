@@ -18,6 +18,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Writer\RecordWriterInterface;
 
 abstract class AbstractWriteCommand extends Command
 {
+    use JsonErrorBoundary;
+
     protected InputInterface $input;
     protected OutputInterface $output;
     protected VersionManager $versionManager;
@@ -105,7 +107,8 @@ abstract class AbstractWriteCommand extends Command
         $this->output = $output;
 
         $fields = $this->parseSetOptions($input->getOption('set'));
-        return $this->doExecute($fields);
+
+        return $this->guarded($output, fn (): int => $this->doExecute($fields));
     }
 
     abstract protected function doExecute(array $fields): int;

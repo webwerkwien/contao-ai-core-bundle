@@ -29,6 +29,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 )]
 class RecordCloneCommand extends Command
 {
+    use JsonErrorBoundary;
+
     use OperatorOptionTrait;
 
     private ?SystemLog $systemLog = null;
@@ -67,6 +69,11 @@ class RecordCloneCommand extends Command
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        return $this->guarded($output, fn (): int => $this->doExecute($input, $output));
+    }
+
+    protected function doExecute(InputInterface $input, OutputInterface $output): int
     {
         $table    = (string) $input->getOption('source-table');
         $idRaw    = (string) $input->getOption('source-id');

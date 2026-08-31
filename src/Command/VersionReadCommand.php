@@ -14,6 +14,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 #[AsCommand(name: 'contao:version:read', description: 'Read a specific version snapshot as JSON')]
 class VersionReadCommand extends Command
 {
+    use JsonErrorBoundary;
+
     public function __construct(
         private readonly ContaoFramework $framework,
         private readonly Connection $connection,
@@ -31,6 +33,11 @@ class VersionReadCommand extends Command
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        return $this->guarded($output, fn (): int => $this->doExecute($input, $output));
+    }
+
+    protected function doExecute(InputInterface $input, OutputInterface $output): int
     {
         $table   = $input->getOption('table');
         $id      = (int) $input->getOption('id');

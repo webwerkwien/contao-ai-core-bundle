@@ -11,6 +11,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 abstract class AbstractReadCommand extends Command
 {
+    use JsonErrorBoundary;
+
     protected InputInterface $input;
     protected OutputInterface $output;
 
@@ -19,7 +21,7 @@ abstract class AbstractReadCommand extends Command
         $this->input  = $input;
         $this->output = $output;
 
-        return $this->doExecute();
+        return $this->guarded($output, fn (): int => $this->doExecute());
     }
 
     abstract protected function doExecute(): int;
