@@ -4,6 +4,48 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.17 - 2026-08-31
+
+### Fixed
+
+- **`contao:record:list` destroyed file references, the same way v0.2.15 had just stopped everything else from doing it.** A `fileTree` column is 16 raw bytes in the database. `outputRecord()` encodes with `JSON_INVALID_UTF8_SUBSTITUTE`, so each of those bytes left as U+FFFD and the reference was gone before anything reached the caller. `record:list --fields singleSRC` returned a row of replacement characters where a UUID belonged, and `RecordListTool` handed that on to the browser chat unchanged.
+
+  v0.2.15 fixed this by putting `convertFileTreeFieldsToUuid()` on `AbstractModelReadCommand`. `RecordListCommand` extends `AbstractReadCommand` directly and so never inherited it — the fix landed one class too low. It has been moved up to `AbstractReadCommand`, which is where it belonged from the start: the conversion is driven by the DCA and takes a table name and a row, not a `Model`. `RecordListCommand` now maps its result rows through it; every existing caller is unaffected, since `AbstractModelReadCommand` still reaches the method by inheritance.
+
+  Worth naming plainly: this is the one read command that accepts an **arbitrary** table, which makes it the likeliest of all of them to be pointed at an unfamiliar `fileTree` field — and it was the only one left without the guard.
+
+  Found on 2026-08-31 while checking whether the CLI could reach the generic table commands at all.
+
+- **`contao:record:list` answered an unknown `--fields` column with a stack trace.** The command validates three things against the DCA — the sort clause, the filters and the requested columns — and each raises the same `\InvalidArgumentException`. Two of the three calls were wrapped in a catch that turned it into `{"status":"error","message":...}`. `resolveColumns()` was not, so `--fields gibtsnicht` escaped as an uncaught PHP exception: nothing on stdout, a stack trace on stderr, exit 1 — while the identical mistake in `--order` or `--filter` answered properly.
+
+  Also felt in the browser chat, where `RecordListTool` passes the failure straight through: a model that guessed a column name got a stack trace where it needed the sentence "unknown column".
+
+  Found live against a test install on 2026-08-31, not in review — two guarded calls in a row read as if all three were covered.
+
+- **`contao:record:list` died on any table without an `id` or a `tstamp`.** Three separate places assumed every `tl_*` table has both: the allow-list merged them in by decree (with a comment claiming they "always exist"), the `--order` option carried the literal default `id DESC`, and the fallback column list was `['id', 'tstamp']`.
+
+  On a stock 5.7 install that is wrong five times over. `tl_opt_in_related`, `tl_newsletter_deny_list`, `tl_search_index` and `tl_search_term` have no `tstamp`; `tl_search_index` — a join table of `pid`, `termId` and `relevance` — has no `id` either. A missing `tstamp` reached the SELECT as `SQLSTATE[42S22]: Unknown column`; a missing `id` left the column list empty and produced `SELECT  FROM …`, a syntax error. Both exited **255** with a stack trace rather than answering.
+
+  Fixed at all three: the allow-list is intersected with the real schema, the sort default falls back to the table's first real column, and an empty column list falls back to every readable column. `tl_search_index` now lists `pid, termId, relevance` ordered by `pid DESC`.
+
+  The schema comparison is case-insensitive on purpose, keeping the DCA's spelling. Doctrine's `listTableColumns()` lowercases its array keys, so `singleSRC` comes back as `singlesrc` — a plain `array_intersect` would have dropped every camelCase column Contao has (`singleSRC`, `multiSRC`, `pageTitle`, `cspReportLog`) while appearing to work, since most core columns are lowercase anyway.
+
+### Changed
+
+- **A table with no curated column list now describes itself the way Contao does.** The default arm of `defaultColumns()` returned `['id', 'tstamp']` for everything outside the ten curated tables, which made the zero-argument call useless in exactly the case the command exists for: `record:list tl_image_size` answered "I do not know this table, show me what is in it" with two columns that say nothing, and finding a usable size meant a round of `dca:schema`, picking from some thirty fields, and asking again.
+
+  It now uses `list.label.fields` — the column set of Contao's own back end list view, the DCA's answer to which fields identify a record. `tl_image_size` lists `id, name, tstamp`; `tl_module` lists `id, name, type, tstamp`.
+
+  Chosen after measuring, not guessing: of the 29 non-curated tables with a DCA on a live 5.7 install, 22 declare `label.fields` and 7 declare nothing — and those 7 are `tl_search*`, `tl_version`, `tl_opt_in_related`, `tl_comments_notify`, `tl_newsletter_deny_list`, system tables with no back end list at all, where `id` and `tstamp` genuinely is the whole story. `list.sorting.fields` was considered as a middle tier and dropped: it fired on none of the 29, and it answers what to sort by rather than what a record is.
+
+  The ten curated tables are untouched — their hand-picked lists are richer than their label fields (`tl_page` labels with `title` alone, while the curated list carries pid, alias, type and published as well). `RecordListTool` in contao-ai-backend-bundle allows exactly those ten tables and no others, so the browser chat cannot reach the changed branch at all; verified by comparing both lists, not assumed.
+
+### Notes
+
+Suite: 231 tests, 23 skipped, 0 errors (210 before). The fileTree tests were run against the pre-fix source first and failed there with `Call to undefined method RecordListCommand::convertFileTreeFieldsToUuid()`, so they pin the regression rather than merely accompanying the fix.
+
+Verified live against a 5.7.12 install. Every one of the 43 `tl_*` tables was listed: 39 answered `ok`, 4 returned the structured "DCA not found" error they should, and **none** exited 255 — five did before. `singleSRC` came back as a UUID through both the new schema comparison and the fileTree conversion, and all ten curated tables returned their previous column sets unchanged.
+
 ## v0.2.16 - 2026-08-29
 
 ### Changed

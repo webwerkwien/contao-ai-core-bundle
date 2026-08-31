@@ -29,7 +29,12 @@ class RecordListCommand extends AbstractReadCommand
         $this->addArgument('table', InputArgument::REQUIRED, 'Table name, e.g. tl_news');
         $this->addOption('limit',  null, InputOption::VALUE_REQUIRED, 'Max rows (1–'.self::MAX_LIMIT.')', self::DEFAULT_LIMIT);
         $this->addOption('offset', null, InputOption::VALUE_REQUIRED, 'Offset', 0);
-        $this->addOption('order',  null, InputOption::VALUE_REQUIRED, 'ORDER BY clause, e.g. "tstamp DESC"', 'id DESC');
+        // Default deliberately empty rather than 'id DESC': buildOrderClause()
+        // already has an empty branch, and only it knows whether the table has
+        // an `id` at all. As a literal default the string went through the
+        // validator and a table without `id` — tl_search_index — was rejected
+        // for a sort order nobody had asked for.
+        $this->addOption('order',  null, InputOption::VALUE_REQUIRED, 'ORDER BY clause, e.g. "tstamp DESC". Default: id DESC where the table has an id.', '');
         $this->addOption(
             'filter', null,
             InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY,
@@ -61,8 +66,19 @@ class RecordListCommand extends AbstractReadCommand
         if ([] === $dcaFields) {
             return $this->outputError("DCA not found or empty for table: $table");
         }
-        // `id` and `tstamp` are not always declared in DCA fields but always exist in tl_* tables.
-        $allowedColumns = array_unique(array_merge(['id', 'tstamp'], $dcaFields));
+        // `id` and `tstamp` are not always declared in DCA fields, so they are added
+        // here — but only where the table really has them. The comment that used to
+        // stand here said they "always exist in tl_* tables"; on a live 5.7 install
+        // four do without `tstamp` (tl_opt_in_related, tl_newsletter_deny_list,
+        // tl_search_index, tl_search_term) and tl_search_index has no `id` either.
+        // Adding them by decree put a non-existent column into the SELECT, and the
+        // command died with an uncaught SQLSTATE[42S22] and exit 255 instead of
+        // answering. Intersecting with the real schema also covers the other half of
+        // the same problem: a DCA field with no column behind it.
+        $allowedColumns = $this->existingColumns($table, array_unique(array_merge(['id', 'tstamp'], $dcaFields)));
+        if ([] === $allowedColumns) {
+            return $this->outputError("No readable columns for table: $table");
+        }
 
         try {
             $orderClause = $this->buildOrderClause((string) $this->input->getOption('order'), $allowedColumns);
@@ -77,11 +93,23 @@ class RecordListCommand extends AbstractReadCommand
             return $this->outputError($e->getMessage());
         }
 
-        $columns = $this->resolveColumns(
-            (string) $this->input->getOption('fields'),
-            $allowedColumns,
-            $table,
-        );
+        // resolveColumns() throws the same \InvalidArgumentException as the two
+        // calls above, but was the one of the three left unguarded — so an
+        // unknown --fields column came back as an uncaught PHP exception with a
+        // stack trace on stderr, while an unknown --order or --filter column
+        // got the structured message it was supposed to. Found live on
+        // 2026-08-31. RecordListTool passes the same failure to the browser
+        // chat, where a model naming a column that does not exist learned
+        // nothing it could act on.
+        try {
+            $columns = $this->resolveColumns(
+                (string) $this->input->getOption('fields'),
+                $allowedColumns,
+                $table,
+            );
+        } catch (\InvalidArgumentException $e) {
+            return $this->outputError($e->getMessage());
+        }
 
         // Doctrine quoting for SELECT-Liste; whitelist already validated.
         $columnList = implode(', ', array_map(
@@ -103,6 +131,15 @@ class RecordListCommand extends AbstractReadCommand
         unset($params['_limit'], $params['_offset']);
         $total = (int) $this->connection->fetchOne($countSql, $params, $types);
 
+        // A fileTree column is 16 raw bytes in the database. outputRecord()
+        // encodes with JSON_INVALID_UTF8_SUBSTITUTE, so without this every one
+        // of them leaves as a row of U+FFFD — the value destroyed on the way
+        // out, exactly as in the bug fixed for the model read path in v0.2.15.
+        // This command reads with plain DBAL and so never passed through that
+        // fix; it is also the only read command that accepts an arbitrary
+        // table, which makes it the likeliest to meet an unfamiliar one.
+        $rows = array_map(fn (array $row): array => $this->convertFileTreeFieldsToUuid($table, $row), $rows);
+
         $this->outputRecord([
             'table'   => $table,
             'count'   => count($rows),
@@ -122,6 +159,35 @@ class RecordListCommand extends AbstractReadCommand
     }
 
     /**
+     * Keep only those candidate columns the table actually has.
+     *
+     * Compared case-insensitively, and the *candidate's* spelling is what
+     * survives. That is not fussiness: Doctrine's listTableColumns() lowercases
+     * its array keys, so `singleSRC` comes back as `singlesrc`. A plain
+     * array_intersect against those keys would therefore drop every camelCase
+     * column Contao has — singleSRC, multiSRC, pageTitle, cspReportLog — while
+     * appearing to work, because most core columns are lowercase anyway.
+     * MySQL resolves column names case-insensitively, so comparing in lower
+     * case and emitting the DCA's spelling is both safe and correct.
+     *
+     * @param list<string> $candidates
+     *
+     * @return list<string>
+     */
+    private function existingColumns(string $table, array $candidates): array
+    {
+        $actual = array_map(
+            'strtolower',
+            array_keys($this->connection->createSchemaManager()->listTableColumns($table)),
+        );
+
+        return array_values(array_filter(
+            $candidates,
+            static fn (string $column): bool => \in_array(strtolower($column), $actual, true),
+        ));
+    }
+
+    /**
      * Validates and quotes an `ORDER BY` clause. Accepts a single column or
      * comma-separated list, each optionally followed by `ASC`/`DESC`.
      *
@@ -131,7 +197,18 @@ class RecordListCommand extends AbstractReadCommand
     {
         $raw = trim($raw);
         if ('' === $raw) {
-            return $this->connection->quoteIdentifier('id').' DESC';
+            // Nearly every Contao table has an `id`, but not all: tl_search_index
+            // is a pure join table (pid, termId, relevance). Ordering it by a
+            // column that is not there produced a hard SQL error, so fall back
+            // to the first column the table really has. Deterministic ordering
+            // still matters more than a pretty one — see the tie-breaker below.
+            $column = \in_array('id', $allowedColumns, true) ? 'id' : ($allowedColumns[0] ?? null);
+
+            if (null === $column) {
+                throw new \InvalidArgumentException('order: the table has no readable column to sort by');
+            }
+
+            return $this->connection->quoteIdentifier($column).' DESC';
         }
 
         $parts = array_filter(array_map('trim', explode(',', $raw)));
@@ -261,9 +338,66 @@ class RecordListCommand extends AbstractReadCommand
             'tl_faq_category'   => ['id', 'title', 'tstamp'],
             'tl_faq'            => ['id', 'pid', 'question', 'published', 'tstamp'],
             'tl_files'          => ['id', 'pid', 'name', 'type', 'extension', 'tstamp'],
-            default             => ['id', 'tstamp'],
+            default             => $this->labelColumns($table),
         };
-        // Drop any default columns the table doesn't actually have (older Contao versions).
-        return array_values(array_filter($defaults, fn ($c) => in_array($c, $allowedColumns, true)));
+        // Drop any default columns the table doesn't actually have (older Contao
+        // versions, or a label field that is computed rather than stored).
+        $columns = array_values(array_filter($defaults, fn ($c) => in_array($c, $allowedColumns, true)));
+
+        // Nothing survived: the table has neither `id` nor `tstamp` nor a label
+        // field — tl_search_index is the one such table on a stock 5.7. An empty
+        // list used to become `SELECT  FROM …`, an SQL syntax error and exit 255.
+        // Showing every readable column is the honest answer for a table this
+        // narrow, and --limit still bounds the result.
+        return [] !== $columns ? $columns : $allowedColumns;
+    }
+
+    /**
+     * What Contao itself shows for a table it has no curated list for.
+     *
+     * `list.label.fields` is the column set of the back end's own list view —
+     * the DCA's answer to "which fields identify this record". Using it here
+     * means an unfamiliar table describes itself the way Contao describes it,
+     * instead of the caller having to guess column names.
+     *
+     * Until 2026-08-31 the default arm returned `['id', 'tstamp']` for
+     * everything outside the ten curated tables, which made the zero-argument
+     * call useless in exactly the case this command exists for: `record:list
+     * tl_image_size` answered an "I do not know this table, show me what is in
+     * it" question with two columns that say nothing. Finding a usable size
+     * meant a round of dca:schema, picking from some thirty fields, and asking
+     * again.
+     *
+     * Measured against every table of a live 5.7 install before choosing this:
+     * of the 29 non-curated tables with a DCA, 22 declare `label.fields` and 7
+     * declare nothing — and those 7 are `tl_search*`, `tl_version`,
+     * `tl_opt_in_related`, `tl_comments_notify`, `tl_newsletter_deny_list`:
+     * system tables with no back end list at all, where `id` and `tstamp`
+     * genuinely is the whole story. So the fallback lands where it belongs.
+     *
+     * `list.sorting.fields` was considered as a middle tier and dropped. It
+     * fired on none of the 29, and it answers a different question — what to
+     * sort by, not what a record is.
+     *
+     * The ten curated tables keep their hand-picked lists, which are richer
+     * than their label fields (`tl_page` labels with `title` alone; the curated
+     * list adds pid, alias, type and published). RecordListTool in the backend
+     * bundle allows exactly those ten tables and no others, so the browser chat
+     * cannot reach this method at all — verified by comparing both lists, not
+     * assumed.
+     *
+     * @return list<string>
+     */
+    private function labelColumns(string $table): array
+    {
+        $fields = $GLOBALS['TL_DCA'][$table]['list']['label']['fields'] ?? [];
+
+        if (!\is_array($fields) || [] === $fields) {
+            return ['id', 'tstamp'];
+        }
+
+        // `id` first, `tstamp` last, label fields in the order Contao lists
+        // them. array_unique guards a label field that is literally `id`.
+        return array_values(array_unique(['id', ...array_filter($fields, 'is_string'), 'tstamp']));
     }
 }
