@@ -14,4 +14,10 @@ services:
     Webwerkwien\ContaoAiCoreBundle\Command\FaqUpdateCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\FaqDeleteCommand: ~
 
+    # tl_faq_category — der Elternknoten der Fragen.
+    Webwerkwien\ContaoAiCoreBundle\Command\FaqCategoryCreateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\FaqCategoryReadCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\FaqCategoryUpdateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\FaqCategoryDeleteCommand: ~
+
     Webwerkwien\ContaoAiCoreBundle\Service\Cloner\FaqCategoryCloner: ~

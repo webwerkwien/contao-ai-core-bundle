@@ -17,4 +17,11 @@ services:
     Webwerkwien\ContaoAiCoreBundle\Command\NewsDeleteCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\NewsRepairHeadlinesCommand: ~
 
+    # tl_news_archive — der Elternknoten. Gehört zum selben Bundle wie tl_news
+    # und darf deshalb genauso wenig ohne news-bundle registriert werden.
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsArchiveCreateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsArchiveReadCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsArchiveUpdateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\NewsArchiveDeleteCommand: ~
+
     Webwerkwien\ContaoAiCoreBundle\Service\Cloner\NewsArchiveCloner: ~

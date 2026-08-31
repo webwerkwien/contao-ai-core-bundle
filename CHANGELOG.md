@@ -4,6 +4,32 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.22 - 2026-08-31
+
+### Added
+
+- **The three parent tables can be created.** `contao:news-archive:*`, `contao:calendar:*` and `contao:faq-category:*`, each with create, read, update and delete.
+
+  `news:create`, `event:create` and `faq:create` have always taken a `--pid`, and the record that `pid` pointed at could not be created. **The child worked, the parent did not** — so the first news item on a fresh install still meant opening the back end. The same gap in the same shape, three times over.
+
+  Only `--title` is a dedicated option on each. **What else is required is read from the DCA**, not hard-coded, and the three tables exercise three different corners of that:
+
+  - `tl_news_archive` and `tl_calendar` need `jumpTo` — the page that renders a single item; without one, every link the module generates goes nowhere. It is mandatory in the default palette, so it is always required.
+  - `groups` becomes required only once `protected=1` opens its subpalette. Demanding it always would refuse every public archive.
+  - `tl_faq_category` has no `protected` subpalette at all, needs `headline` instead, and offers `jumpTo` without requiring it. `title` is the back end label and `headline` the heading on the page — nothing derives one from the other.
+
+  Nothing in the code knows that FAQ categories are different; the DCA says so.
+
+- **The palette and subpalette rules are now one check.** `AbstractWriteCommand::missingMandatoryFields()` replaces the two that had grown separately — the palette rule in `ModuleCreateCommand` (v0.2.18) and the subpalette rule in `MemberGroupCreateCommand` (v0.2.19), the latter with a note that a third caller would be the moment to unify them rather than guess at the shape early. The parent tables were that caller. Both existing commands delegate to it; the change was invisible to all 313 tests that existed before it.
+
+### Fixed
+
+- **Commands for optional Contao bundles are excluded by filename, and `Calendar*` did not match `Event*`.** `services.yaml` auto-discovers `../src` and excludes the commands that depend on `news-bundle`, `calendar-bundle`, `faq-bundle` or `comments-bundle`, which `ContaoAiCoreBundle::loadExtension()` then registers only when that bundle is installed. The calendar exclusion reads `Event*.php`, because that is what its existing commands are called — so four new `Calendar*Command` classes went straight through it and would have been registered on **every** installation, including ones with no calendar bundle.
+
+  Caught before release by the live check: of twelve new commands, exactly four were registered, and those four were the wrong ones. The other eight were correctly excluded and then registered nowhere — the harmless direction to fail in, but neither half is visible from reading the YAML.
+
+  `PluginCommandRegistrationTest` now asserts both directions: a command referencing a plugin-only model must be excluded from auto-discovery **and** listed in the matching `services_*.yaml`. Verified by mutation — removing the exclusion turns the test red and names the file.
+
 ## v0.2.21 - 2026-08-31
 
 ### Fixed

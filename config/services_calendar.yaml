@@ -14,4 +14,10 @@ services:
     Webwerkwien\ContaoAiCoreBundle\Command\EventUpdateCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\EventDeleteCommand: ~
 
+    # tl_calendar — der Elternknoten der Events.
+    Webwerkwien\ContaoAiCoreBundle\Command\CalendarCreateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\CalendarReadCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\CalendarUpdateCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\CalendarDeleteCommand: ~
+
     Webwerkwien\ContaoAiCoreBundle\Service\Cloner\CalendarCloner: ~

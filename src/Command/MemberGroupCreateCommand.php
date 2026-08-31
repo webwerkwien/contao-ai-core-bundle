@@ -98,12 +98,11 @@ class MemberGroupCreateCommand extends AbstractWriteCommand
     }
 
     /**
-     * Mandatory fields that only become mandatory because a selector is on.
+     * The subpalette half of the shared rule, kept as this table's own name.
      *
-     * `subpalettes` is keyed by the selector field; its value lists the fields
-     * that appear when the selector is truthy. Reading it from the DCA rather
-     * than hard-coding `redirect => jumpTo` means an extension that adds a
-     * subpalette to this table is covered without a change here.
+     * Since v0.2.22 the palette and subpalette checks live together on
+     * AbstractWriteCommand — the three parent tables were the third caller,
+     * which is the point at which unifying them stopped being a guess.
      *
      * @param array<string, mixed> $fields
      *
@@ -111,29 +110,6 @@ class MemberGroupCreateCommand extends AbstractWriteCommand
      */
     public function missingSubpaletteFields(string $table, array $fields): array
     {
-        $dca     = $GLOBALS['TL_DCA'][$table] ?? [];
-        $missing = [];
-
-        foreach ($dca['subpalettes'] ?? [] as $selector => $palette) {
-            if (!\is_string($palette)) {
-                continue;
-            }
-
-            $on = (string) ($fields[$selector] ?? '');
-            if ('' === $on || '0' === $on) {
-                continue;
-            }
-
-            foreach (array_map('trim', explode(',', $palette)) as $field) {
-                if ('' === $field || empty($dca['fields'][$field]['eval']['mandatory'])) {
-                    continue;
-                }
-                if ('' === (string) ($fields[$field] ?? '')) {
-                    $missing[] = $field;
-                }
-            }
-        }
-
-        return array_values(array_unique($missing));
+        return $this->missingMandatoryFields($table, 'default', $fields, ['name']);
     }
 }

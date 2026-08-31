@@ -263,6 +263,77 @@ abstract class AbstractWriteCommand extends Command
     }
 
     /**
+     * Mandatory fields Contao would insist on for this record, and no others.
+     *
+     * 🎯 **A field is only mandatory where Contao actually shows it.** `DC_Table`
+     * validates the fields of the *active* palette, so `eval.mandatory` is a
+     * conditional rule, not a property of the field. `tl_module` has 113 fields
+     * and twelve mandatory ones, yet 21 of its 45 types need nothing but a
+     * name — reading the flags alone would produce a command nobody can call.
+     *
+     * Two levels, because Contao has two:
+     *
+     *  - **palette** — `palettes[$paletteKey]`, the fields shown for this record
+     *    (for `tl_module` the key is the module type, elsewhere `default`)
+     *  - **subpalette** — `subpalettes[$selector]`, shown only once the selector
+     *    is switched on. `tl_news_archive.groups` is mandatory, but only for a
+     *    protected archive; demanding it always would refuse every public one.
+     *
+     * This started as two separate checks — the palette rule in
+     * `ModuleCreateCommand`, the subpalette rule in `MemberGroupCreateCommand` —
+     * with a note that a third caller would be the moment to unify them rather
+     * than guess at the shape early. The three parent tables were that caller.
+     *
+     * @param string       $paletteKey key in `palettes`, e.g. `default` or a module type
+     * @param array<string, mixed> $fields  the `--set` fields
+     * @param list<string> $handled    fields the command takes as its own options
+     *
+     * @return list<string>
+     */
+    public function missingMandatoryFields(string $table, string $paletteKey, array $fields, array $handled = []): array
+    {
+        $dca     = $GLOBALS['TL_DCA'][$table] ?? [];
+        $visible = [];
+
+        $palette = $dca['palettes'][$paletteKey] ?? null;
+        if (\is_string($palette) && '' !== $palette) {
+            $visible = array_map('trim', preg_split('/[;,]/', $palette) ?: []);
+        }
+
+        foreach ($dca['subpalettes'] ?? [] as $selector => $subPalette) {
+            if (!\is_string($subPalette)) {
+                continue;
+            }
+
+            // Only what the caller actually switched on. An untouched selector
+            // means the subpalette is closed and its fields are not in play.
+            $on = (string) ($fields[(string) $selector] ?? '');
+            if ('' === $on || '0' === $on) {
+                continue;
+            }
+
+            $visible = [...$visible, ...array_map('trim', explode(',', $subPalette))];
+        }
+
+        $missing = [];
+        foreach ($dca['fields'] ?? [] as $field => $definition) {
+            $field = (string) $field;
+
+            if (\in_array($field, $handled, true) || empty($definition['eval']['mandatory'])) {
+                continue;
+            }
+            if (!\in_array($field, $visible, true)) {
+                continue;
+            }
+            if ('' === (string) ($fields[$field] ?? '')) {
+                $missing[] = $field;
+            }
+        }
+
+        return array_values(array_unique($missing));
+    }
+
+    /**
      * Store a multi-value field the way Contao stores it: a serialized array.
      *
      * A DCA field with `eval.multiple` holds `a:1:{i:0;s:1:"1";}`, not `1`.

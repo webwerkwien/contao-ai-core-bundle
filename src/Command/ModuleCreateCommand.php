@@ -125,28 +125,10 @@ class ModuleCreateCommand extends AbstractWriteCommand
      */
     public function missingRequiredFields(string $type, array $fields): array
     {
-        $dca     = $GLOBALS['TL_DCA']['tl_module'] ?? [];
-        $palette = (string) ($dca['palettes'][$type] ?? '');
-
-        if ('' === $palette) {
-            return [];
-        }
-
-        $inPalette = array_map('trim', preg_split('/[;,]/', $palette) ?: []);
-
-        $missing = [];
-        foreach ($dca['fields'] ?? [] as $field => $definition) {
-            if ('name' === $field || empty($definition['eval']['mandatory'])) {
-                continue;
-            }
-            if (!\in_array($field, $inPalette, true)) {
-                continue;
-            }
-            if (!\array_key_exists($field, $fields) || '' === $fields[$field]) {
-                $missing[] = $field;
-            }
-        }
-
-        return $missing;
+        // The palette key here is the module type — that is the whole point of
+        // the rule. Since v0.2.22 the check itself lives on AbstractWriteCommand
+        // and covers subpalettes too; module types use them as well
+        // (`news_featured`, `cal_noSpan` and friends hang off selectors).
+        return $this->missingMandatoryFields('tl_module', $type, $fields, ['name']);
     }
 }

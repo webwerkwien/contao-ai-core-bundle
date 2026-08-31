@@ -20,6 +20,14 @@ services:
             - ../src/{ContaoManager,ContaoAiCoreBundle.php}
             - ../src/Command/News*.php
             - ../src/Command/Event*.php
+            # Die Kalender-Commands (tl_calendar) hängen genauso am
+            # calendar-bundle wie die Event-Commands, heißen aber nicht Event*.
+            # Ohne diese Zeile registriert das Auto-Discover sie auf jeder
+            # Installation — auch auf einer ohne Kalender. Beim Live-Check am
+            # 2026-08-31 aufgefallen: 4 von 12 neuen Commands waren registriert,
+            # und zwar genau die falschen vier. PluginCommandRegistrationTest
+            # macht daraus jetzt einen roten Test statt einer Merkregel.
+            - ../src/Command/Calendar*.php
             - ../src/Command/Faq*.php
             - ../src/Command/Comment*.php
             # Cloner sind plugin-bedingt und werden in services_<plugin>.yaml registriert.
