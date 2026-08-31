@@ -65,6 +65,8 @@ class ImageSizeItemCreateCommand extends AbstractWriteCommand
         $item->media   = $media;
         $item->sorting = $this->nextSorting((int) $pid);
 
+        $fields = $this->convertFields('tl_image_size_item', $fields);
+
         foreach ($fields as $key => $value) {
             $item->$key = $value;
         }

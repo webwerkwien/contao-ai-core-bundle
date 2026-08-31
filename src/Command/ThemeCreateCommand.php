@@ -47,7 +47,7 @@ class ThemeCreateCommand extends AbstractWriteCommand
             return $this->outputError('--name and --author are required');
         }
 
-        $fields = $this->convertFileTreeFields('tl_theme', $fields);
+        $fields = $this->convertFields('tl_theme', $fields);
 
         $theme         = new ThemeModel();
         $theme->tstamp = time();

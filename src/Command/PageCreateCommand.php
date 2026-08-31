@@ -51,6 +51,8 @@ class PageCreateCommand extends AbstractWriteCommand
         $page->cgroup   = 0;
         $page->published = '0';
 
+        $fields = $this->convertFields('tl_page', $fields);
+
         foreach ($fields as $key => $value) {
             $page->$key = $value;
         }

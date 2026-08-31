@@ -42,6 +42,8 @@ class FaqCreateCommand extends AbstractWriteCommand
         $faq->published = '0';
         $faq->author  = $this->resolveAuthorId();
 
+        $fields = $this->convertFields('tl_faq', $fields);
+
         foreach ($fields as $key => $value) {
             $faq->$key = $value;
         }

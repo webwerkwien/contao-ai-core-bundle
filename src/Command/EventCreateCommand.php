@@ -48,6 +48,8 @@ class EventCreateCommand extends AbstractWriteCommand
         $event->published = '0';
         $event->author    = $this->resolveAuthorId();
 
+        $fields = $this->convertFields('tl_calendar_events', $fields);
+
         foreach ($fields as $key => $value) {
             $event->$key = $value;
         }

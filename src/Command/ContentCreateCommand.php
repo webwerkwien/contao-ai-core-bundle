@@ -48,7 +48,7 @@ class ContentCreateCommand extends AbstractWriteCommand
         $fields = $this->convertInputUnitFields('tl_content', $fields, 'h2');
 
         // singleSRC and other fileTree fields need the binary UUID, not the string.
-        $fields = $this->convertFileTreeFields('tl_content', $fields);
+        $fields = $this->convertFields('tl_content', $fields);
 
         foreach ($fields as $key => $value) {
             $el->$key = $value;

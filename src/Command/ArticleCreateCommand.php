@@ -44,6 +44,8 @@ class ArticleCreateCommand extends AbstractWriteCommand
         $article->author    = $this->resolveAuthorId();
         $article->published = '0';
 
+        $fields = $this->convertFields('tl_article', $fields);
+
         foreach ($fields as $key => $value) {
             $article->$key = $value;
         }

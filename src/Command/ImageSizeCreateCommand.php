@@ -60,6 +60,8 @@ class ImageSizeCreateCommand extends AbstractWriteCommand
         $size->pid    = (int) $pid;
         $size->name   = $name;
 
+        $fields = $this->convertFields('tl_image_size', $fields);
+
         foreach ($fields as $key => $value) {
             $size->$key = $value;
         }

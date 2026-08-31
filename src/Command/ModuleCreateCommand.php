@@ -87,8 +87,7 @@ class ModuleCreateCommand extends AbstractWriteCommand
             ));
         }
 
-        $fields = $this->convertFileTreeFields('tl_module', $fields);
-        $fields = $this->convertMultipleFields('tl_module', $fields);
+        $fields = $this->convertFields('tl_module', $fields);
 
         $module         = new ModuleModel();
         $module->tstamp = time();

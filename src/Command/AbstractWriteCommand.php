@@ -208,6 +208,61 @@ abstract class AbstractWriteCommand extends Command
      * @return array<string, mixed>
      */
     /**
+     * Input types that store a serialized list without carrying `eval.multiple`.
+     *
+     * `cud` is the create/update/delete permission table on `tl_user_group`,
+     * `chmod` the owner/group/world table on `tl_page` and `tl_files`. Both are
+     * widgets whose whole purpose is a list, so Contao never sets the flag.
+     */
+    private const ARRAY_INPUT_TYPES = ['cud', 'chmod'];
+
+    /**
+     * Every conversion the write path owes a table, behind one name.
+     *
+     * 🎯 The point is not brevity — it is that forgetting becomes hard.
+     * Both halves arrived one command at a time: `convertFileTreeFields()` in
+     * v0.2.15, `convertMultipleFields()` in v0.2.18. Both times the create
+     * commands were missed, because each one had to remember to call them.
+     * Measured on 2026-08-31: of eleven create commands that accept `--set`,
+     * four converted fileTree values and exactly one converted multi-value
+     * fields. The rest wrote a raw string into a serialized column and reported
+     * success — the same silent shape as the bugs the two helpers fixed.
+     *
+     * CreateCommandConversionTest asserts that every create command taking
+     * `--set` calls this, so the next one cannot quietly skip it.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @return array<string, mixed>
+     */
+    protected function convertFields(string $table, array $fields): array
+    {
+        $fields = $this->convertFileTreeFields($table, $fields);
+
+        return $this->convertMultipleFields($table, $fields);
+    }
+
+    /**
+     * Whether a DCA `unique` value is already taken.
+     *
+     * `tl_user_group.name` and `tl_member_group.name` carry `eval.unique`, and
+     * DC_Table refuses a duplicate in the back end. There is no unique index
+     * behind it — the rule lives in the DCA alone — so a write path that goes
+     * around DC_Table drops the rule with it. Two permission groups called
+     * "Editors" is exactly the kind of thing nobody notices until the day it
+     * matters which one a user is in.
+     *
+     * 🟡 Create only. The generic update path does not check `unique` yet;
+     * doing so DCA-wide would also start rejecting renames that succeed today
+     * (`tl_page.alias` among them), which is a change of its own and wants its
+     * own release. Noted in the project file.
+     */
+    protected function valueTaken(string $modelClass, string $field, string $value): bool
+    {
+        return $modelClass::countBy($field, $value) > 0;
+    }
+
+    /**
      * Store a multi-value field the way Contao stores it: a serialized array.
      *
      * A DCA field with `eval.multiple` holds `a:1:{i:0;s:1:"1";}`, not `1`.
@@ -242,10 +297,20 @@ abstract class AbstractWriteCommand extends Command
                 continue;
             }
             $def = $dca[$key] ?? null;
-            if (null === $def
-                || !($def['eval']['multiple'] ?? false)
-                || 'fileTree' === ($def['inputType'] ?? null)
-            ) {
+            if (null === $def || 'fileTree' === ($def['inputType'] ?? null)) {
+                continue;
+            }
+
+            // `eval.multiple` covers the checkbox-style fields. It does not cover
+            // the permission widgets: `tl_user_group.cud` and `tl_page.chmod`
+            // store a flat serialized list exactly like a multiple field, but
+            // carry no `multiple` flag — the widget itself is the list. Verified
+            // against live data on c5: cud is a:60:{i:0;s:21:"tl_form_field::create";…},
+            // chmod is a:9:{i:0;s:2:"u1";…}.
+            $storesArray = ($def['eval']['multiple'] ?? false)
+                || \in_array($def['inputType'] ?? null, self::ARRAY_INPUT_TYPES, true);
+
+            if (!$storesArray) {
                 continue;
             }
             if (\is_array(@unserialize($value, ['allowed_classes' => false]))) {
@@ -258,11 +323,43 @@ abstract class AbstractWriteCommand extends Command
             ));
 
             if ([] !== $parts) {
-                $fields[$key] = serialize($parts);
+                $fields[$key] = serialize($this->castListValues($def, $parts));
             }
         }
 
         return $fields;
+    }
+
+    /**
+     * The element type Contao's own widget would have stored.
+     *
+     * Almost every list is a list of strings, but `pageTree` is not: its
+     * validator runs `array_map('\intval', …)`, so a page mount reaches the
+     * database as `a:1:{i:0;i:1;}` and not `a:1:{i:0;s:1:"1";}`.
+     *
+     * Measured on 2026-08-31 rather than assumed. Of every widget in
+     * core-bundle, exactly two cast to int at all — `PageTree` and `Picker` —
+     * and `Picker` only does so on its single-value branch: a comma-separated
+     * Picker list stays strings. So the rule is `pageTree` plus `multiple`,
+     * and nothing else.
+     *
+     * Both forms read the same today, because every consumer compares loosely
+     * (`array_intersect` in BackendAccessVoter, `in_array(…, false)` for
+     * groups). Matching the format anyway is the point of this bundle: a record
+     * it writes should be indistinguishable from one the back end wrote.
+     *
+     * @param array<string, mixed> $definition DCA field definition
+     * @param list<string>         $parts
+     *
+     * @return list<int>|list<string>
+     */
+    private function castListValues(array $definition, array $parts): array
+    {
+        if ('pageTree' !== ($definition['inputType'] ?? null)) {
+            return $parts;
+        }
+
+        return array_map('intval', $parts);
     }
 
     protected function convertFileTreeFields(string $table, array $fields): array

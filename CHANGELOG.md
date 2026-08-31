@@ -4,6 +4,40 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.19 - 2026-08-31
+
+### Fixed
+
+- **The create commands were not converting the fields they stored.** Both conversions on the write path arrived one command at a time — `convertFileTreeFields()` with v0.2.15, `convertMultipleFields()` with v0.2.18 — and both were wired into the update path and then into whichever create command was being written that day. Counted on 2026-08-31: of the **eleven** create commands that accept `--set`, **four** converted fileTree values and exactly **one** converted multi-value fields.
+
+  So `news create --set singleSRC=<uuid>` wrote the UUID as a string into a binary column — the same destruction v0.2.15 fixed on the read side, still live on the other path. `page create --set groups=1,2` wrote a bare string where Contao stores a serialized array. Both reported success.
+
+  There is now one entry point, `convertFields()`, and `CreateCommandConversionTest` asserts that every create command applying `--set` fields calls it. Forgetting is a failing test rather than a silent wrong value. The test also asserts that its own scan found commands, because a scan over nothing passes just as quietly as a scan over everything.
+
+- **`cud` and `chmod` were written as bare strings.** `tl_user_group.cud` and `tl_page.chmod` store a flat serialized list exactly like a multi-value field, but carry no `eval.multiple` — the widget itself is the list, so Contao never sets the flag. Verified against live data: `cud` is `a:60:{i:0;s:21:"tl_form_field::create";…}`, `chmod` is `a:9:{i:0;s:2:"u1";…}`. Both are now recognised by input type.
+
+- **Page mounts were stored as strings where Contao stores integers.** `PageTree::validator()` runs `array_map('\intval', …)`, so the back end writes `a:1:{i:0;i:1;}` and this bundle wrote `a:1:{i:0;s:1:"1";}`. Every consumer compares loosely — `array_intersect` in `BackendAccessVoter`, `in_array(…, false)` for groups — so nothing behaved differently, but a record this bundle writes should be indistinguishable from one the back end wrote.
+
+  The rule is `pageTree` and nothing else, measured rather than assumed: of every widget in core-bundle exactly two cast to int, and `Picker` only does so on its single-value branch — a comma-separated Picker list keeps its strings.
+
+### Added
+
+- **The permission tables can be written.** `contao:user-group:create|read|update|delete` and `contao:member-group:create|read|update|delete`. `tl_user_group` is what decides which back end modules an editor sees, which page and file mounts they reach, which fields they may edit and which tables they may create in; `tl_member_group` is what protected front end content points at. Both were readable through `record:list` and writable nowhere, so "create a back end user" had always been half an answer.
+
+  Only `--name` is required, which mirrors the DCA: `name` is the single mandatory field and every permission defaults to "not granted". A group with nothing but a name is valid and harmless — the right default for a permission record.
+
+  Neither delete cascades, because neither table declares a `ctable`. What stays behind is a dangling reference: `tl_user.groups` and the `groups` field of protected content keep the dead ID, and Contao does not clean those up in the back end either. The commands match that rather than inventing a cleanup the back end does not perform.
+
+- **`contao:user-group:options` — because a wrong permission value is silent.** Everywhere else in this bundle a bad value fails loudly against the DCA. Not here: a permission field accepts any string, stores it, and grants nothing. `--set modules=pages` (plural, wrong) reports success and leaves the group without page access, with no error anywhere to explain it. Guessing does not even self-correct, which is what `contao:module:types` could still rely on.
+
+  Everything comes from the DCA and the registries Contao itself reads, so an extension's back end module or content element appears without a change here — verified on a live install, where the `ai_chat` module of contao-ai-backend-bundle showed up alongside Contao's own. Modules flagged `disablePermissionChecks` are dropped, as `tl_user_group::getModules()` drops them.
+
+  `cud` and `alexf` are per-table and sit behind `--table`: `cud` reads `config.permissions`, which Contao's own `CudPermissionListener` fills, and `alexf` uses `DataContainer::isFieldExcluded()` — the same test the back end applies.
+
+- **A mandatory field is only mandatory where Contao shows it — now at subpalette level too.** `tl_member_group.jumpTo` is marked mandatory in the DCA but lives in the `redirect` subpalette, and DC_Table demands it only once that selector is on. `MemberGroupCreateCommand` reads `subpalettes` rather than hard-coding `redirect => jumpTo`, so an extension adding a subpalette to that table is covered without a change here. Same principle as the palette rule in `ModuleCreateCommand`, one DCA level down.
+
+- **A DCA `unique` value is checked before creating.** `tl_user_group.name` and `tl_member_group.name` carry `eval.unique` and DC_Table refuses a duplicate — but there is no unique index behind it, so a write path that goes around DC_Table drops the rule with it. Create now refuses a taken name. The generic update path does not check `unique` yet; doing so DCA-wide would also start rejecting renames that succeed today (`tl_page.alias` among them), which is a change of its own.
+
 ## v0.2.18 - 2026-08-31
 
 ### Fixed

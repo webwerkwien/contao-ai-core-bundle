@@ -62,7 +62,7 @@ class LayoutCreateCommand extends AbstractWriteCommand
         // plain numbers and have to be stored as {value, unit}; px is the unit
         // Contao offers first and the only one that makes sense unstated.
         $fields = $this->convertInputUnitFields('tl_layout', $fields, 'px');
-        $fields = $this->convertFileTreeFields('tl_layout', $fields);
+        $fields = $this->convertFields('tl_layout', $fields);
 
         $layout           = new LayoutModel();
         $layout->tstamp   = time();

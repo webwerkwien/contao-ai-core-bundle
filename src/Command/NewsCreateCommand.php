@@ -59,6 +59,8 @@ class NewsCreateCommand extends AbstractWriteCommand
         $news->published = '0';
         $news->author   = $this->resolveAuthorId();
 
+        $fields = $this->convertFields('tl_news', $fields);
+
         foreach ($fields as $key => $value) {
             $news->$key = $value;
         }
