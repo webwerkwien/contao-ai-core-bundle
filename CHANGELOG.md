@@ -4,6 +4,53 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.18 - 2026-08-31
+
+### Fixed
+
+- **A multi-value field was written as a bare string, and read back as nothing.** A DCA field with `eval.multiple` holds a serialized array — `tl_module.news_archives` is `a:1:{i:0;s:1:"1";}`. `--set news_archives=1` wrote `1`, and nothing complained: `StringUtil::deserialize()` hands a non-array straight back, so Contao iterated a string and found no archives. The module was configured and did nothing.
+
+  `convertMultipleFields()` now serializes them, DCA-driven like the fileTree and inputUnit conversions beside it, and runs on every update rather than only for modules — the same shape applies to `tl_page.groups`, `tl_module.pages`, `cal_calendar`, `faq_categories`, `nl_channels`. A comma-separated value becomes a list; a value already in Contao's format is left alone, so re-running is a no-op and a caller passing the serialized form still works. Empty values stay empty, because an unset multiple is `''` in the database and not an empty array.
+
+  Verified live: a created module's `news_archives` came out byte-identical to the demo install's own (`a:1:{i:0;s:1:"1";}`), and `--set news_archives=1,2` on update produced `a:2:{i:0;s:1:"1";i:1;s:1:"2";}`.
+
+### Added
+
+- **Image sizes can be written, not only read.** `contao:image-size:create|read|update|delete` and `contao:image-size-item:create|read|update|delete` — the first entity of the theme layer to get commands of its own. Until now `tl_image_size` was reachable for reading through `record:list` and not at all for writing, so creating a size meant the back end by hand.
+
+  Update, delete and read are six-line subclasses: they inherit versioning, the system log, `--ids` and the cascade from the abstract bases, and per-entity code there would only be somewhere for those to drift apart. Verified on a live install — create wrote version 1, update version 2, both attributed to the operator, two `tl_log` rows with source `CLI`.
+
+  **The cascade is now counted rather than assumed.** `tl_image_size.ctable` declares `tl_image_size_item` and `RecordCascadeCollector` follows it, but with no item rows anywhere that had never been exercised. Two variants were created, the size deleted: `cascade: {tl_image_size: 1, tl_image_size_item: 2}`, `rowsTotal: 3`, **zero orphans**, one `tl_undo` row for the whole set. The same assumption went unchecked on 2026-08-24 and left orphans behind, which is why it was worth building the item commands to be able to test it.
+
+  Two pieces of entity knowledge sit in the create commands, and only there:
+
+  - **`--pid` is required and is a theme ID.** `tl_image_size.ptable` is `tl_theme`; a size belonging to no theme is not something Contao has.
+  - **New variants are appended, 128 apart.** That is the gap Contao's own back end leaves between neighbours so a later drag can land between them without renumbering.
+
+  `preserveMetadataFields` is marked mandatory in the DCA and stands NULL in every row the back end writes — the requirement only bites in the form, once `preserveMetadata` asks for a field list. Nothing is invented for it, so a created row matches what the back end produces.
+
+- **Themes and layouts too.** `contao:theme:create|read|update|delete` and `contao:layout:create|update|delete` — `contao:layout:read` already existed and was, until today, the theme layer's only command of any kind.
+
+  Three findings from checking rather than assuming, each of which would have been a quiet defect:
+
+  - **`tl_theme.author` is free text, not a user reference.** It is a `text` field in the DCA and Contao's own demo theme carries "Joe Ray Gregory, Sascha Müller, Felix Pfeiffer, …" in it — a credit line. Every other create command here fills its `author` column with `resolveAuthorId()`; doing that would have put a number where a name belongs.
+
+  - **`tl_layout.template` gets no default, deliberately.** The DCA marks it mandatory and offers no default; its options come from a callback that needs a live DataContainer, because a legacy layout is offered the `fe_*` PHP template group while a modern one gets the `page/layout` Twig templates found on disk (`ThemeLayoutListener::getTemplateOptions`). A create command has no DataContainer, so it cannot resolve that list — and defaulting to `fe_page` because the demo install uses it would be inventing an answer only the caller can give.
+
+  - **`LayoutUpdateCommand` overrides `defaultInputUnit()` to `px`.** Five columns here are `inputUnit` and all five offer `px % em rem vw vh`. The inherited default is `h2`, the headline unit from `tl_content`, which is meaningless for a layout width. Without the override the validation falls through to the first option — which happens to be `px`, the right answer for the wrong reason, and one a reordering of Contao's list would quietly break.
+
+  Verified live: an update with a plain number kept the record's existing unit, and `--set width=90 --set width_unit=vw` changed it, with the companion key never reaching the database as a column. Both wrote `a:2:{s:5:"value";…;s:4:"unit";…}` — the same key order Contao's own `InputUnit` widget produces, whose form renders `name="field[value]"` before `name="field[unit]"`. (A demo-fixture row carries the reverse order; `unserialize` is order-agnostic and every reader accesses by key, so neither is wrong.)
+
+  **The theme cascade was counted three levels deep:** deleting a theme with one layout, one image size and one variant reported `{tl_theme: 1, tl_layout: 1, tl_image_size: 1, tl_image_size_item: 1}`, `rowsTotal: 4`, and left the neighbouring demo theme's 5 layouts, 3 sizes and 41 modules untouched.
+
+- **Modules complete the theme layer.** `contao:module:create|read|update|delete`, plus `contao:module:types`.
+
+  `tl_module` has 113 fields and twelve of them carry `mandatory`, which reads like a command nobody could call. It is not, because **a mandatory field applies only to the module types whose palette contains it** — which is not an interpretation but how `DC_Table` validates: it walks the active palette, and a field outside it is never asked for. On a stock 5.7 that means 21 of the 45 types need nothing beyond a name and 24 need something more.
+
+  So the requirement is **computed from the DCA at runtime** rather than kept as a table in the command. A second copy of that mapping would be a second thing to maintain, and it would silently miss the module types a third-party extension registers — those arrive with their own palettes and are covered for free.
+
+  Neither failure mode guesses. An unknown `--type` is refused with the valid types listed; a type whose palette wants fields the caller did not supply is refused with those fields named. `contao:module:types` gives both up front, because "provoke a failure to discover what is allowed" is a poor contract for a tool meant to be driven by an agent.
+
 ## v0.2.17 - 2026-08-31
 
 ### Fixed

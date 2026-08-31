@@ -207,6 +207,64 @@ abstract class AbstractWriteCommand extends Command
      * @param array<string, mixed> $fields
      * @return array<string, mixed>
      */
+    /**
+     * Store a multi-value field the way Contao stores it: a serialized array.
+     *
+     * A DCA field with `eval.multiple` holds `a:1:{i:0;s:1:"1";}`, not `1`.
+     * Passing `--set news_archives=1` wrote the bare string, and
+     * `StringUtil::deserialize()` hands a non-array straight back — so the
+     * module had an archive that was not a list of archives, and read as empty
+     * wherever Contao iterated it. Nothing failed; it just did nothing.
+     *
+     * Comma-separated input becomes a list: `--set news_archives=1,3` stores
+     * both. A value that already unserializes to an array is left alone, so a
+     * caller passing Contao's own format still works and re-running is a no-op.
+     * Empty values are left alone too — an unset multiple is `''` in the
+     * database, not an empty array, and inventing one would be a change nobody
+     * asked for.
+     *
+     * `fileTree` fields are skipped: convertFileTreeFields() already serializes
+     * their `multiple` form, and it has to convert the UUIDs on the way.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @return array<string, mixed>
+     */
+    protected function convertMultipleFields(string $table, array $fields): array
+    {
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+        $dca = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
+
+        foreach ($fields as $key => $value) {
+            if (!\is_string($value) || '' === $value) {
+                continue;
+            }
+            $def = $dca[$key] ?? null;
+            if (null === $def
+                || !($def['eval']['multiple'] ?? false)
+                || 'fileTree' === ($def['inputType'] ?? null)
+            ) {
+                continue;
+            }
+            if (\is_array(@unserialize($value, ['allowed_classes' => false]))) {
+                continue; // already in Contao's format
+            }
+
+            $parts = array_values(array_filter(
+                array_map('trim', explode(',', $value)),
+                static fn (string $part): bool => '' !== $part,
+            ));
+
+            if ([] !== $parts) {
+                $fields[$key] = serialize($parts);
+            }
+        }
+
+        return $fields;
+    }
+
     protected function convertFileTreeFields(string $table, array $fields): array
     {
         if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {

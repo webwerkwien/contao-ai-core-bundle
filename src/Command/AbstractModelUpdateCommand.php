@@ -212,6 +212,10 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
         // Turn string UUIDs into binary for fileTree fields (singleSRC etc.) —
         // DCA-driven, so this covers every table's file-reference fields.
         $fields = $this->convertFileTreeFields($class::getTable(), $fields);
+        // Serialize multi-value fields (news_archives, pages, groups, ...).
+        // Also DCA-driven; before this a `--set groups=1` wrote a bare string
+        // where Contao expects a list, and read back as nothing at all.
+        $fields = $this->convertMultipleFields($class::getTable(), $fields);
 
         return $this->writer()->update(
             $class::getTable(),
