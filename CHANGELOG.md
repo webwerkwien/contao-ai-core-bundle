@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.20 - 2026-08-31
+
+### Added
+
+- **Deleted records can be restored.** `contao:undo:restore` and `contao:undo:read`. `contao:version:restore` has existed since Phase 2 and answers "this record changed and I want it as it was"; its counterpart never existed. Every delete in this bundle has written a `tl_undo` row since v0.2.8 — for a cascade, one row covering the parent and everything under it — so the safety net was being filled and never emptied.
+
+  Follows `DC_Table::undo()` step for step, because the steps are not decoration: the DCA is loaded before the table is touched (an `onundo_callback` only exists once it is), columns the table no longer has are dropped rather than failing the insert, `onundo_callback` runs per row, the `tl_undo` entry is deleted **only** if every insert succeeded, and the log line is Contao's own `Undone <query>` on Contao's own channel.
+
+  **The column-drop is not theoretical.** On the test install, an existing entry for a theme cascade carried `tl_layout.rows` — a field the DCA declares and the database does not have, confirmed through `record:list` (`unknown column: rows`). Without the intersect that restore would have failed over a field nobody misses. Verified end to end on exactly that entry: four rows across four tables and three levels, and the restored image-size variant pointed at the restored size again, which is what restoring with the original IDs is for.
+
+  `contao:undo:read` decodes the payload — tables, row counts, IDs — plus the two things that decide whether the restore can work at all: `idsTaken`, because Contao re-inserts with the original ID and an occupied one makes the insert fail, and `droppedColumns`, because a silently shortened record is worth knowing about before rather than after.
+
+- **The global settings can be read and changed.** `contao:settings:read` and `contao:settings:update` — the last back end entry with no table behind it. `tl_settings` is a `DC_File`; the values live in `system/config/localconfig.php` as `$GLOBALS['TL_CONFIG'][…]`, which is why `record:list tl_settings` answers "No readable columns" correctly and why a wrapper could not have covered this.
+
+  **The write does not trust a destructor.** `Config::persist()` only marks the instance modified; the file is written by `Config::__destruct()`. So `save()` is called explicitly and `localconfig.php` is read back afterwards — a configuration change that reported success and wrote nothing is precisely the failure shape this project keeps finding.
+
+  **An unknown key is refused, and nothing is written.** `Config::persist()` writes any key given to it, and nothing ever reads it back or complains. A typo would put a dead variable permanently into a file nobody opens by hand. Contao is protected by its form only offering real fields; here the check has to be explicit. A mandatory setting cannot be emptied either — an empty `dateFormat` breaks every date on the site.
+
+  **`read` separates `value` from `persisted`.** The effective value may come from the bundle default rather than from anything an administrator chose; on the test install `resultsPerPage` reads `30` and is not persisted at all. Reporting only the value would make "somebody set this" and "this is the default and will move when the default moves" indistinguishable.
+
+  Values that already match are skipped and the file is not touched, compared loosely because `Config::get()` answers `30` where `--set` always arrives as `"30"`. The log line matches Contao's `DC_File::save()` — same channel, same "from … to …" wording, same omission of the value for a password field.
+
 ## v0.2.19 - 2026-08-31
 
 ### Fixed
