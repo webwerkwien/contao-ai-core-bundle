@@ -4,6 +4,33 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.21 - 2026-08-31
+
+### Fixed
+
+- **`contao:dca:schema` answered with array indices instead of the option values.** The line applied `array_keys($def['options'])` unconditionally, and that is right for exactly one of Contao's two forms:
+
+  ```php
+  array('de' => 'Deutsch')                 // assoc — the key IS the value
+  array('map_default', 'map_always')       // list  — the key is 0, 1, …
+  ```
+
+  Contao's own DCAs use the list form almost everywhere, so almost every answer was wrong. Confirmed live before fixing: `tl_page.sitemap` came back as `[0, 1, 2]` against a DCA declaring `map_default, map_always, map_never`.
+
+  🎯 **Two reasons it survived this long, and both are the point.** It *reads* correctly — looking at that line you picture the associative form, and there it is right. And the wrong answer **looks like an answer**: `tl_content` declares `array(1, …, 12)`, whose keys are `0..11`, so the reply is plausible and off by one throughout. A caller building `--set` from it is rejected by the DCA and then goes looking in the wrong field.
+
+  That is this project's recurring silent-failure shape with a turn of the screw: this one does not stay quiet, it answers. `dca:schema` exists so an agent knows what it may set instead of guessing — the same reason `contao:user-group:options` exists — and it was handing out values nobody could set.
+
+  Option groups are flattened too: `array('Group' => array('a', 'b'))` is an optgroup, and the group name is a label rather than something a caller can set.
+
+### Added
+
+- **`optionsSource` per field in `contao:dca:schema`** — `static`, `callback`, `foreignKey` or `null`. A field with an `options_callback` or a `foreignKey` has options; they are simply not in the DCA array, and several callbacks need a live DataContainer this command does not have. Reporting a bare `null` for those made "this field takes any value" and "the values exist but not here" look identical — the same confusion the wrong `options` caused, one step further along. On a live install `tl_page.type` and `tl_page.layout` now say `callback` instead of appearing to have no options at all.
+
+  Found by the parallel session working on the wienerwandern booking module, which hit it on a table of its own and checked `tl_page` to rule out its own DCA. Verified across nine tables on the test install: 61 fields carry options, and the single list that still looks like indices is `tl_module.news_startDay`, which genuinely declares `array(0, …, 6)` for the days of the week.
+
+  The CLI needs no release for this — it passes the server's answer through unchanged.
+
 ## v0.2.20 - 2026-08-31
 
 ### Added
