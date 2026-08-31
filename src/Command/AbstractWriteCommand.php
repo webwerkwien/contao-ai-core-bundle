@@ -241,6 +241,8 @@ abstract class AbstractWriteCommand extends Command
      */
     protected function convertFields(string $table, array $fields): array
     {
+        $this->refuseUnknownFields($table, $fields);
+
         $fields = $this->convertFileTreeFields($table, $fields);
         $fields = $this->convertOptionFields($table, $fields);
         $fields = $this->convertMultipleFields($table, $fields);
@@ -248,6 +250,92 @@ abstract class AbstractWriteCommand extends Command
         // Last on purpose: the three above leave empty values alone, and this
         // one turns them into something that is no longer the empty string.
         return $this->convertEmptyValues($table, $fields);
+    }
+
+    /**
+     * Refuse a `--set` field that is not a column of this table.
+     *
+     * `--set gibtesnicht=1` answered `{"status":"ok","updated":["gibtesnicht"]}`.
+     * Nothing was written: `Model::save()` filters `arrModified` against
+     * `Database::getFieldNames()` and drops what is not a column. But
+     * `ModelWriter::update()` reported back the field names it was *given*, so
+     * a typo read as a successful change.
+     *
+     * 🎯 **That is the failure this project keeps hunting: a silent no-op that
+     * reports success.** The same shape as the bulk run of 2026-08-29 (174 IDs,
+     * one record changed, "0 failed") and the pipx no-op of v0.4.3. A wrong
+     * answer that looks like an answer is worse than an error, because nobody
+     * goes looking.
+     *
+     * Refusing rather than reporting truthfully, because there is precedent for
+     * it on the read side: `contao:record:list` validates `--fields`, `--filter`
+     * and `--order` against the DCA and refuses anything else. Guessing a column
+     * name is safe there precisely because it fails loudly. Writing should not
+     * be the looser of the two.
+     *
+     * ⚠️ **Checked against the real columns, not the DCA.** They are not the
+     * same set — `tl_layout.rows` is declared in the DCA and does not exist in
+     * the database, which the undo work of 2026-08-31 ran into. What decides
+     * whether a write lands is the column list, so that is what this asks, via
+     * the very function `Model::save()` uses to make that decision.
+     *
+     * A failure to read the column list is not treated as a failed check: if the
+     * database cannot answer, the write will fail on its own terms and say so.
+     * Blocking here on a lookup error would turn an infrastructure problem into
+     * a confusing validation message.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @throws \InvalidArgumentException when a field is not a column of $table
+     */
+    protected function refuseUnknownFields(string $table, array $fields): void
+    {
+        if ([] === $fields) {
+            return;
+        }
+
+        $columns = $this->tableColumns($table);
+        if ([] === $columns) {
+            return;
+        }
+
+        $unknown = array_values(array_diff(array_keys($fields), $columns));
+        if ([] === $unknown) {
+            return;
+        }
+
+        throw new \InvalidArgumentException(\sprintf(
+            'Not a column of %s: %s. Nothing was written. Contao drops unknown fields on '
+            . 'save, so passing one used to report success while changing nothing — check '
+            . 'the spelling against `contao:dca:schema %s`.',
+            $table,
+            implode(', ', $unknown),
+            $table,
+        ));
+    }
+
+    /**
+     * The real column names of $table, or [] when they cannot be determined.
+     *
+     * `Database::getFieldNames()` is the very function `Model::save()` filters
+     * against, so asking it is asking the thing that decides the outcome rather
+     * than a second source that could disagree.
+     *
+     * Its own method so a test can answer for it: the static
+     * `Database::getInstance()` needs a booted framework, and a rule about
+     * column names should be testable without one.
+     *
+     * @return list<string>
+     */
+    protected function tableColumns(string $table): array
+    {
+        try {
+            return array_values(\Contao\Database::getInstance()->getFieldNames($table));
+        } catch (\Throwable) {
+            // No answer is not the same as "no such column": if the database
+            // cannot be reached the write fails on its own terms and says so.
+            return [];
+        }
     }
 
     /**

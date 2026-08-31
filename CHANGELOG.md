@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.27 - 2026-08-31
+
+### Fixed
+
+- **`--set` with a field that is not a column reported success and changed nothing.** `--set gibtesnicht=1` answered `{"status":"ok","updated":["gibtesnicht"]}`. Nothing was written: `Model::save()` filters `arrModified` against `Database::getFieldNames()` and drops what is not a column — but `ModelWriter::update()` reported back the names it had been *given*.
+
+  🎯 **A silent no-op that reports success is the failure this project keeps hunting.** Same shape as the bulk run of 2026-08-29 (174 IDs in, one record changed, "0 failed") and the pipx no-op of v0.4.3. A wrong answer that looks like an answer is worse than an error, because nobody goes looking. A typo in a field name read as a successful change.
+
+  Now refused, with the field and the table named. Refusing rather than reporting truthfully, because the read side already does: `contao:record:list` validates `--fields`, `--filter` and `--order` against the DCA and refuses the rest — guessing a column name is safe there *because* it fails loudly. Writing should not be the looser of the two.
+
+  ⚠️ **Checked against the real columns, not the DCA.** They are not the same set — `tl_layout.rows` is declared in the DCA and does not exist in the database. What decides whether a write lands is the column list, so the check asks the very function `Model::save()` uses to make that decision.
+
+  A database that cannot answer is not treated as a failed check: the write then fails on its own terms and says what actually went wrong, rather than turning an infrastructure problem into a confusing validation message.
+
+  **Behaviour change:** a script passing a field name that this bundle used to swallow now fails with exit 1. That is the point — it never did anything — but it will surface as a new failure rather than silently.
+
 ## v0.2.26 - 2026-08-31
 
 ### Changed
