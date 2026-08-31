@@ -238,8 +238,82 @@ abstract class AbstractWriteCommand extends Command
     protected function convertFields(string $table, array $fields): array
     {
         $fields = $this->convertFileTreeFields($table, $fields);
+        $fields = $this->convertOptionFields($table, $fields);
 
         return $this->convertMultipleFields($table, $fields);
+    }
+
+    /**
+     * `optionWizard` fields: a list of `{value, label}` pairs.
+     *
+     * `tl_form_field.options` holds
+     * `a:2:{i:0;a:2:{s:5:"value";s:3:"mrs";s:5:"label";s:4:"Mrs.";}…}` — a
+     * nested structure no one is going to type into a `--set`.
+     *
+     * 🎯 **This is the one place where inventing a short form is the right
+     * call, and the reason is that the field is mandatory.** `select`, `radio`
+     * and `checkbox` cannot be created without options, so "pass Contao's
+     * serialized form" — the answer given for `tl_settings.allowedAttributes`,
+     * which is optional and rarely touched — would mean those three types stay
+     * uncreatable. The gap this command exists to close would still be there.
+     *
+     *   --set options="mrs=Mrs.|mr=Mr."     value and label
+     *   --set options="red|green|blue"      label doubles as the value
+     *
+     * A value already in Contao's format is left alone, so re-running is a
+     * no-op and a caller who does have the serialized form still works.
+     *
+     * Key order follows what is actually on disk (value, then label). Contao
+     * reads these by key, so the order is cosmetic — but a record this bundle
+     * writes should look like one the back end wrote.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @return array<string, mixed>
+     */
+    protected function convertOptionFields(string $table, array $fields): array
+    {
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+        $dca = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
+
+        foreach ($fields as $key => $value) {
+            if (!\is_string($value) || '' === $value) {
+                continue;
+            }
+            if ('optionWizard' !== ($dca[$key]['inputType'] ?? null)) {
+                continue;
+            }
+            if (\is_array(@unserialize($value, ['allowed_classes' => false]))) {
+                continue; // already in Contao's format
+            }
+
+            $options = [];
+            foreach (explode('|', $value) as $part) {
+                $part = trim($part);
+                if ('' === $part) {
+                    continue;
+                }
+
+                $pos = strpos($part, '=');
+                if (false === $pos) {
+                    $options[] = ['value' => $part, 'label' => $part];
+                    continue;
+                }
+
+                $options[] = [
+                    'value' => trim(substr($part, 0, $pos)),
+                    'label' => trim(substr($part, $pos + 1)),
+                ];
+            }
+
+            if ([] !== $options) {
+                $fields[$key] = serialize($options);
+            }
+        }
+
+        return $fields;
     }
 
     /**

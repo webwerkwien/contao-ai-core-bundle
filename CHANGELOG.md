@@ -4,6 +4,31 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.23 - 2026-08-31
+
+### Added
+
+- **The form generator can be written.** `contao:form:*` and `contao:form-field:*`, each with create, read, update and delete, plus `contao:form-field:types`. It was the last content module readable but not writable — `form list` and `form fields` had existed for a while, and neither half could be created.
+
+  `tl_form_field` is `tl_module` in miniature: **21 types, a palette each**, and mandatory fields that apply only to some of them. A `submit` needs `slabel`, a `select` needs `name` and `options`, a `captcha` needs nothing at all. Reading `eval.mandatory` alone would demand all of them at once — the trap the module command walked into first, answered the same way through `missingMandatoryFields()`, so no new logic was needed for it.
+
+  `tl_form`'s own requirements are conditional too: `recipient` and `subject` are mandatory, but they live in the `sendViaEmail` subpalette. A form that only stores its values needs neither.
+
+- **`optionWizard` fields take a short form.**
+
+  ```
+  --set options="mrs=Mrs.|mr=Mr."     value and label
+  --set options="red|green|blue"      label doubles as the value
+  ```
+
+  🎯 **This is the one invented shorthand in the bundle, and the reason is that the field is mandatory.** For `tl_settings.allowedAttributes` — optional, rarely touched — the answer is still "pass Contao's serialized form". Here `select`, `radio` and `checkbox` cannot be created without options, so the same answer would leave three of the 21 types uncreatable and the gap this command exists to close still open.
+
+  Verified against live data: a generated `options` value came out structurally identical to the demo install's own, down to the key order. `size` on a textarea came out **byte-identical** to Contao's — checked rather than assumed, because that is where the `pagemounts` int question came from earlier today.
+
+- **The alias is generated and then checked**, the way `tl_form::generateAlias` does it: a purely numeric alias is refused because Contao cannot tell it apart from a record ID, and a duplicate is refused because it does not fail at request time — it routes to whichever record the query returns first.
+
+- **New fields are appended 128 apart**, the gap Contao's back end leaves between neighbours so a later drag can land between them without renumbering the form. Same rule as image size variants.
+
 ## v0.2.22 - 2026-08-31
 
 ### Added
