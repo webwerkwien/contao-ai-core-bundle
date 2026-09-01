@@ -4,6 +4,26 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.31 - 2026-09-01
+
+### Added
+
+- **`contao:ai:commands` and `contao:ai:run` — reaching commands the CLI does not wrap.** An extension registers its own `contao:*` console command with Symfony and is then invisible to the CLI: it exists on the server, and nothing in the tool, or in an agent reading `--help`, can learn that it does.
+
+  Symfony can already describe every command (`list --format=json`, with arguments, options and help). What it cannot do is stay small — the full listing on a stock Contao 5.7 is **650 KB**. So the filtering happens where the data is: `contao:ai:commands` answers with name and description per command (~12 KB), and `--name=x` returns the full definition of one.
+
+  It deliberately does not say which commands the CLI wraps. That knowledge belongs to the CLI, changes with it, and a second copy here would drift.
+
+- **`contao:ai:run` runs one, and records that it did.**
+
+  The log entry is written **before** the target starts, not after. Every write this bundle performs leaves `tl_version`, `tl_log` and `tl_undo` behind; a foreign command has none of that guaranteed. So the one thing that can be promised is the smaller one — that the *invocation* is on record — and a log written afterwards would record only the runs that went well, which is the opposite of what an audit trail is for. Proven the same day: a passthrough that failed on a missing argument still left its entry.
+
+  🎯 **`AiRunGuard` keeps it inside `contao:`, and the case that matters is `doctrine:query:sql`.** Without the restriction this is a remote console, and the first thing it hands back is raw SQL — putting every DCA rule, version and log entry the last two days established back on the honour system, through the very tool built to end that.
+
+  ⚠️ Not a security boundary, and it should not be described as one: whoever calls this has shell access and can run anything. It bounds what *this tool* does on its own.
+
+  Runs in-process through `Application::doRun()`, so the log entry and the run cannot end up on different sides of a dropped connection.
+
 ## v0.2.30 - 2026-09-01
 
 ### Added
