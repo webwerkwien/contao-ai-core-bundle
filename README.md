@@ -59,6 +59,60 @@ All commands output JSON and follow a consistent `{"status":"ok", ...}` / `{"sta
 
 > **`record_rewrite` lives in [contao-ai-backend-bundle](https://github.com/webwerkwien/contao-ai-backend-bundle), not here.** That command needs an LLM API key per call. Keeping core agnostic of LLM dependencies and key handling was a deliberate architecture decision.
 
+## Declaring a contract for your own command
+
+If your extension ships a `contao:*` console command, `contao:ai:commands --name=…`
+already answers its name, description, arguments and options — Symfony knows those.
+What it cannot know is what the command *does*, and an AI agent reaching for it has
+to guess. An optional attribute closes that gap.
+
+```php
+#[AsCommand(name: 'contao:shop:confirm', description: 'Confirm a pending order')]
+#[\Webwerkwien\ContaoAiCoreBundle\Attribute\AiContract(
+    writes: true,
+    tables: ['tl_shop_order', 'tl_shop_voucher'],
+    trace: ['tl_log'],
+    traceWhen: 'before',
+    irreversible: 'sends a confirmation mail to the customer',
+    repeatable: false,
+    answerShape: ['status', 'id'],
+    genericPathUnsuitable: ['tl_shop_order' => 'the transitions hang on save_callbacks'],
+)]
+class ConfirmOrderCommand extends Command { /* … */ }
+```
+
+**It costs you no dependency.** PHP resolves an attribute class only on
+`newInstance()`; this bundle reads the raw arguments and never instantiates. So the
+attribute above works whether or not `webwerkwien/contao-ai-core-bundle` is in your
+`require`, and an installation without this bundle is unaffected. Write the
+fully-qualified name as shown and add no dependency.
+
+### The answer separates what was checked from what was claimed
+
+A declaration nobody verifies is an assertion, and a test run only ever observes the
+happy path. So the three are kept apart rather than flattened into one object:
+
+| Block | Meaning |
+| --- | --- |
+| `checked` | held against this installation — the named tables have a DCA here, or they do not |
+| `checked_with_statement` | observable on the happy path, plus a statement about the rest. `traceWhen` describes the failure path without having to trigger one, and the retention period is **read from this site's configuration**, never declared |
+| `declared` | `irreversible` and `repeatable` can never be verified from outside. They stay the command's own word, and the output says so |
+
+`trace: ['tl_log']` and `trace: ['tl_version']` are not interchangeable: Contao keeps
+them 7 and 90 days respectively. The period belongs to the installation, so the bundle
+reads it rather than letting a command claim its own.
+
+### What does not belong in it
+
+Business rules. Lead times, seasonal notices, "a voucher covering the full amount makes
+the payment method unnecessary" — those belong in the command's *description*. A
+contract shaped around one consumer's domain stops being a contract.
+
+### Malformed entries are reported, not dropped
+
+A field with the wrong type comes back under `problems` and is left out; the rest of the
+contract still stands. A contract that silently loses a field looks complete and is not.
+
 ## Audit trail
 
 Every successful write leaves two traces.

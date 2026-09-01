@@ -4,6 +4,54 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.34 - 2026-09-01
+
+### Added
+
+- **An extension can declare what its own console command does.** `contao:ai:commands
+  --name=…` already answers name, description, arguments and options — Symfony knows
+  those. What it cannot know is what the command *does*, and an agent reaching for it had
+  to guess. The optional `#[AiContract]` attribute closes that gap: what it writes, which
+  tables, what trail it leaves and when, whether it is repeatable, what it answers with,
+  and whether it has an effect outside the database that cannot be taken back.
+
+  **It costs the declaring extension no dependency.** PHP resolves an attribute class only
+  on `newInstance()`; this bundle reads the raw arguments and never instantiates, so the
+  attribute works whether or not this package is in the extension's `require`. Verified on
+  PHP 8.4 before the design was settled, and pinned by a test — it is an assumption about
+  the platform, not about our code.
+
+- **The answer separates what was checked from what was claimed.** A declaration nobody
+  verifies is an assertion, and a test run only observes the happy path, so the three are
+  kept apart rather than flattened:
+
+  | `checked` | held against this installation — the named tables have a DCA here, or they do not |
+  | `checked_with_statement` | observable on the happy path, plus a statement about the rest. `traceWhen` describes the failure path without having to trigger one |
+  | `declared` | `irreversible` and `repeatable` can never be verified from outside; the output says so |
+
+- **The retention period is read, never declared.** `trace: ['tl_log']` and
+  `trace: ['tl_version']` sound interchangeable and are 7 days against 90. The period
+  belongs to the installation, so `TraceRetention` reads `logPeriod` / `undoPeriod` /
+  `versionPeriod` rather than letting a command claim its own.
+
+- **Malformed entries are reported, not dropped.** A field with the wrong type comes back
+  under `problems` and is left out; the rest of the contract still stands. A contract that
+  silently loses a field looks complete and is not.
+
+### Fixed
+
+- **`contao:ai:commands --name=…` read the wrapper instead of the command.** Symfony wraps
+  every container-registered command in a `LazyCommand`, so the attribute lookup found
+  nothing and the manifest answered `contract: null` for a command that had declared a full
+  one. Measured on the test server — `find()` demonstrably returns `LazyCommand` with the
+  real class behind it — rather than assumed.
+
+### Note on the version number
+
+This is a new public extension point and would ordinarily argue for `0.3.0`.
+`contao-ai-backend-bundle` requires `^0.2`, so a `0.3.0` would be unreachable for every
+installation that has it. The minor stays where it is until both can move together.
+
 ## v0.2.33 - 2026-09-01
 
 ### Fixed

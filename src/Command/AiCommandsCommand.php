@@ -2,9 +2,14 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
+use Contao\Controller;
+use Contao\CoreBundle\Framework\ContaoFramework;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Command\LazyCommand;
 use Symfony\Component\Console\Input\InputOption;
+use Webwerkwien\ContaoAiCoreBundle\Contract\ContractPresenter;
+use Webwerkwien\ContaoAiCoreBundle\Contract\ContractReader;
 
 /**
  * What this installation's console offers under `contao:`.
@@ -38,6 +43,11 @@ use Symfony\Component\Console\Input\InputOption;
 #[AsCommand(name: 'contao:ai:commands', description: 'List the contao:* console commands this installation offers')]
 class AiCommandsCommand extends AbstractReadCommand
 {
+    public function __construct(private readonly ContaoFramework $framework)
+    {
+        parent::__construct();
+    }
+
     protected function configure(): void
     {
         $this->addOption(
@@ -93,10 +103,26 @@ class AiCommandsCommand extends AbstractReadCommand
                 ];
             }
 
+            // Read, not instantiated — see ContractReader. An extension can
+            // declare against this bundle without depending on it, so the
+            // absence of a contract is the normal case and not a fault.
+            $contract = ContractReader::read(self::declaringClass($command));
+
+            // Only when a contract actually names tables. Booting the framework
+            // is not free, and the listing half of this command has never
+            // needed it — paying for it on every call to describe a command
+            // that declares nothing would be a cost with no reader.
+            if (null !== $contract && [] !== ($contract['fields']['tables'] ?? [])) {
+                $this->framework->initialize();
+            }
+
             $this->outputRecord([
                 'command'     => $wanted,
                 'description' => $command->getDescription(),
                 'help'        => $command->getHelp(),
+                'contract'    => null === $contract
+                    ? null
+                    : ContractPresenter::present($contract, self::tableHasDca(...)),
                 // Cast so an empty set encodes as {} and not []. PHP's empty
                 // array is both, json_encode picks the array, and a caller then
                 // has to handle two shapes for the same field — found by a
@@ -129,6 +155,50 @@ class AiCommandsCommand extends AbstractReadCommand
         ]);
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * The class that actually carries the attributes.
+     *
+     * Symfony wraps every container-registered command in a `LazyCommand` so
+     * the service is not built until it runs. `$command::class` therefore
+     * answers `LazyCommand`, which declares no contract — and the manifest
+     * reported `contract: null` for a plugin that had declared a full one.
+     *
+     * 🎯 Worth naming, because the failure wore the usual disguise: `null` is a
+     * valid answer here, and it reads as "this command declares nothing"
+     * rather than "we looked in the wrong place". Found on c5 within minutes of
+     * the first live run, by checking the attribute directly instead of
+     * trusting the empty result.
+     */
+    private static function declaringClass(Command $command): string
+    {
+        return $command instanceof LazyCommand
+            ? $command->getCommand()::class
+            : $command::class;
+    }
+
+    /**
+     * Does this installation have a DCA for the table?
+     *
+     * The one part of a declared contract that can be held against the site
+     * right here. A named table without a DCA is a typo or an extension that
+     * is not installed, and both are worth knowing before the command runs.
+     */
+    private static function tableHasDca(string $table): bool
+    {
+        if (!class_exists(Controller::class)) {
+            return false;
+        }
+
+        // The framework has to be up before this runs — `loadDataContainer`
+        // reaches for the container and throws otherwise. The first live run
+        // on c5 died exactly there, and the JSON error it produced was read as
+        // "the plugin declares nothing" because the reading script asked for a
+        // key that an error payload does not have.
+        Controller::loadDataContainer($table);
+
+        return isset($GLOBALS['TL_DCA'][$table]);
     }
 
     /**

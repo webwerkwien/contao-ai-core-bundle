@@ -1,0 +1,130 @@
+<?php declare(strict_types=1);
+
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Contract;
+
+use PHPUnit\Framework\TestCase;
+use Webwerkwien\ContaoAiCoreBundle\Attribute\AiContract;
+use Webwerkwien\ContaoAiCoreBundle\Contract\ContractReader;
+
+#[AiContract(
+    writes: true,
+    tables: ['tl_ww_buchung', 'tl_ww_gutschein'],
+    trace: ['tl_log'],
+    traceWhen: 'before',
+    irreversible: 'sends a confirmation mail to the guest',
+    repeatable: false,
+    optionValues: ['status' => ['offen', 'bestaetigt', 'storniert']],
+    answerShape: ['status', 'id', 'gutschein'],
+    genericPathUnsuitable: ['tl_ww_buchung' => 'the transitions hang on save_callbacks'],
+)]
+class FullyDeclaredCommand
+{
+}
+
+class UndeclaredCommand
+{
+}
+
+#[AiContract(writes: true)]
+class WritesWithoutTraceCommand
+{
+}
+
+#[AiContract(writes: true, trace: ['tl_log'])]
+class TraceWithoutWhenCommand
+{
+}
+
+/**
+ * Reading a command's declared contract.
+ *
+ * The design rests on one property of PHP that was verified before anything
+ * was written: `ReflectionAttribute::getArguments()` returns the raw values
+ * even when the attribute class cannot be loaded, and only `newInstance()`
+ * needs it. So an extension can declare **without depending on this bundle**,
+ * and the reader must never instantiate.
+ *
+ * 🎯 The second rule is that a malformed declaration is *reported*, never
+ * dropped. A contract that silently loses a field looks complete and is not —
+ * the failure this project keeps meeting: an answer that reads like an answer,
+ * so nobody looks further.
+ */
+class ContractReaderTest extends TestCase
+{
+    public function testACommandWithoutTheAttributeHasNoContract(): void
+    {
+        self::assertNull(ContractReader::read(UndeclaredCommand::class));
+    }
+
+    public function testAMissingClassIsNotAnError(): void
+    {
+        self::assertNull(ContractReader::read('Nicht\\Vorhanden\\Command'));
+    }
+
+    public function testEveryDeclaredFieldSurvives(): void
+    {
+        $contract = ContractReader::read(FullyDeclaredCommand::class);
+
+        self::assertNotNull($contract);
+        self::assertSame([], $contract['problems']);
+        self::assertSame(['tl_ww_buchung', 'tl_ww_gutschein'], $contract['fields']['tables']);
+        self::assertSame('before', $contract['fields']['traceWhen']);
+        self::assertFalse($contract['fields']['repeatable']);
+        self::assertSame(
+            ['tl_ww_buchung' => 'the transitions hang on save_callbacks'],
+            $contract['fields']['genericPathUnsuitable'],
+        );
+    }
+
+    /**
+     * The platform property the whole design rests on.
+     *
+     * PHP resolves an attribute class only on `newInstance()`. `getArguments()`
+     * hands back the raw values without it — which is why an extension can
+     * carry `#[AiContract(...)]` **without requiring this bundle**, and why the
+     * reader must never instantiate.
+     *
+     * Pinned here rather than asserted in a docblock: it is an assumption about
+     * PHP, not about our code, and if a future version tightened it the design
+     * would fail silently everywhere else. Verified against PHP 8.4 before
+     * anything was built.
+     */
+    public function testAttributeArgumentsAreReadableWithoutTheAttributeClass(): void
+    {
+        // eval, because the class has to carry an attribute that cannot be
+        // resolved — which is exactly what a declaring extension without this
+        // bundle produces, and cannot be written in a normally loaded file
+        // without tripping static analysis.
+        eval('
+            namespace Webwerkwien\ContaoAiCoreBundle\Tests\Contract;
+            #[\Kein\Solches\Attribut(writes: true, tables: ["tl_x"])]
+            class AttributeProbe {}
+        ');
+
+        $attribute = (new \ReflectionClass(AttributeProbe::class))->getAttributes()[0];
+
+        self::assertSame('Kein\Solches\Attribut', $attribute->getName());
+        self::assertSame(['writes' => true, 'tables' => ['tl_x']], $attribute->getArguments());
+
+        $this->expectException(\Error::class);
+        $attribute->newInstance();
+    }
+
+    public function testWritingWithoutNamingATraceIsReported(): void
+    {
+        $contract = ContractReader::read(WritesWithoutTraceCommand::class);
+
+        self::assertNotSame([], $contract['problems']);
+        self::assertStringContainsString('no trace declared', implode(' ', $contract['problems']));
+    }
+
+    public function testATraceWithoutItsTimingIsReported(): void
+    {
+        /* "before" and "on-success" are different promises, and the difference
+           is the entire value of the field: an entry written afterwards records
+           only the runs that went well. */
+        $contract = ContractReader::read(TraceWithoutWhenCommand::class);
+
+        self::assertStringContainsString('traceWhen', implode(' ', $contract['problems']));
+    }
+}
