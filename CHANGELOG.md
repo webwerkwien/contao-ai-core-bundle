@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.30 - 2026-09-01
+
+### Added
+
+- **`contao:page:tree` — the page tree, built on the server.** The CLI used to select every page and nest the rows itself, which could not move to `contao:record:list`: its 100-row cap is passed by any real site, and wienerwandern.at has 283 pages.
+
+  🎯 **The cap was never the real problem.** Paginating around it would work and still put **80 KB** of JSON in front of the caller, for a question that is almost never "all 283 pages" but "what hangs under this node".
+
+  Contao answers it the same way: the back end tree renders one level and keeps the expanded state per node, and `Database::getChildRecords()` descends level by level where a whole subtree is genuinely needed. Both are server-side.
+
+  So depth is the control, not the row count. `--depth` defaults to 2 — the top nodes and their children — and `--root` descends into one branch. One query per level, not one per node: a 283-page tree is five queries.
+
+  `truncated` reports whether pages exist below the cut. Without it a depth-limited tree and a complete one look identical, and a caller would have no way to know it is standing at an edge rather than a leaf.
+
+- **`contao:record:list --filter-prefix field=value`** — the one shape equality cannot express: everything below a folder. `tl_files` needed it, and it was the last listing that could not move off hand-written SQL for want of it.
+
+  The value is escaped before the `%` is appended, so a literal percent or underscore stays literal. The caller is naming a prefix, not handing over a LIKE pattern — the difference is a scoped listing versus a full table scan. The column is checked against the DCA like every other filter.
+
 ## v0.2.29 - 2026-09-01
 
 ### Fixed

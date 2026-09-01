@@ -42,6 +42,13 @@ class RecordListCommand extends AbstractReadCommand
             []
         );
         $this->addOption(
+            'filter-prefix', null,
+            InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY,
+            'Field=prefix match (repeatable), e.g. --filter-prefix path=files/media. '
+            . 'The prefix is matched literally; % and _ in it are not wildcards.',
+            []
+        );
+        $this->addOption(
             'fields', null,
             InputOption::VALUE_REQUIRED,
             'Comma-separated columns to return. Empty = curated default per table.',
@@ -88,7 +95,11 @@ class RecordListCommand extends AbstractReadCommand
 
         $rawFilters = (array) $this->input->getOption('filter');
         try {
-            [$where, $params, $types] = $this->buildWhere($rawFilters, $allowedColumns);
+            [$where, $params, $types] = $this->buildWhere(
+                $rawFilters,
+                $allowedColumns,
+                (array) $this->input->getOption('filter-prefix'),
+            );
         } catch (\InvalidArgumentException $e) {
             return $this->outputError($e->getMessage());
         }
@@ -248,12 +259,12 @@ class RecordListCommand extends AbstractReadCommand
      * @param list<string> $allowedColumns
      * @return array{0:string,1:array<string,scalar|null>,2:array<string,int>}
      */
-    private function buildWhere(array $rawFilters, array $allowedColumns): array
+    private function buildWhere(array $rawFilters, array $allowedColumns, array $rawPrefixes = []): array
     {
-        if ([] === $rawFilters) {
+        if ([] === $rawFilters && [] === $rawPrefixes) {
             return ['', [], []];
         }
-        if (count($rawFilters) > 10) {
+        if (count($rawFilters) + count($rawPrefixes) > 10) {
             throw new \InvalidArgumentException('filter: maximum 10 filters allowed');
         }
 
@@ -286,6 +297,40 @@ class RecordListCommand extends AbstractReadCommand
             }
             $i++;
         }
+
+        // Prefix matching, for the one shape equality cannot express: everything
+        // below a folder. `tl_files` is the case that needs it — a file listing
+        // scoped to `files/media` — and it was the last listing that could not
+        // move off hand-written SQL for want of it.
+        //
+        // The value is escaped before the % is appended, so a literal percent or
+        // underscore stays literal. The caller is naming a prefix, not handing
+        // over a LIKE pattern, and the difference matters: `%` would otherwise
+        // turn a scoped listing into a full table scan.
+        foreach ($rawPrefixes as $raw) {
+            $pos = strpos($raw, '=');
+            if (false === $pos || 0 === $pos) {
+                throw new \InvalidArgumentException("filter-prefix: expected field=prefix, got: $raw");
+            }
+            $field = substr($raw, 0, $pos);
+            $value = substr($raw, $pos + 1);
+            if (1 !== preg_match('/^[a-zA-Z_][a-zA-Z0-9_]{0,63}$/', $field)) {
+                throw new \InvalidArgumentException("filter-prefix: invalid field name: $field");
+            }
+            if (!in_array($field, $allowedColumns, true)) {
+                throw new \InvalidArgumentException("filter-prefix: unknown column: $field");
+            }
+            if ('' === $value) {
+                throw new \InvalidArgumentException("filter-prefix: empty prefix for: $field");
+            }
+
+            $placeholder = 'p'.$i;
+            $clauses[] = $this->connection->quoteIdentifier($field).' LIKE :'.$placeholder;
+            $params[$placeholder] = addcslashes($value, '%_\\').'%';
+            $types[$placeholder]  = ParameterType::STRING;
+            $i++;
+        }
+
         return [implode(' AND ', $clauses), $params, $types];
     }
 
