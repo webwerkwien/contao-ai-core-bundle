@@ -35,6 +35,18 @@ class TraceWithoutWhenCommand
 {
 }
 
+#[AiContract(
+    writes: true,
+    tables: ['tl_x'],
+    trace: ['tl_log'],
+    traceWhen: 'on-success',
+    irreversible: null,
+    repeatable: null,
+)]
+class ExplicitlyNothingCommand
+{
+}
+
 /**
  * Reading a command's declared contract.
  *
@@ -108,6 +120,45 @@ class ContractReaderTest extends TestCase
 
         $this->expectException(\Error::class);
         $attribute->newInstance();
+    }
+
+    /**
+     * Writing `irreversible: null` says "nothing here", and that is the truth.
+     *
+     * It is the constructor's own default and the attribute's docblock says so
+     * — *"null means none is claimed"*. The validator nevertheless answered
+     * *irreversible must be a non-empty string, got null*: a complaint about a
+     * correct statement, and the only way to avoid it was to leave the field
+     * out, which says the same thing less clearly.
+     *
+     * Reported by the ww-buchung session on 2026-09-01, from the first real
+     * declaration written against this attribute.
+     */
+    public function testExplicitNullIsAStatementAndNotAMistake(): void
+    {
+        $contract = ContractReader::read(ExplicitlyNothingCommand::class);
+
+        self::assertSame([], $contract['problems']);
+    }
+
+    public function testAnExplicitNullMakesNoClaimEither(): void
+    {
+        /* Silence and "explicitly nothing" reach the reader the same way: the
+           field is absent. What must not happen is a `repeatable: null` showing
+           up as if a claim had been made. */
+        $contract = ContractReader::read(ExplicitlyNothingCommand::class);
+
+        self::assertArrayNotHasKey('irreversible', $contract['fields']);
+        self::assertArrayNotHasKey('repeatable', $contract['fields']);
+    }
+
+    public function testANullTraceWhenIsStillReportedAsMissingInformation(): void
+    {
+        /* Different case: the trace is declared, so the timing is information
+           the reader needs and `null` does not supply it. */
+        $contract = ContractReader::read(ExplicitlyNothingCommand::class);
+
+        self::assertSame('on-success', $contract['fields']['traceWhen']);
     }
 
     public function testWritingWithoutNamingATraceIsReported(): void

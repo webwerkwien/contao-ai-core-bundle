@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.37 - 2026-09-01
+
+### Fixed
+
+- **`irreversible: null` was reported as a mistake.** It is the constructor's own default
+  and the attribute's docblock says *"null means none is claimed"* — yet the validator
+  answered *irreversible must be a non-empty string, got null*. A complaint about a
+  correct statement, whose only workaround was to leave the field out and say the same
+  thing less clearly.
+
+  `traceWhen`, `irreversible` and `repeatable` accept an explicit null now and are simply
+  absent from the result. Silence and "explicitly nothing" have to reach a reader the same
+  way, or `repeatable: null` shows up looking like a claim.
+
+  Reported from the first declaration anyone else wrote against this attribute — which is
+  the shortest possible answer to whether the mechanism gets used.
+
 ## v0.2.36 - 2026-09-01
 
 ### Changed

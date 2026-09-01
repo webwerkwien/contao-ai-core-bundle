@@ -47,6 +47,23 @@ final class ContractReader
         'genericPathUnsuitable' => 'string-map',
     ];
 
+    /**
+     * Fields whose constructor default is null, where an explicit null is a
+     * statement rather than a mistake.
+     *
+     * `irreversible: null` says *there is no irreversible effect* — the
+     * attribute's own docblock says so, and it is the default. The validator
+     * nevertheless answered *"must be a non-empty string, got null"*: a
+     * complaint about a correct statement, whose only workaround was to leave
+     * the field out and say the same thing less clearly. Reported from the
+     * first real declaration written against this attribute (2026-09-01).
+     *
+     * The field is dropped rather than carried: silence and "explicitly
+     * nothing" have to reach a reader the same way, or `repeatable: null` shows
+     * up looking like a claim.
+     */
+    private const NULLABLE = ['traceWhen', 'irreversible', 'repeatable'];
+
     /** Contao's own trail tables. Anything else in `trace` is a typo or a misunderstanding. */
     private const KNOWN_TRACES = ['tl_version', 'tl_undo', 'tl_log'];
 
@@ -94,6 +111,10 @@ final class ContractReader
                     $name,
                     implode(', ', array_keys(self::FIELDS)),
                 );
+                continue;
+            }
+
+            if (null === $value && \in_array($name, self::NULLABLE, true)) {
                 continue;
             }
 
