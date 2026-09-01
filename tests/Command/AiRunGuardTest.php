@@ -40,6 +40,44 @@ class AiRunGuardTest extends TestCase
     }
 
     /**
+     * A declared contract opens the door as well (2026-09-01).
+     *
+     * A parallel session measured 22 namespaces on a live site: `cookiebar:`
+     * is a published Contao extension using its own product name, and
+     * Symfony's docs recommend `app:` for application commands. A prefix of
+     * one's own is the convention, and `contao:` would be the one wrong
+     * choice — it claims someone else's property.
+     *
+     * 🎯 The prefix says *who wrote* the command; this guard was reading it as
+     * *whether it may run*. Two different questions of one source, and a
+     * correctly named extension command fell out — not because it was
+     * dangerous, but because the name cannot carry what was demanded of it.
+     *
+     * The declaration comes from the author, which is the answer a prefix
+     * never had.
+     */
+    public function testADeclaredContractMakesACommandReachable(): void
+    {
+        $this->assertFalse(AiRunGuard::isAllowed('ww:gutschein:import'));
+        $this->assertTrue(AiRunGuard::isAllowed('ww:gutschein:import', true));
+    }
+
+    public function testTheDefaultStaysClosed(): void
+    {
+        /* Nothing is reachable by accident: the second argument has to be
+           passed, and only a real declaration sets it. */
+        $this->assertFalse(AiRunGuard::isAllowed('doctrine:query:sql'));
+    }
+
+    public function testTheRefusalNamesBothWaysIn(): void
+    {
+        $message = AiRunGuard::refusal('cookiebar:something');
+
+        $this->assertStringContainsString('contao:', $message);
+        $this->assertStringContainsString('AiContract', $message);
+    }
+
+    /**
      * @return iterable<string, array{string}>
      */
     public static function refused(): iterable

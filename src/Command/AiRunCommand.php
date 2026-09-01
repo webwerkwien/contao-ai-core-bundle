@@ -5,11 +5,13 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 use Contao\CoreBundle\Monolog\ContaoContext;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Command\LazyCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\StringInput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Contracts\Service\Attribute\Required;
+use Webwerkwien\ContaoAiCoreBundle\Contract\ContractReader;
 use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 
 /**
@@ -84,10 +86,6 @@ class AiRunCommand extends AbstractReadCommand
 
         $name = strtok($line, " \t") ?: $line;
 
-        if (!AiRunGuard::isAllowed($name)) {
-            return $this->outputError(AiRunGuard::refusal($name));
-        }
-
         $application = $this->getApplication();
 
         if (null === $application) {
@@ -96,6 +94,24 @@ class AiRunCommand extends AbstractReadCommand
 
         if (!$application->has($name)) {
             return $this->outputError('Command not found: '.$name);
+        }
+
+        // The namespace is checked first and the contract only when it fails,
+        // so the common case costs nothing — resolving a contract means
+        // building the command service.
+        //
+        // A declared #[AiContract] opens the door because that permission comes
+        // from the *author*, which is the one thing a prefix cannot say. See
+        // AiRunGuard for why the namespace alone was the wrong measure.
+        if (!AiRunGuard::isAllowed($name)) {
+            $command  = $application->find($name);
+            $declared = null !== ContractReader::read(
+                $command instanceof LazyCommand ? $command->getCommand()::class : $command::class,
+            );
+
+            if (!$declared) {
+                return $this->outputError(AiRunGuard::refusal($name));
+            }
         }
 
         // Before the run, on purpose — see the class docblock.

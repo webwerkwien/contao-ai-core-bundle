@@ -109,6 +109,7 @@ class AiCommandsCommand extends AbstractReadCommand
             // declare against this bundle without depending on it, so the
             // absence of a contract is the normal case and not a fault.
             $contract = ContractReader::read(self::declaringClass($command));
+            $reachable = AiRunGuard::isAllowed($wanted, null !== $contract);
 
             // Only when a contract actually names tables. Booting the framework
             // is not free, and the listing half of this command has never
@@ -122,10 +123,8 @@ class AiCommandsCommand extends AbstractReadCommand
                 'command'     => $wanted,
                 'description' => $command->getDescription(),
                 'help'        => $command->getHelp(),
-                'reachable'   => AiRunGuard::isAllowed($wanted),
-                'reachable_note' => AiRunGuard::isAllowed($wanted)
-                    ? null
-                    : AiRunGuard::refusal($wanted),
+                'reachable'   => $reachable,
+                'reachable_note' => $reachable ? null : AiRunGuard::refusal($wanted),
                 'contract'    => null === $contract
                     ? null
                     : ContractPresenter::present($contract, self::tableHasDca(...)),
@@ -156,7 +155,12 @@ class AiCommandsCommand extends AbstractReadCommand
                 // through the very command built to report what it cannot
                 // reach. Set aside, never hidden; the same rule the three
                 // infrastructure entries already follow.
-                'reachable'   => AiRunGuard::isAllowed($name),
+                // The contract is only resolved for names outside `contao:`,
+                // because that is the only place it can change the answer —
+                // and resolving one means building the command service, which
+                // a listing has no business doing 200 times over.
+                'reachable'   => AiRunGuard::isAllowed($name)
+                    || (null !== ContractReader::read(self::declaringClass($command))),
             ];
         }
 

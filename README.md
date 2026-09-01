@@ -81,6 +81,11 @@ to guess. An optional attribute closes that gap.
 class ConfirmOrderCommand extends Command { /* … */ }
 ```
 
+**And it is what makes your command reachable.** `contao:ai:run` runs commands under
+`contao:` and commands that declare a contract. Keep your own prefix — that is the
+convention, and `contao:` is Contao's property — and declare instead. The prefix says who
+wrote a command; only the declaration says its author meant it to be driven this way.
+
 **It costs you no dependency.** PHP resolves an attribute class only on
 `newInstance()`; this bundle reads the raw arguments and never instantiates. So the
 attribute above works whether or not `webwerkwien/contao-ai-core-bundle` is in your

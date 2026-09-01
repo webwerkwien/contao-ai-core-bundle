@@ -4,6 +4,33 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.36 - 2026-09-01
+
+### Changed
+
+- **A declared `#[AiContract]` now makes a command reachable, whatever its prefix.**
+  `contao:ai:run` still refuses everything else; the default stays closed and nothing is
+  granted that shell access did not already grant.
+
+  A parallel session measured 22 namespaces on a live site. `cookiebar:` is a **published
+  Contao extension** using its own product name, and Symfony's own docs recommend `app:`
+  for application commands. **A prefix of one's own is the convention, and `contao:` would
+  be the one wrong choice** — it claims someone else's property. So the previous advice,
+  shipped an hour earlier, told plugin authors to break that convention.
+
+  Their diagnosis names the fault: *the prefix says who wrote the command; the guard read
+  it as whether the command may run.* Two different questions of one source, and a
+  correctly named extension command fell out — not because it was dangerous, but because
+  the name does not carry the information being demanded of it.
+
+  A declaration answers the question the prefix cannot: the **author** says the command is
+  meant to be driven from here, and says what it does while doing so. The alternative — a
+  deny-list of framework namespaces — is the "everyone must remember" shape this project
+  has already failed at twice.
+
+  The contract is resolved only when the namespace check fails, so the common path costs
+  nothing: resolving one means building the command service.
+
 ## v0.2.35 - 2026-09-01
 
 ### Fixed
