@@ -97,8 +97,13 @@ class AiCommandsCommand extends AbstractReadCommand
                 'command'     => $wanted,
                 'description' => $command->getDescription(),
                 'help'        => $command->getHelp(),
-                'arguments'   => $arguments,
-                'options'     => $options,
+                // Cast so an empty set encodes as {} and not []. PHP's empty
+                // array is both, json_encode picks the array, and a caller then
+                // has to handle two shapes for the same field — found by a
+                // reader that did `.items()` on `contao:record:clone`, which
+                // takes no arguments.
+                'arguments'   => (object) $arguments,
+                'options'     => (object) $options,
             ]);
 
             return Command::SUCCESS;

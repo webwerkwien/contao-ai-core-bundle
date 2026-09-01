@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.32 - 2026-09-01
+
+### Fixed
+
+- **`contao:ai:commands --name=x` answered `[]` where it meant `{}`.** PHP's empty array encodes as a JSON array, so a command without arguments — `contao:record:clone` — returned `"arguments": []` while every other command returned an object. A caller had to handle both shapes for the same field. Found by a reader doing `.items()` on it.
+
 ## v0.2.31 - 2026-09-01
 
 ### Added
