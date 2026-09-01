@@ -321,6 +321,112 @@ abstract class AbstractWriteCommand extends Command
     }
 
     /**
+     * The complete field set for a create, options included, rules applied once.
+     *
+     * 🎯 **Every create command used to take its own options past the rules.**
+     * `--set` pairs went through `convertFields()`; `--name`, `--title`,
+     * `--email` and the computed values beside them were assigned straight onto
+     * the model afterwards. So `theme create --name "Contao Official Demo"`
+     * happily made a second theme under a name `eval.unique` forbids —
+     * demonstrated on c5 on 2026-09-01, the day after the `unique` check was
+     * added and believed to cover creates.
+     *
+     * Three commands had noticed and each written their own check
+     * (`UserGroupCreate`, `MemberGroupCreate`, `FormCreate`). That is the shape
+     * this bundle keeps learning to distrust: a rule every command has to
+     * remember, which most of them did not.
+     *
+     * So a create hands over what it produced itself, and the whole record —
+     * options, computed values, `--set` — is judged and converted together.
+     *
+     * ⚠️ **`--set` still wins on a collision**, which is what the direct
+     * assignments did before: they ran first, and the `--set` loop overwrote
+     * them. Preserved deliberately; whether `--set name=x` *should* override
+     * `--name y` is a separate question with its own answer.
+     *
+     * @param array<string, mixed> $own the command's own options and computed values
+     * @param array<string, mixed> $set the parsed `--set` pairs
+     *
+     * @return array<string, mixed>
+     */
+    protected function preparedFields(string $table, array $own, array $set, ?int $excludeId = null): array
+    {
+        return $this->convertFields($table, array_merge($own, $set), $excludeId);
+    }
+
+    /**
+     * The alias to store: the one given, or one generated and made unique.
+     *
+     * Contao splits these two cases and answers them differently
+     * (`tl_news::generateAlias` and its twins):
+     *
+     *  - **given** — a duplicate is an error. The caller chose it, so silently
+     *    changing it would store something they did not ask for.
+     *  - **generated** — the slug service is handed an `$aliasExists` callback
+     *    and appends until it fits. Refusing here would make this bundle
+     *    stricter than the back end for a value the caller never typed.
+     *
+     * Only the numeric refusal is applied to both: Contao cannot tell `123`
+     * apart from a record ID, so it is never a legal alias.
+     *
+     * The duplicate case for a *given* alias is not handled here — it falls to
+     * the `unique` check in `convertFields()`, which is where every other
+     * uniqueness answer comes from.
+     *
+     * @throws \InvalidArgumentException on a purely numeric alias
+     */
+    protected function resolveAlias(string $table, string $given, string $from, string $field = 'alias'): string
+    {
+        if ('' !== $given) {
+            $this->refuseNumericAlias($given);
+
+            return $given;
+        }
+
+        $base = StringUtil::generateAlias($from);
+        $this->refuseNumericAlias($base);
+
+        // ⚠️ Only where the DCA actually says unique. `tl_page.alias` and
+        // `tl_article.alias` carry no `eval.unique` — a page alias may repeat
+        // across roots, and Contao scopes that check by root and domain in its
+        // own `save_callback`. Suffixing them here would rename a page for a
+        // clash that is not one.
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'][$field]['eval']['unique'])) {
+            return $base;
+        }
+
+        if ($this->uniqueValueIsFree($table, $field, $base, null)) {
+            return $base;
+        }
+
+        // Contao's slug service appends until the callback says free; the shape
+        // of the suffix is ours, the behaviour is Contao's.
+        for ($i = 2; $i < 100; ++$i) {
+            $candidate = $base . '-' . $i;
+
+            if ($this->uniqueValueIsFree($table, $field, $candidate, null)) {
+                return $candidate;
+            }
+        }
+
+        return $base . '-' . substr(md5(uniqid('', true)), 0, 8);
+    }
+
+    /**
+     * @throws \InvalidArgumentException when the alias is a plain number
+     */
+    private function refuseNumericAlias(string $alias): void
+    {
+        if (preg_match('/^[1-9]\d*$/', $alias)) {
+            throw new \InvalidArgumentException(\sprintf(
+                'A purely numeric alias ("%s") is not allowed — Contao cannot tell it apart '
+                . 'from a record ID.',
+                $alias,
+            ));
+        }
+    }
+
+    /**
      * Refuse a value that `eval.unique` says is already taken.
      *
      * `tl_user.username`, `tl_member.email`, `tl_theme.name`, the four aliases —

@@ -70,11 +70,12 @@ class UserGroupCreateCommand extends AbstractWriteCommand
             ));
         }
 
-        $fields = $this->convertFields('tl_user_group', $fields);
+        $fields = $this->preparedFields('tl_user_group', [
+            'name' => $name,
+        ], $fields);
 
         $group         = new UserGroupModel();
         $group->tstamp = time();
-        $group->name   = $name;
 
         foreach ($fields as $key => $value) {
             $group->$key = $value;

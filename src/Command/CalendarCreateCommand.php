@@ -61,11 +61,12 @@ class CalendarCreateCommand extends AbstractWriteCommand
             ));
         }
 
-        $fields = $this->convertFields('tl_calendar', $fields);
+        $fields = $this->preparedFields('tl_calendar', [
+            'title' => $title,
+        ], $fields);
 
         $calendar         = new CalendarModel();
         $calendar->tstamp = time();
-        $calendar->title  = $title;
 
         foreach ($fields as $key => $value) {
             $calendar->$key = $value;

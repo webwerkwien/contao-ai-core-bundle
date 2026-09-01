@@ -41,25 +41,28 @@ class NewsCreateCommand extends AbstractWriteCommand
             return $this->outputError('--headline and --pid are required');
         }
 
-        $news           = new NewsModel();
-        $news->tstamp   = time();
-        $news->pid      = (int) $pid;
-        // tl_news.headline is a PLAIN TEXT field — it is the news *title*, not a
-        // headline element. Contao's DCA (news-bundle/contao/dca/tl_news.php):
-        //     'inputType' => 'text', 'sql' => "varchar(255) NOT NULL default ''"
-        // and Contao reads it verbatim (NewsFeedListener::setTitle($article->headline),
-        // InsertTag 'news_title'). Only tl_content.headline is an `inputUnit` field
-        // with a serialized {value, unit} payload. Writing a serialized array here
-        // put the raw `a:2:{…}` string into every listing, feed and front end title
-        // — see NewsRepairHeadlinesCommand for repairing records written that way.
-        $news->headline = (string) $headline;
-        $news->alias    = StringUtil::generateAlias($headline);
-        $news->date     = strtotime($this->input->getOption('date'));
-        $news->time     = $news->date;
-        $news->published = '0';
-        $news->author   = $this->resolveAuthorId();
+        $date = strtotime($this->input->getOption('date'));
 
-        $fields = $this->convertFields('tl_news', $fields);
+        $fields = $this->preparedFields('tl_news', [
+            'pid' => (int) $pid,
+            // tl_news.headline is a PLAIN TEXT field — it is the news *title*, not a
+            // headline element. Contao's DCA (news-bundle/contao/dca/tl_news.php):
+            //     'inputType' => 'text', 'sql' => "varchar(255) NOT NULL default ''"
+            // and Contao reads it verbatim (NewsFeedListener::setTitle($article->headline),
+            // InsertTag 'news_title'). Only tl_content.headline is an `inputUnit` field
+            // with a serialized {value, unit} payload. Writing a serialized array here
+            // put the raw `a:2:{…}` string into every listing, feed and front end title
+            // — see NewsRepairHeadlinesCommand for repairing records written that way.
+            'headline'  => (string) $headline,
+            'alias'     => $this->resolveAlias('tl_news', '', (string) $headline),
+            'date'      => $date,
+            'time'      => $date,
+            'published' => '0',
+            'author'    => $this->resolveAuthorId(),
+        ], $fields);
+
+        $news         = new NewsModel();
+        $news->tstamp = time();
 
         foreach ($fields as $key => $value) {
             $news->$key = $value;

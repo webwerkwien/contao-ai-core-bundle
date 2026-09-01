@@ -34,21 +34,25 @@ class ContentCreateCommand extends AbstractWriteCommand
             return $this->outputError('--type and --pid are required');
         }
 
-        $el          = new ContentModel();
-        $el->tstamp  = time();
-        $el->pid     = (int) $pid;
-        $el->ptable  = $this->input->getOption('ptable');
-        $el->type    = $type;
-        // invisible is a boolean column; '' fails under strict SQL mode (MariaDB
-        // rejects the empty string for an integer field). Default to visible (0).
-        $el->invisible = 0;
-
         // headline is an inputUnit field ({value, unit}); --set headline_unit=h1
-        // (or a JSON value) controls the level, default h2.
+        // (or a JSON value) controls the level, default h2. Runs first because
+        // it reads a companion key out of --set that must not reach the record.
         $fields = $this->convertInputUnitFields('tl_content', $fields, 'h2');
 
-        // singleSRC and other fileTree fields need the binary UUID, not the string.
-        $fields = $this->convertFields('tl_content', $fields);
+        // The command's own options travel with the --set pairs, so the DCA
+        // rules see the whole record. singleSRC and other fileTree fields get
+        // their binary UUID on the way through.
+        $fields = $this->preparedFields('tl_content', [
+            'pid'    => (int) $pid,
+            'ptable' => $this->input->getOption('ptable'),
+            'type'   => $type,
+            // invisible is a boolean column; '' fails under strict SQL mode
+            // (MariaDB rejects the empty string for an integer field).
+            'invisible' => 0,
+        ], $fields);
+
+        $el         = new ContentModel();
+        $el->tstamp = time();
 
         foreach ($fields as $key => $value) {
             $el->$key = $value;

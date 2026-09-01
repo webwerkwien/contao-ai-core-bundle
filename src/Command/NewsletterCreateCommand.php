@@ -93,13 +93,14 @@ class NewsletterCreateCommand extends AbstractWriteCommand
             ));
         }
 
-        $fields = $this->convertFields('tl_newsletter', $fields);
+        $fields = $this->preparedFields('tl_newsletter', [
+            'pid'     => (int) $pid,
+            'subject' => $subject,
+            'alias'   => $this->resolveAlias('tl_newsletter', '', $subject),
+        ], $fields);
 
         $newsletter          = new NewsletterModel();
         $newsletter->tstamp  = time();
-        $newsletter->pid     = (int) $pid;
-        $newsletter->subject = $subject;
-        $newsletter->alias   = StringUtil::generateAlias($subject);
 
         foreach ($fields as $key => $value) {
             $newsletter->$key = $value;

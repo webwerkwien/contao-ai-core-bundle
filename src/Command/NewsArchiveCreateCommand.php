@@ -67,11 +67,12 @@ class NewsArchiveCreateCommand extends AbstractWriteCommand
             ));
         }
 
-        $fields = $this->convertFields('tl_news_archive', $fields);
+        $fields = $this->preparedFields('tl_news_archive', [
+            'title' => $title,
+        ], $fields);
 
         $archive         = new NewsArchiveModel();
         $archive->tstamp = time();
-        $archive->title  = $title;
 
         foreach ($fields as $key => $value) {
             $archive->$key = $value;

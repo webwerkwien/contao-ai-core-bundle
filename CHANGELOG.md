@@ -4,6 +4,34 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.29 - 2026-09-01
+
+### Fixed
+
+- **A create command's own options went past every DCA rule.** `convertFields()` sees only the `--set` pairs. `--name`, `--title`, `--email` and the values computed beside them were assigned straight onto the model afterwards, so no rule ever saw them. One day after `eval.unique` started being enforced, `theme create --name "Contao Official Demo"` still produced a **second theme under a name the DCA forbids** — reproduced on c5, then fixed.
+
+  🎯 **Three commands had noticed and each written their own check** (`UserGroupCreate`, `MemberGroupCreate`, `FormCreate`). That is the shape this bundle keeps learning to distrust: a rule every command has to remember, which most of them did not — the same failure as the two field conversions in v0.2.19.
+
+  So there is now one entry point. `preparedFields($table, $own, $set)` takes what the command produced itself together with the `--set` pairs, and the whole record is judged and converted at once. All 21 record-creating commands were moved onto it.
+
+  `--set` still wins on a collision, which is what the direct assignments did before: they ran first and the `--set` loop overwrote them.
+
+### Changed
+
+- **A generated alias is made unique instead of colliding.** `resolveAlias()` follows the split Contao makes in `tl_news::generateAlias` and its twins: an alias the caller *gave* is refused when taken — they chose it, so silently changing it would store something they did not ask for — while a *generated* one is suffixed until it fits, exactly as Contao's slug service does with its `$aliasExists` callback.
+
+  Before this, two newsletters with the same subject both received `alias-test`; the reader then resolves whichever record comes back first. Now the second becomes `alias-test-2`.
+
+  ⚠️ Only where the DCA says unique. `tl_page.alias` and `tl_article.alias` carry no `eval.unique` — a page alias may repeat across roots, and Contao scopes that check by root and domain in its own `save_callback`. Suffixing them would rename a page for a clash that is not one.
+
+  A purely numeric alias stays refused everywhere: Contao cannot tell `123` apart from a record ID.
+
+### Testing
+
+- `CreateCommandConversionTest` no longer asks whether a command calls the entry point but **whether anything reaches the record without it** — the lexical rule could be satisfied while the hole stayed open, which is exactly what happened. Mutation-proven: adding one direct assignment turns it red by name.
+
+  ⚠️ The first version of that check was green against a deliberately broken command. `;$` does not match a line ending in CRLF, so the pattern silently matched nothing — the same carriage-return trap that made an md5 comparison disagree on 2026-08-31. A guard that cannot fail is worth less than no guard, because it is believed.
+
 ## v0.2.28 - 2026-09-01
 
 ### Added

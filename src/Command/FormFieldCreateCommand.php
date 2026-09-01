@@ -98,13 +98,14 @@ class FormFieldCreateCommand extends AbstractWriteCommand
             ));
         }
 
-        $fields = $this->convertFields('tl_form_field', $fields);
+        $fields = $this->preparedFields('tl_form_field', [
+            'pid'     => (int) $pid,
+            'type'    => $type,
+            'sorting' => $this->nextSorting((int) $pid),
+        ], $fields);
 
         $field          = new FormFieldModel();
         $field->tstamp  = time();
-        $field->pid     = (int) $pid;
-        $field->type    = $type;
-        $field->sorting = $this->nextSorting((int) $pid);
 
         foreach ($fields as $key => $value) {
             $field->$key = $value;

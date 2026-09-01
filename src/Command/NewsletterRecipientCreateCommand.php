@@ -141,19 +141,20 @@ class NewsletterRecipientCreateCommand extends AbstractWriteCommand
             Controller::loadDataContainer('tl_newsletter_recipients');
         }
 
-        $fields = $this->convertFields('tl_newsletter_recipients', $fields);
+        $fields = $this->preparedFields('tl_newsletter_recipients', [
+            'pid'   => (int) $pid,
+            'email' => $email,
+            // 0/1, not '1'/''. `active` is declared `['type' => 'boolean']` — a
+            // real tinyint column, not the char(1) that older DCAs use for flags
+            // — and MySQL in strict mode rejects '' for it with "Incorrect
+            // integer value". Found on c5, 2026-08-31: the --active path passed
+            // and the default path died, because only the empty string is
+            // invalid. Mocked tests cannot see this; only a live write can.
+            'active' => $this->input->getOption('active') ? 1 : 0,
+        ], $fields);
 
         $recipient         = new NewsletterRecipientsModel();
         $recipient->tstamp = time();
-        $recipient->pid    = (int) $pid;
-        $recipient->email  = $email;
-        // 0/1, not '1'/''. `tl_newsletter_recipients.active` is declared
-        // `['type' => 'boolean']` — a real tinyint column, not the char(1) that
-        // older DCAs use for flags — and MySQL in strict mode rejects '' for it
-        // with "Incorrect integer value". Found on c5, 2026-08-31: the --active
-        // path passed and the default path died, because only the empty string
-        // is invalid. Mocked tests cannot see this; only a live write can.
-        $recipient->active = $this->input->getOption('active') ? 1 : 0;
         // addedOn stays empty: this is not an opt-in, and the back end labels a
         // row without it as "added manually", which is exactly what it is.
 

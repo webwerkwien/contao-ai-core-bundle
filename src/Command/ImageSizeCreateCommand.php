@@ -55,12 +55,13 @@ class ImageSizeCreateCommand extends AbstractWriteCommand
             return $this->outputError(\sprintf('--pid must be a theme ID, got: %s', $pid));
         }
 
+        $fields = $this->preparedFields('tl_image_size', [
+            'pid'  => (int) $pid,
+            'name' => $name,
+        ], $fields);
+
         $size         = new ImageSizeModel();
         $size->tstamp = time();
-        $size->pid    = (int) $pid;
-        $size->name   = $name;
-
-        $fields = $this->convertFields('tl_image_size', $fields);
 
         foreach ($fields as $key => $value) {
             $size->$key = $value;

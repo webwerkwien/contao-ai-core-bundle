@@ -78,11 +78,12 @@ class NewsletterChannelCreateCommand extends AbstractWriteCommand
             ));
         }
 
-        $fields = $this->convertFields('tl_newsletter_channel', $fields);
+        $fields = $this->preparedFields('tl_newsletter_channel', [
+            'title' => $title,
+        ], $fields);
 
         $channel         = new NewsletterChannelModel();
         $channel->tstamp = time();
-        $channel->title  = $title;
 
         foreach ($fields as $key => $value) {
             $channel->$key = $value;

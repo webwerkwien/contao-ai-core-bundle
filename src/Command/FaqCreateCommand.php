@@ -34,15 +34,16 @@ class FaqCreateCommand extends AbstractWriteCommand
             return $this->outputError('--question and --pid are required');
         }
 
-        $faq          = new FaqModel();
-        $faq->tstamp  = time();
-        $faq->pid     = (int) $pid;
-        $faq->question = $question;
-        $faq->answer  = $this->input->getOption('answer');
-        $faq->published = '0';
-        $faq->author  = $this->resolveAuthorId();
+        $fields = $this->preparedFields('tl_faq', [
+            'pid'       => (int) $pid,
+            'question'  => $question,
+            'answer'    => $this->input->getOption('answer'),
+            'published' => '0',
+            'author'    => $this->resolveAuthorId(),
+        ], $fields);
 
-        $fields = $this->convertFields('tl_faq', $fields);
+        $faq         = new FaqModel();
+        $faq->tstamp = time();
 
         foreach ($fields as $key => $value) {
             $faq->$key = $value;

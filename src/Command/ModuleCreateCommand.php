@@ -87,13 +87,14 @@ class ModuleCreateCommand extends AbstractWriteCommand
             ));
         }
 
-        $fields = $this->convertFields('tl_module', $fields);
+        $fields = $this->preparedFields('tl_module', [
+            'pid'  => (int) $pid,
+            'name' => $name,
+            'type' => $type,
+        ], $fields);
 
         $module         = new ModuleModel();
         $module->tstamp = time();
-        $module->pid    = (int) $pid;
-        $module->name   = $name;
-        $module->type   = $type;
 
         foreach ($fields as $key => $value) {
             $module->$key = $value;

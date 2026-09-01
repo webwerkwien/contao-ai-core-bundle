@@ -47,12 +47,24 @@ class ThemeCreateCommand extends AbstractWriteCommand
             return $this->outputError('--name and --author are required');
         }
 
-        $fields = $this->convertFields('tl_theme', $fields);
+        // `tl_theme.name` carries eval.unique, and --name never reaches
+        // convertFields() — only `--set` pairs do. Without this, two themes
+        // could be created under the same name; demonstrated on c5 on
+        // 2026-09-01. Same check the two group create commands already make.
+        if ($this->valueTaken(ThemeModel::class, 'name', $name)) {
+            return $this->outputError(\sprintf(
+                'A theme named "%s" already exists. Theme names are unique in Contao.',
+                $name,
+            ));
+        }
+
+        $fields = $this->preparedFields('tl_theme', [
+            'name'   => $name,
+            'author' => $author,
+        ], $fields);
 
         $theme         = new ThemeModel();
         $theme->tstamp = time();
-        $theme->name   = $name;
-        $theme->author = $author;
 
         foreach ($fields as $key => $value) {
             $theme->$key = $value;

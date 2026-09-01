@@ -36,22 +36,23 @@ class PageCreateCommand extends AbstractWriteCommand
             return $this->outputError('--title is required');
         }
 
-        $page           = new PageModel();
-        $page->tstamp   = time();
-        $page->pid      = (int) $this->input->getOption('pid');
-        $page->title    = $title;
-        $page->type     = $this->input->getOption('type');
-        $page->language = $this->input->getOption('language');
-        $page->alias    = $this->input->getOption('alias') ?: StringUtil::generateAlias($title);
-        $page->cuser    = $this->resolveAuthorId();
-        // cgroup deliberately left at 0 — Contao's chmod system treats 0 as
-        // "no group ownership"; setting an arbitrary group could grant or
-        // deny access incorrectly. Admins can adjust via the regular backend
-        // module if a group ACL is needed.
-        $page->cgroup   = 0;
-        $page->published = '0';
+        $fields = $this->preparedFields('tl_page', [
+            'pid'      => (int) $this->input->getOption('pid'),
+            'title'    => $title,
+            'type'     => $this->input->getOption('type'),
+            'language' => $this->input->getOption('language'),
+            'alias'    => $this->resolveAlias('tl_page', (string) $this->input->getOption('alias'), $title),
+            'cuser'    => $this->resolveAuthorId(),
+            // cgroup deliberately left at 0 — Contao's chmod system treats 0 as
+            // "no group ownership"; setting an arbitrary group could grant or
+            // deny access incorrectly. Admins can adjust via the regular backend
+            // module if a group ACL is needed.
+            'cgroup'    => 0,
+            'published' => '0',
+        ], $fields);
 
-        $fields = $this->convertFields('tl_page', $fields);
+        $page         = new PageModel();
+        $page->tstamp = time();
 
         foreach ($fields as $key => $value) {
             $page->$key = $value;

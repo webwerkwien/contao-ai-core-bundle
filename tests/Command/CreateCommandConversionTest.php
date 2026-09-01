@@ -19,6 +19,14 @@ use PHPUnit\Framework\TestCase;
  * and store something Contao reads as nothing.
  *
  * So the rule is not "remember to call convertFields()" — it is this test.
+ *
+ * ⚠️ **Sharpened on 2026-09-01: the call has to be `preparedFields()`.**
+ * `convertFields()` sees only the `--set` pairs. Every create command also has
+ * options of its own — `--name`, `--title`, `--email` — and those were assigned
+ * straight onto the model afterwards, past every rule. `theme create --name
+ * "Contao Official Demo"` made a second theme under a name `eval.unique`
+ * forbids, one day after the unique check was added and believed to cover
+ * creates. `preparedFields()` is the entry point that takes both halves.
  * A new create command that applies `--set` fields to a record and does not
  * convert them fails here by name.
  *
@@ -79,14 +87,59 @@ class CreateCommandConversionTest extends TestCase
 
         $missing = array_values(array_filter(
             $inScope,
-            static fn (string $name): bool => !str_contains($sources[$name], '$this->convertFields('),
+            static fn (string $name): bool => !str_contains($sources[$name], '$this->preparedFields('),
         ));
 
         $this->assertSame([], $missing, \sprintf(
-            "These create commands write --set fields without converting them.\n"
-            . "Add \$fields = \$this->convertFields('tl_…', \$fields); before the field loop.\n"
-            . 'Without it a fileTree UUID is stored as a string and a multi-value field '
-            . 'as a bare value — both report success and read back as nothing.',
+            "These create commands do not run their fields through preparedFields().\n"
+            . "Use \$fields = \$this->preparedFields('tl_…', ['field' => \$value, …], \$fields);\n"
+            . "so the command's own options are judged and converted with the --set pairs.\n"
+            . 'Calling convertFields() directly is not enough: it sees only --set, and an '
+            . 'option assigned straight onto the model skips every DCA rule — that is how '
+            . '`theme create --name <existing>` made a duplicate on 2026-09-01.',
+        ));
+    }
+
+    /**
+     * Nothing may reach the record except through the prepared field set.
+     *
+     * 🎯 **The lexical rule above can be satisfied and still leave the hole
+     * open.** A command can call `preparedFields()` for its `--set` pairs and
+     * then assign `$model->name = $name;` underneath — which is exactly what
+     * every create command did until 2026-09-01, and why `theme create --name
+     * <existing>` produced a duplicate. So the check is not "does it call the
+     * entry point" but "is there any other way in".
+     *
+     * `tstamp` is the one exception: it is the write timestamp, not caller
+     * input, and every command sets it.
+     */
+    public function testNothingIsAssignedToTheRecordOutsideThePreparedFields(): void
+    {
+        $leaks = [];
+
+        foreach ($this->createCommandSources() as $name => $source) {
+            if (!\in_array($name, $this->inScope([$name => $source]), true)) {
+                continue;
+            }
+
+            // `\r?$` and not `$`: a working copy with CRLF endings puts a
+            // carriage return between the semicolon and the newline, and the
+            // pattern silently matched nothing. Caught by mutating a command
+            // and watching this test stay green — the same CRLF trap that made
+            // an md5 comparison disagree on 2026-08-31.
+            preg_match_all('/^[ \t]+\$\w+->(\w+)\s*=\s*(?!\$value\b)[^\r\n]+;\r?$/m', $source, $matches);
+
+            foreach ($matches[1] as $field) {
+                if ('tstamp' !== $field) {
+                    $leaks[] = $name . '::$record->' . $field;
+                }
+            }
+        }
+
+        $this->assertSame([], $leaks, \sprintf(
+            "These values are written onto the record without passing preparedFields(),\n"
+            . "so no DCA rule sees them — not rgxp, not unique, not the column check.\n"
+            . 'Move them into the array handed to preparedFields() instead.',
         ));
     }
 

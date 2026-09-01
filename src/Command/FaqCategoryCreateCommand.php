@@ -65,11 +65,12 @@ class FaqCategoryCreateCommand extends AbstractWriteCommand
             ));
         }
 
-        $fields = $this->convertFields('tl_faq_category', $fields);
+        $fields = $this->preparedFields('tl_faq_category', [
+            'title' => $title,
+        ], $fields);
 
         $category         = new FaqCategoryModel();
         $category->tstamp = time();
-        $category->title  = $title;
 
         foreach ($fields as $key => $value) {
             $category->$key = $value;

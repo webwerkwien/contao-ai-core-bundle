@@ -76,11 +76,12 @@ class MemberGroupCreateCommand extends AbstractWriteCommand
             ));
         }
 
-        $fields = $this->convertFields('tl_member_group', $fields);
+        $fields = $this->preparedFields('tl_member_group', [
+            'name' => $name,
+        ], $fields);
 
         $group         = new MemberGroupModel();
         $group->tstamp = time();
-        $group->name   = $name;
 
         foreach ($fields as $key => $value) {
             $group->$key = $value;

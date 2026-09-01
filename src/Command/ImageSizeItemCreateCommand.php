@@ -59,13 +59,14 @@ class ImageSizeItemCreateCommand extends AbstractWriteCommand
             return $this->outputError(\sprintf('--pid must be an image size ID, got: %s', $pid));
         }
 
-        $item          = new ImageSizeItemModel();
-        $item->tstamp  = time();
-        $item->pid     = (int) $pid;
-        $item->media   = $media;
-        $item->sorting = $this->nextSorting((int) $pid);
+        $fields = $this->preparedFields('tl_image_size_item', [
+            'pid'     => (int) $pid,
+            'media'   => $media,
+            'sorting' => $this->nextSorting((int) $pid),
+        ], $fields);
 
-        $fields = $this->convertFields('tl_image_size_item', $fields);
+        $item         = new ImageSizeItemModel();
+        $item->tstamp = time();
 
         foreach ($fields as $key => $value) {
             $item->$key = $value;

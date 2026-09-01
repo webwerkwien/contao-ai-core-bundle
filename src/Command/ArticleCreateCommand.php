@@ -35,16 +35,17 @@ class ArticleCreateCommand extends AbstractWriteCommand
             return $this->outputError('--title and --pid are required');
         }
 
-        $article           = new ArticleModel();
-        $article->tstamp   = time();
-        $article->pid      = (int) $pid;
-        $article->title    = $title;
-        $article->alias    = StringUtil::generateAlias($title);
-        $article->inColumn = $this->input->getOption('inColumn');
-        $article->author    = $this->resolveAuthorId();
-        $article->published = '0';
+        $fields = $this->preparedFields('tl_article', [
+            'pid'       => (int) $pid,
+            'title'     => $title,
+            'alias'     => $this->resolveAlias('tl_article', '', $title),
+            'inColumn'  => $this->input->getOption('inColumn'),
+            'author'    => $this->resolveAuthorId(),
+            'published' => '0',
+        ], $fields);
 
-        $fields = $this->convertFields('tl_article', $fields);
+        $article         = new ArticleModel();
+        $article->tstamp = time();
 
         foreach ($fields as $key => $value) {
             $article->$key = $value;

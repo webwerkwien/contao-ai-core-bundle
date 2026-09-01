@@ -93,12 +93,13 @@ class FormCreateCommand extends AbstractWriteCommand
             ));
         }
 
-        $fields = $this->convertFields('tl_form', $fields);
+        $fields = $this->preparedFields('tl_form', [
+            'title' => $title,
+            'alias' => $alias,
+        ], $fields);
 
         $form         = new FormModel();
         $form->tstamp = time();
-        $form->title  = $title;
-        $form->alias  = $alias;
 
         foreach ($fields as $key => $value) {
             $form->$key = $value;

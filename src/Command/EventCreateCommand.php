@@ -36,19 +36,23 @@ class EventCreateCommand extends AbstractWriteCommand
             return $this->outputError('--title and --pid are required');
         }
 
-        $event            = new CalendarEventsModel();
-        $event->tstamp    = time();
-        $event->pid       = (int) $pid;
-        $event->title     = $title;
-        $event->alias     = StringUtil::generateAlias($title);
-        $event->startDate = strtotime($this->input->getOption('startDate'));
-        $event->endDate   = strtotime($this->input->getOption('endDate'));
-        $event->startTime = $event->startDate;
-        $event->endTime   = $event->endDate;
-        $event->published = '0';
-        $event->author    = $this->resolveAuthorId();
+        $startDate = strtotime($this->input->getOption('startDate'));
+        $endDate   = strtotime($this->input->getOption('endDate'));
 
-        $fields = $this->convertFields('tl_calendar_events', $fields);
+        $fields = $this->preparedFields('tl_calendar_events', [
+            'pid'       => (int) $pid,
+            'title'     => $title,
+            'alias'     => $this->resolveAlias('tl_calendar_events', '', $title),
+            'startDate' => $startDate,
+            'endDate'   => $endDate,
+            'startTime' => $startDate,
+            'endTime'   => $endDate,
+            'published' => '0',
+            'author'    => $this->resolveAuthorId(),
+        ], $fields);
+
+        $event         = new CalendarEventsModel();
+        $event->tstamp = time();
 
         foreach ($fields as $key => $value) {
             $event->$key = $value;
