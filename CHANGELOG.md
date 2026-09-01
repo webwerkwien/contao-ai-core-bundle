@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.33 - 2026-09-01
+
+### Fixed
+
+- **"DCA not found" now says when the cause is a bundle that is not installed.**
+  On wienerwandern.at, `record:list tl_news` answered *DCA not found or empty for
+  table: tl_news*. True — and `contao/news-bundle` is simply not installed there,
+  so nothing was broken and a reader following the message had nothing to find.
+
+  The same shape as a CLI defect fixed the same morning: an answer that is
+  accurate and still sends the reader in the wrong direction. `contao:dca:schema`
+  and `contao:record:list` now name the package for the tables of Contao's
+  optional bundles — news, calendar, faq, comments, newsletter.
+
+  It stays silent when the bundle *is* installed: "the DCA did not load with the
+  bundle present" is a different problem, and answering it with "install the
+  package" would rebuild the original fault one step along. It stays silent for
+  core tables too — a missing DCA for `tl_page` is a real fault and must not be
+  dressed up as a missing extension. The detection is the same `class_exists`
+  check the bundle already uses to decide which command services to register, so
+  the two answer from the same evidence.
+
 ## v0.2.32 - 2026-09-01
 
 ### Fixed

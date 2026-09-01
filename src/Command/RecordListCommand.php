@@ -71,7 +71,10 @@ class RecordListCommand extends AbstractReadCommand
         Controller::loadDataContainer($table);
         $dcaFields = array_keys($GLOBALS['TL_DCA'][$table]['fields'] ?? []);
         if ([] === $dcaFields) {
-            return $this->outputError("DCA not found or empty for table: $table");
+            return $this->outputError(
+                "DCA not found or empty for table: $table"
+                .(($hint = MissingBundleHint::for($table)) ? "\n".$hint : '')
+            );
         }
         // `id` and `tstamp` are not always declared in DCA fields, so they are added
         // here — but only where the table really has them. The comment that used to

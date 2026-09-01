@@ -29,7 +29,10 @@ class DcaSchemaCommand extends AbstractReadCommand
         Controller::loadDataContainer($table);
 
         if (!isset($GLOBALS['TL_DCA'][$table])) {
-            return $this->outputError("DCA not found for table: $table");
+            return $this->outputError(
+                "DCA not found for table: $table"
+                .(($hint = MissingBundleHint::for($table)) ? "\n".$hint : '')
+            );
         }
 
         $fields = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
