@@ -36,7 +36,22 @@ final class ContractPresenter
     public static function present(array $contract, callable $tableExists): array
     {
         $fields = $contract['fields'];
-        $out    = ['declared_by' => 'the command itself'];
+        $out    = [
+            'declared_by' => 'the command itself',
+            // The boundary of the whole mechanism, said in the answer rather
+            // than left to be discovered. Reported by the ww-buchung session,
+            // which has five write paths and exactly one console command among
+            // them: the status transitions hang on a DCA button_callback, the
+            // booking form is a front-end controller, the voucher expiry is a
+            // cron job. None of those can carry a contract.
+            //
+            // A reader collecting every contract on an installation would
+            // otherwise hold a picture that looks complete and is not — the
+            // same shape this project has spent two days removing.
+            'covers' => 'this console command only. A site bundle usually keeps its riskier '
+                .'write paths elsewhere — DCA callbacks, front-end controllers, cron jobs — '
+                .'and none of those can be declared here.',
+        ];
 
         $out['checked'] = self::checked($fields, $tableExists);
 

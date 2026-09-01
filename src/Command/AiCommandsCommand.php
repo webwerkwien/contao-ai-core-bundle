@@ -68,9 +68,11 @@ class AiCommandsCommand extends AbstractReadCommand
         $wanted = trim((string) $this->input->getOption('name'));
 
         if ('' !== $wanted) {
-            if (!AiRunGuard::isAllowed($wanted)) {
-                return $this->outputError(AiRunGuard::refusal($wanted));
-            }
+            // Describing is not running. The guard bounds what this tool
+            // executes on its own — its own docblock says so — and refusing to
+            // *read* a definition bought no safety: whoever calls this has
+            // shell access either way. What it did buy was a dead end, because
+            // the listing named commands that could then not be looked at.
             if (!$application->has($wanted)) {
                 return $this->outputError('Command not found: '.$wanted);
             }
@@ -120,6 +122,10 @@ class AiCommandsCommand extends AbstractReadCommand
                 'command'     => $wanted,
                 'description' => $command->getDescription(),
                 'help'        => $command->getHelp(),
+                'reachable'   => AiRunGuard::isAllowed($wanted),
+                'reachable_note' => AiRunGuard::isAllowed($wanted)
+                    ? null
+                    : AiRunGuard::refusal($wanted),
                 'contract'    => null === $contract
                     ? null
                     : ContractPresenter::present($contract, self::tableHasDca(...)),
@@ -137,21 +143,29 @@ class AiCommandsCommand extends AbstractReadCommand
 
         $commands = [];
         foreach ($application->all() as $name => $command) {
-            if (!AiRunGuard::isAllowed($name) || $command->isHidden()) {
+            if ($command->isHidden()) {
                 continue;
             }
 
             $commands[] = [
                 'name'        => $name,
                 'description' => $command->getDescription(),
+                // Listed even when out of reach, and this is a correction:
+                // filtering them out made `ext list` answer "available: 0"
+                // on an installation that had 87 commands it could not reach —
+                // through the very command built to report what it cannot
+                // reach. Set aside, never hidden; the same rule the three
+                // infrastructure entries already follow.
+                'reachable'   => AiRunGuard::isAllowed($name),
             ];
         }
 
         usort($commands, static fn (array $a, array $b): int => strcmp($a['name'], $b['name']));
 
         $this->outputRecord([
-            'count'    => \count($commands),
-            'commands' => $commands,
+            'count'       => \count($commands),
+            'reachable'   => \count(array_filter($commands, static fn (array $c): bool => $c['reachable'])),
+            'commands'    => $commands,
         ]);
 
         return Command::SUCCESS;

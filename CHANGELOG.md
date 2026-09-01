@@ -4,6 +4,37 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.35 - 2026-09-01
+
+### Fixed
+
+- **The manifest hid the commands it could not reach.** `contao:ai:commands` filtered out
+  everything outside the `contao:` namespace, so `ext list` answered *available: 0* on an
+  installation with **87** commands it cannot start — through the very command built to
+  report what it cannot reach. Reported by a parallel session whose own
+  `ww:gutschein:import` was invisible here.
+
+  They are listed now, each carrying `reachable: true|false`, and the count of reachable
+  ones travels with the listing. Set aside, never hidden — the same rule the three
+  infrastructure entries already followed.
+
+- **Describing is not running.** `--name=…` refused anything outside `contao:` and bought
+  no safety by it: whoever calls this has shell access either way. What it bought was a
+  dead end, because the listing then named commands that could not be looked at. The
+  definition comes back for any command, with `reachable` and the refusal text attached
+  when it applies. `contao:ai:run` is unchanged and still refuses — the boundary is on
+  running, not on naming, which is what `AiRunGuard`'s own docblock always said.
+
+### Changed
+
+- **A contract now states its own boundary.** The presented answer carries a `covers`
+  field: *this console command only*. Reported by the ww-buchung session, which has five
+  write paths and exactly one console command among them — the status transitions hang on
+  a DCA `button_callback`, the booking form is a front-end controller, the voucher expiry
+  is a cron job, and none of those can carry a contract. A reader collecting every
+  contract on an installation would otherwise hold a picture that looks complete and is
+  not.
+
 ## v0.2.34 - 2026-09-01
 
 ### Added

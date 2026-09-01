@@ -102,6 +102,14 @@ happy path. So the three are kept apart rather than flattened into one object:
 them 7 and 90 days respectively. The period belongs to the installation, so the bundle
 reads it rather than letting a command claim its own.
 
+### It describes a command, not every write path
+
+The presented answer carries a `covers` field saying so. In a site bundle the riskier
+write paths are usually **not** console commands — a status transition on a DCA
+`button_callback`, a front-end controller handling a POST, a cron job — and none of them
+can carry a contract. Collecting every contract on an installation gives a picture of its
+commands, not of everything that writes.
+
 ### What does not belong in it
 
 Business rules. Lead times, seasonal notices, "a voucher covering the full amount makes
