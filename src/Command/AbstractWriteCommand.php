@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 use Contao\Controller;
 use Contao\CoreBundle\Monolog\ContaoContext;
 use Contao\StringUtil;
+use Contao\Validator;
 use Contao\Widget;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -239,9 +240,14 @@ abstract class AbstractWriteCommand extends Command
      *
      * @return array<string, mixed>
      */
-    protected function convertFields(string $table, array $fields): array
+    protected function convertFields(string $table, array $fields, ?int $excludeId = null): array
     {
         $this->refuseUnknownFields($table, $fields);
+        // Both on the raw input, before the conversions below turn UUIDs binary
+        // and lists into serialized strings — a rule about what the caller
+        // typed has to see what the caller typed.
+        $this->refuseInvalidValues($table, $fields);
+        $this->refuseTakenUniqueValues($table, $fields, $excludeId);
 
         $fields = $this->convertFileTreeFields($table, $fields);
         $fields = $this->convertOptionFields($table, $fields);
@@ -312,6 +318,233 @@ abstract class AbstractWriteCommand extends Command
             implode(', ', $unknown),
             $table,
         ));
+    }
+
+    /**
+     * Refuse a value that `eval.unique` says is already taken.
+     *
+     * `tl_user.username`, `tl_member.email`, `tl_theme.name`, the four aliases —
+     * thirteen fields across the bundled DCAs carry `eval.unique`, and for most
+     * of them there is **no unique index behind it**. The rule lives in the DCA
+     * alone, so a write path that goes around `DC_Table` drops it with the rest.
+     * Two back end users called the same name is exactly the kind of thing
+     * nobody notices until the day it matters which one someone logged in as.
+     *
+     * 🎯 **Contao's own check, not a rebuilt one.**
+     * `Database::isUniqueValue($table, $field, $value, $id)` is public and takes
+     * the id to exclude — `DC_Table::save()` calls it with the record being
+     * edited, which is what makes "save without changing the name" work. That
+     * parameter is the whole reason this was create-only until now: without it,
+     * every update of a unique field would refuse itself.
+     *
+     * ⚠️ **The note that held this back was wrong, and measuring settled it.**
+     * It said a DCA-wide check "would also reject renames that pass today
+     * (`tl_page.alias`)". `tl_page.alias` has **no** `eval.unique` — page
+     * aliases may repeat across roots and are checked by a `save_callback`
+     * instead. It was never in scope, so the objection had nothing behind it.
+     *
+     * An empty value is skipped, the same way `DC_Table::save()` skips it: the
+     * check runs only for `(string) $varValue !== ''`. Several unique fields are
+     * optional, and refusing the second empty alias would be absurd.
+     *
+     * @param array<string, mixed> $fields
+     * @param int|null             $excludeId the record being updated, or null when creating
+     *
+     * @throws \InvalidArgumentException listing every value that is already taken
+     */
+    protected function refuseTakenUniqueValues(string $table, array $fields, ?int $excludeId = null): void
+    {
+        if ([] === $fields) {
+            return;
+        }
+
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+
+        $taken = [];
+
+        foreach ($fields as $name => $value) {
+            if (empty($GLOBALS['TL_DCA'][$table]['fields'][$name]['eval']['unique'])) {
+                continue;
+            }
+            if (!\is_scalar($value) || '' === (string) $value) {
+                continue;
+            }
+
+            if (!$this->uniqueValueIsFree($table, (string) $name, $value, $excludeId)) {
+                $taken[] = \sprintf('%s=%s', $name, (string) $value);
+            }
+        }
+
+        if ([] === $taken) {
+            return;
+        }
+
+        throw new \InvalidArgumentException(\sprintf(
+            'Already taken in %s: %s. Nothing was written. The DCA marks these fields '
+            . 'unique, and the back end refuses a duplicate the same way.',
+            $table,
+            implode('; ', $taken),
+        ));
+    }
+
+    /**
+     * Whether $value is still free in $table.$field, ignoring record $excludeId.
+     *
+     * `Database::isUniqueValue()` is the function `DC_Table::save()` calls, so
+     * asking it is asking the thing that decides the answer in the back end
+     * rather than a second implementation that could drift from it.
+     *
+     * Its own method so a test can answer for it, and so a database that cannot
+     * be reached says "free" rather than "taken": no answer is not the same as
+     * a duplicate, and the write then fails on its own terms — same reasoning
+     * as `tableColumns()`.
+     */
+    protected function uniqueValueIsFree(string $table, string $field, mixed $value, ?int $excludeId): bool
+    {
+        try {
+            return (bool) \Contao\Database::getInstance()->isUniqueValue($table, $field, $value, $excludeId);
+        } catch (\Throwable) {
+            return true;
+        }
+    }
+
+    /**
+     * DCA `rgxp` names and the `Validator` method Contao checks them with.
+     *
+     * Lifted from the switch in `Widget::validator()`, one line per case, in
+     * the same order. Not invented here: `rgxp` is a keyword, not a regular
+     * expression, and Contao resolves each keyword to exactly one of these.
+     *
+     * ⚠️ **`date`, `time` and `datim` are deliberately absent.** Their `rgxp`
+     * describes the *widget input* — a date in the configured display format —
+     * and `DC_Table::save()` converts that to a timestamp before it reaches the
+     * column. `--set` writes the stored form, so `--set date=1756598400` is
+     * correct and `Validator::isDatim('1756598400')` would refuse it. Checking
+     * them here would reject the right value and accept the wrong one.
+     *
+     * `friendly` and `emails` are handled separately below; both need the value
+     * split before an address check.
+     */
+    private const RGXP_VALIDATORS = [
+        'digit'       => 'isNumeric',
+        'natural'     => 'isNatural',
+        'alpha'       => 'isAlphabetic',
+        'alnum'       => 'isAlphanumeric',
+        'extnd'       => 'isExtendedAlphanumeric',
+        'email'       => 'isEmail',
+        'url'         => 'isUrl',
+        'alias'       => 'isAlias',
+        'folderalias' => 'isFolderAlias',
+        'phone'       => 'isPhone',
+        'prcnt'       => 'isPercent',
+        'locale'      => 'isLocale',
+        'language'    => 'isLanguage',
+        'fieldname'   => 'isFieldName',
+    ];
+
+    /**
+     * Refuse a `--set` value that Contao's own widget would refuse.
+     *
+     * `eval.rgxp` is the rule behind "that is not an e-mail address" in the back
+     * end. `DC_Table` enforces it by running every field through its widget;
+     * this write path goes around `DC_Table`, so until now `--set sender=keine`
+     * landed in the column unchallenged. 145 `rgxp` declarations across 28 DCA
+     * files in a stock Contao 5.7.12 — the largest DCA rule this bundle was
+     * still ignoring.
+     *
+     * 🎯 **Same shape as `unique` and the empty-value mapping: a rule that lives
+     * in the DCA and is lost together with `DC_Table` when you write past it.**
+     * And the same answer — ask Contao. Every keyword resolves to one
+     * `Validator` method, so this is Contao's rule executed, not a second
+     * opinion about what an e-mail address is.
+     *
+     * Three things are skipped rather than refused, each for a reason:
+     *
+     *  - **an empty value** — `Widget::validator()` returns before the switch
+     *    when the input is `''`, so an empty optional field is not a format
+     *    error. Composes with `convertEmptyValues()`, which maps it afterwards.
+     *  - **a non-scalar value** — arrays reach the widget as arrays and take a
+     *    different path there; nothing in `--set` produces one.
+     *  - **an unknown `rgxp`** — extensions add their own through the
+     *    `addCustomRegexp` hook. Refusing what this list does not know would
+     *    break a field whose rule simply lives elsewhere.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @throws \InvalidArgumentException listing every value that fails its rule
+     */
+    protected function refuseInvalidValues(string $table, array $fields): void
+    {
+        if ([] === $fields) {
+            return;
+        }
+
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+
+        $offenders = [];
+
+        foreach ($fields as $name => $value) {
+            $rgxp = $GLOBALS['TL_DCA'][$table]['fields'][$name]['eval']['rgxp'] ?? null;
+
+            if (!\is_string($rgxp) || '' === $rgxp || !\is_scalar($value) || '' === (string) $value) {
+                continue;
+            }
+
+            if (!$this->passesRgxp($rgxp, (string) $value)) {
+                $offenders[] = \sprintf('%s=%s (expected: %s)', $name, (string) $value, $rgxp);
+            }
+        }
+
+        if ([] === $offenders) {
+            return;
+        }
+
+        throw new \InvalidArgumentException(\sprintf(
+            'Rejected by the DCA rule for %s: %s. Nothing was written. These are Contao\'s '
+            . 'own eval.rgxp rules — the same ones the back end applies to the field.',
+            $table,
+            implode('; ', $offenders),
+        ));
+    }
+
+    /**
+     * Whether one value satisfies one `rgxp` keyword.
+     *
+     * Unknown keywords pass: see the note on custom regexps above.
+     */
+    private function passesRgxp(string $rgxp, string $value): bool
+    {
+        // Contao decodes entities before these two, so the same input has to be
+        // judged the same way here.
+        if ('extnd' === $rgxp || 'phone' === $rgxp) {
+            $value = html_entity_decode($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5);
+        }
+
+        // "Name <addr>" — Contao splits it and checks the address half.
+        if ('friendly' === $rgxp) {
+            [, $address] = StringUtil::splitFriendlyEmail($value);
+
+            return Validator::isEmail($address);
+        }
+
+        // A comma-separated list; every entry has to hold up.
+        if ('emails' === $rgxp) {
+            foreach (StringUtil::trimsplit(',', $value) as $address) {
+                if ('' !== $address && !Validator::isEmail($address)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        $method = self::RGXP_VALIDATORS[$rgxp] ?? null;
+
+        return null === $method || Validator::$method($value);
     }
 
     /**
@@ -472,10 +705,16 @@ abstract class AbstractWriteCommand extends Command
      * "Editors" is exactly the kind of thing nobody notices until the day it
      * matters which one a user is in.
      *
-     * 🟡 Create only. The generic update path does not check `unique` yet;
-     * doing so DCA-wide would also start rejecting renames that succeed today
-     * (`tl_page.alias` among them), which is a change of its own and wants its
-     * own release. Noted in the project file.
+     * ⚠️ **Superseded by `refuseTakenUniqueValues()` (2026-09-01), which runs
+     * inside `convertFields()` and therefore covers create and update alike.**
+     * Kept because a few create commands still call it directly; the checks
+     * agree, so the duplicate is harmless — but new code should not add one.
+     *
+     * The note that used to stand here said an update-side check "would also
+     * start rejecting renames that succeed today (`tl_page.alias` among them)".
+     * That was wrong: `tl_page.alias` carries no `eval.unique` at all — page
+     * aliases may repeat across roots and are checked by a `save_callback`.
+     * Counting the DCAs settled it, and the objection had nothing behind it.
      */
     protected function valueTaken(string $modelClass, string $field, string $value): bool
     {

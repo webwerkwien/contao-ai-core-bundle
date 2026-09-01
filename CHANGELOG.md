@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.28 - 2026-09-01
+
+### Added
+
+- **`eval.rgxp` is checked.** It is the rule behind "that is not an e-mail address" in the back end, and until now this write path ignored every one of them — 145 declarations across 28 DCA files in a stock Contao 5.7.12. `--set sender=keine` reached the column unchallenged.
+
+  🎯 **Contao's rule executed, not a second opinion.** `rgxp` is a keyword, not a regular expression, and `Widget::validator()` resolves each keyword to exactly one `Validator` method. That mapping is what this uses, case for case.
+
+  ⚠️ **`date`, `time` and `datim` are deliberately not checked.** Their `rgxp` describes the *widget input* — a date in the configured display format — and `DC_Table::save()` converts that to a timestamp before it reaches the column. `--set` writes the stored form, so `--set date=1756598400` is correct and `Validator::isDatim()` would refuse it. Checking them would reject the right value and accept the wrong one.
+
+  An empty value is not a format error (`Widget::validator()` returns before the switch), and an unknown keyword passes rather than failing — extensions add their own through the `addCustomRegexp` hook, and refusing what the list does not know would break a field whose rule lives elsewhere.
+
+- **`eval.unique` is checked on update, not only on create.** Thirteen fields across the bundled DCAs carry it — `tl_user.username`, `tl_member.email`, `tl_theme.name`, the four aliases — and most have **no unique index behind them**. The rule lives in the DCA alone and was dropped together with `DC_Table`.
+
+  `Database::isUniqueValue($table, $field, $value, $id)` is public and takes the record to exclude; `DC_Table::save()` passes the one being edited, which is what makes "save without changing the name" work. That parameter is the whole reason this stayed create-only.
+
+  ⚠️ **The objection that held it back does not hold.** The note said a DCA-wide check "would also reject renames that pass today (`tl_page.alias`)". `tl_page.alias` carries no `eval.unique` — page aliases may repeat across roots and are checked by a `save_callback` instead. It was never in scope.
+
+  Both checks run inside `convertFields()` on the raw input, before the conversions turn UUIDs binary and lists into serialized strings: a rule about what the caller typed has to see what the caller typed.
+
+  **Behaviour change for both:** values this bundle used to accept are now refused with exit 1. They were wrong before, but they will surface as new failures.
+
 ## v0.2.27 - 2026-08-31
 
 ### Fixed

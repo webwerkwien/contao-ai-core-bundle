@@ -213,7 +213,11 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
         // for multi-value fields (news_archives, groups, cud, ...). Both are
         // DCA-driven, so this covers every table without entity knowledge — and
         // it is the same call the create commands make, on purpose.
-        $fields = $this->convertFields($class::getTable(), $fields);
+        // The id is passed so the `unique` check excludes the record being
+        // edited. Without it, saving a unique field without changing it would
+        // find itself and refuse — which is why the check was create-only until
+        // 2026-09-01. `DC_Table::save()` passes the same id for the same reason.
+        $fields = $this->convertFields($class::getTable(), $fields, $id);
 
         return $this->writer()->update(
             $class::getTable(),
