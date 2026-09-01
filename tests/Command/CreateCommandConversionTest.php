@@ -25,7 +25,7 @@ use PHPUnit\Framework\TestCase;
  * options of its own — `--name`, `--title`, `--email` — and those were assigned
  * straight onto the model afterwards, past every rule. `theme create --name
  * "Contao Official Demo"` made a second theme under a name `eval.unique`
- * forbids, one day after the unique check was added and believed to cover
+ * forbids, half an hour after the unique check was added and believed to cover
  * creates. `preparedFields()` is the entry point that takes both halves.
  * A new create command that applies `--set` fields to a record and does not
  * convert them fails here by name.

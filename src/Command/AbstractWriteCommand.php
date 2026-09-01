@@ -328,8 +328,8 @@ abstract class AbstractWriteCommand extends Command
      * `--email` and the computed values beside them were assigned straight onto
      * the model afterwards. So `theme create --name "Contao Official Demo"`
      * happily made a second theme under a name `eval.unique` forbids —
-     * demonstrated on c5 on 2026-09-01, the day after the `unique` check was
-     * added and believed to cover creates.
+     * demonstrated on c5 on 2026-09-01, half an hour after the `unique` check
+     * was added and believed to cover creates.
      *
      * Three commands had noticed and each written their own check
      * (`UserGroupCreate`, `MemberGroupCreate`, `FormCreate`). That is the shape

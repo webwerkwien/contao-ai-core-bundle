@@ -46,7 +46,7 @@ This file was reconstructed from the git history on 2026-08-13, so entries befor
 
 ### Fixed
 
-- **A create command's own options went past every DCA rule.** `convertFields()` sees only the `--set` pairs. `--name`, `--title`, `--email` and the values computed beside them were assigned straight onto the model afterwards, so no rule ever saw them. One day after `eval.unique` started being enforced, `theme create --name "Contao Official Demo"` still produced a **second theme under a name the DCA forbids** — reproduced on c5, then fixed.
+- **A create command's own options went past every DCA rule.** `convertFields()` sees only the `--set` pairs. `--name`, `--title`, `--email` and the values computed beside them were assigned straight onto the model afterwards, so no rule ever saw them. Half an hour after `eval.unique` started being enforced — v0.2.28 and v0.2.29 are the same morning — `theme create --name "Contao Official Demo"` still produced a **second theme under a name the DCA forbids** — reproduced on c5, then fixed.
 
   🎯 **Three commands had noticed and each written their own check** (`UserGroupCreate`, `MemberGroupCreate`, `FormCreate`). That is the shape this bundle keeps learning to distrust: a rule every command has to remember, which most of them did not — the same failure as the two field conversions in v0.2.19.
 

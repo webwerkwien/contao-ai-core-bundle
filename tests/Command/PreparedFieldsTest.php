@@ -13,8 +13,8 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
  * `--set` pairs went through `convertFields()`; `--name`, `--title`, `--email`
  * and the computed values beside them were assigned onto the model afterwards.
  * So `theme create --name "Contao Official Demo"` made a second theme under a
- * name `eval.unique` forbids — one day after the unique check was added and
- * believed to cover creates.
+ * name `eval.unique` forbids — half an hour after the unique check was added
+ * and believed to cover creates.
  *
  * Three commands had noticed and each written their own check. That is the
  * shape this bundle keeps learning to distrust: a rule every command has to
