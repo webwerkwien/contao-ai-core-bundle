@@ -86,6 +86,11 @@ class ConfirmOrderCommand extends Command { /* … */ }
 convention, and `contao:` is Contao's property — and declare instead. The prefix says who
 wrote a command; only the declaration says its author meant it to be driven this way.
 
+**A method may declare its own.** A class that exposes several operations — one tool
+class with create, update, delete and read behind four methods — puts the attribute on
+each method instead. `ContractReader::read($class, $method)` reads the method first and
+falls back to the class, so a console command keeps declaring at class level.
+
 **It costs you no dependency.** PHP resolves an attribute class only on
 `newInstance()`; this bundle reads the raw arguments and never instantiates. So the
 attribute above works whether or not `webwerkwien/contao-ai-core-bundle` is in your

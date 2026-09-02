@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.2.38 - 2026-09-02
+
+### Added
+
+- **`#[AiContract]` can be declared on a method, not only on a class.** A console command
+  is one class and declares there; a tool class in contao-ai-backend-bundle is not —
+  `ArticleTool` carries create, update, delete and read behind four methods, and a read
+  and a cascading delete cannot share one contract.
+
+  `ContractReader::read($class, $method)` looks at the method first and falls back to the
+  class, so both shapes work from one entry point. Existing class-level declarations are
+  unaffected; the attribute target was widened, not moved.
+
+  Found while declaring the backend bundle's 22 tools: the first attempt stacked five
+  contracts at class level because `#[AsTool]` sits above the class there and names its
+  method by argument. It looked applied, and every method would have answered with the
+  contract belonging to `create` — a read claiming to write.
+
 ## v0.2.37 - 2026-09-01
 
 ### Fixed

@@ -47,6 +47,20 @@ class ExplicitlyNothingCommand
 {
 }
 
+#[AiContract(writes: false, tables: ['tl_x'])]
+class ToolWithMethodContracts
+{
+    #[AiContract(writes: true, tables: ['tl_news'], trace: ['tl_log'], traceWhen: 'on-success',
+        irreversible: 'sends a mail')]
+    public function delete(): void
+    {
+    }
+
+    public function read(): void
+    {
+    }
+}
+
 /**
  * Reading a command's declared contract.
  *
@@ -159,6 +173,48 @@ class ContractReaderTest extends TestCase
         $contract = ContractReader::read(ExplicitlyNothingCommand::class);
 
         self::assertSame('on-success', $contract['fields']['traceWhen']);
+    }
+
+    /**
+     * A tool class carries several tools behind several methods.
+     *
+     * `ArticleTool` in contao-ai-backend-bundle holds create, update, delete and
+     * read. One contract at class level would have to cover a read and a
+     * cascading delete with the same words, which is no contract at all.
+     */
+    public function testAMethodContractWinsOverTheClass(): void
+    {
+        $onMethod = ContractReader::read(ToolWithMethodContracts::class, 'delete');
+
+        self::assertTrue($onMethod['fields']['writes']);
+        self::assertSame(['tl_news'], $onMethod['fields']['tables']);
+        self::assertSame('sends a mail', $onMethod['fields']['irreversible']);
+    }
+
+    public function testAMethodWithoutOneFallsBackToTheClass(): void
+    {
+        /* Falling back rather than answering null keeps one entry point for
+           both shapes — a console command declares at class level and has no
+           methods to ask about. */
+        $fallback = ContractReader::read(ToolWithMethodContracts::class, 'read');
+
+        self::assertFalse($fallback['fields']['writes']);
+        self::assertSame(['tl_x'], $fallback['fields']['tables']);
+    }
+
+    public function testAnUnknownMethodNameDoesNotBreakTheClassLookup(): void
+    {
+        $still = ContractReader::read(ToolWithMethodContracts::class, 'gibtsNicht');
+
+        self::assertNotNull($still);
+        self::assertFalse($still['fields']['writes']);
+    }
+
+    public function testTheClassPathIsUnchangedWithoutAMethod(): void
+    {
+        $contract = ContractReader::read(FullyDeclaredCommand::class);
+
+        self::assertSame(['tl_ww_buchung', 'tl_ww_gutschein'], $contract['fields']['tables']);
     }
 
     public function testWritingWithoutNamingATraceIsReported(): void

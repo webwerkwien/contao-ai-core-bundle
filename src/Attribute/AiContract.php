@@ -39,7 +39,20 @@ namespace Webwerkwien\ContaoAiCoreBundle\Attribute;
  *   outside and stay assertions. The output says so rather than presenting
  *   them like the rest
  */
-#[\Attribute(\Attribute::TARGET_CLASS)]
+/*
+ * Classes and methods.
+ *
+ * A console command is one class, so the class is the natural place. A tool
+ * class in contao-ai-backend-bundle is not: `ArticleTool` carries four tools —
+ * create, update, delete, read — behind four methods, and they make very
+ * different promises. Declaring at class level there would force one contract
+ * to cover a read and a cascading delete.
+ *
+ * Widening the target is backward compatible: every existing class-level
+ * declaration keeps working, and `ContractReader` looks at the method first,
+ * falling back to the class.
+ */
+#[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD)]
 final class AiContract
 {
     /**

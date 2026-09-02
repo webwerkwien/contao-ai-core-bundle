@@ -74,17 +74,45 @@ final class ContractReader
      *
      * @return array{fields: array<string, mixed>, problems: list<string>}|null
      */
-    public static function read(string $class): ?array
+    public static function read(string $class, ?string $method = null): ?array
     {
         if (!class_exists($class)) {
             return null;
         }
 
-        $attributes = (new \ReflectionClass($class))->getAttributes(AiContract::class);
+        $reflection = new \ReflectionClass($class);
+
+        // The method wins where one is named and carries a declaration. A tool
+        // class holds several tools behind several methods — a read and a
+        // cascading delete on one class cannot share one contract — while a
+        // console command is one class and declares there. Falling back to the
+        // class rather than returning null keeps both shapes working from one
+        // entry point.
+        if (null !== $method && $reflection->hasMethod($method)) {
+            $onMethod = $reflection->getMethod($method)->getAttributes(AiContract::class);
+
+            if ([] !== $onMethod) {
+                return self::fromAttributes($onMethod, $class.'::'.$method);
+            }
+        }
+
+        $attributes = $reflection->getAttributes(AiContract::class);
 
         if ([] === $attributes) {
             return null;
         }
+
+        return self::fromAttributes($attributes, $class);
+    }
+
+    /**
+     * @param list<\ReflectionAttribute<AiContract>> $attributes
+     *
+     * @return array{fields: array<string, mixed>, problems: list<string>}
+     */
+    private static function fromAttributes(array $attributes, string $where): array
+    {
+        $class = $where;
 
         $problems = [];
 
