@@ -79,8 +79,47 @@ class UndoRestoreCommand extends AbstractWriteCommand
             ));
         }
 
-        $restored = [];
-        $failed   = [];
+        // 🔴 C-1 (Audit 2026-09-02): Bis dahin lief der Restore ohne Transaktion.
+        // Schlug eine Zeile fehl, blieben die bereits eingefügten stehen UND der
+        // Undo-Eintrag blieb vollständig erhalten. Beim nächsten Versuch
+        // kollidierten genau diese IDs — der Eintrag war damit für immer
+        // unbrauchbar, auch für die Zeilen, die nie ankamen.
+        //
+        // Der alte Code hat den Teilzustand sogar ehrlich gemeldet ("Rows
+        // already written stay"). Gefehlt hat nicht die Offenheit, sondern die
+        // Folgerung: eine Wiederherstellung, die man nicht wiederholen kann, ist
+        // beim zweiten Anlauf wertlos.
+        //
+        // 🎯 Alles oder nichts. Bei einem Fehler rollt die Transaktion zurück,
+        // der Eintrag bleibt unangetastet und ein zweiter Versuch — nach dem
+        // Beheben der Ursache — hat dieselben Ausgangsbedingungen wie der erste.
+        //
+        // ⚠️ HIER WEICHEN WIR VON CONTAO AB, und das ist Absicht.
+        // `DC_Table::undo()` (Contao 5.7) fügt Zeile für Zeile ein, setzt bei
+        // einem Fehlschlag nur `$error = true`, macht weiter und löscht den
+        // tl_undo-Eintrag am Ende nur, wenn nichts schiefging. Keine
+        // Transaktion, kein Rollback — dieselbe Teilzustands-Lage, die wir hier
+        // gerade beheben.
+        //
+        // Warum die Abweichung trotzdem richtig ist: Contaos Undo läuft in der
+        // Backend-Oberfläche, wo ein Mensch das Ergebnis sieht und von Hand
+        // nachbessern kann. Dieser Befehl wird von Skripten und Agenten
+        // gerufen, die auf `status: error` einen zweiten Versuch starten — und
+        // der ist nach einem Teil-Restore garantiert zum Scheitern verurteilt,
+        // ohne dass jemand den Grund sieht.
+        //
+        // Der Merksatz aus dem Vault gilt in beide Richtungen: erst nachsehen,
+        // wie Contao es macht — und dann entscheiden, ob dessen Antwort für
+        // unseren Aufrufer taugt. Hier tut sie es nicht.
+        //
+        // ⚠️ Die `onundo_callback`s laufen bewusst ERST NACH dem Commit. Sie sind
+        // fremder Code und können außerhalb der Datenbank wirken; ein Rollback
+        // holte das nicht zurück. Der frühere Kommentar an dieser Stelle sagte
+        // dasselbe — "rolling the restore back over it would be worse" — und
+        // bleibt damit gültig.
+        $restored  = [];
+        $failed    = [];
+        $pending   = [];
 
         foreach ($data as $table => $rows) {
             if (!\is_array($rows) || !preg_match('/^tl_[a-z0-9_]+$/', (string) $table)) {
@@ -117,36 +156,51 @@ class UndoRestoreCommand extends AbstractWriteCommand
                     continue;
                 }
 
-                try {
-                    $this->connection->insert($this->connection->quoteIdentifier($table), $insert);
-                } catch (\Throwable $e) {
-                    $failed[$table] = $this->explainInsertFailure($e, $record);
-                    continue;
-                }
-
-                $restored[$table] = ($restored[$table] ?? 0) + 1;
-                $this->runUndoCallbacks($table, $record);
+                $pending[] = [$table, $insert, $record];
             }
         }
 
         if ([] !== $failed) {
             return $this->outputError(\sprintf(
-                'Restore incomplete, undo entry %d kept: %s. %s',
+                'Restore refused, undo entry %d untouched and still replayable: %s. Nothing was written.',
                 $id,
                 implode('; ', array_map(
                     static fn (string $t, string $why): string => "$t ($why)",
                     array_keys($failed),
                     $failed,
                 )),
-                [] === $restored
-                    ? 'Nothing was written.'
-                    : 'Rows already written stay: ' . json_encode($restored),
             ));
         }
 
-        // Only now, and only because every insert succeeded. Contao deletes the
-        // entry at the same point and for the same reason.
-        $this->connection->delete('tl_undo', ['id' => $id]);
+        // Which row was being written when it failed — otherwise the message
+        // degrades to "ID ?" and the operator has to guess which one collided.
+        $current = [];
+
+        try {
+            $this->connection->transactional(function () use ($pending, $id, &$restored, &$current): void {
+                foreach ($pending as [$table, $insert, $record]) {
+                    $current = $record;
+                    $this->connection->insert($this->connection->quoteIdentifier($table), $insert);
+                    $restored[$table] = ($restored[$table] ?? 0) + 1;
+                }
+
+                // Inside the transaction as well: either the rows are back and
+                // the entry is gone, or neither happened.
+                $this->connection->delete('tl_undo', ['id' => $id]);
+            });
+        } catch (\Throwable $e) {
+            $restored = [];
+
+            return $this->outputError(\sprintf(
+                'Restore rolled back, undo entry %d untouched and still replayable: %s',
+                $id,
+                $this->explainInsertFailure($e, $current),
+            ));
+        }
+
+        foreach ($pending as [$table, , $record]) {
+            $this->runUndoCallbacks($table, $record);
+        }
 
         $this->logUndone((string) ($row['query'] ?? ''));
 

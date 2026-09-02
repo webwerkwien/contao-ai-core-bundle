@@ -8,9 +8,36 @@ use Contao\Dbafs;
 use Contao\FilesModel;
 use Contao\StringUtil;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Webwerkwien\ContaoAiCoreBundle\Attribute\AiContract;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
 
+/**
+ * 🔴 H-4 (Audit 2026-09-02): Dieser Befehl überschreibt Dateiinhalte, ohne die
+ * vorherigen Bytes zu sichern — und deklarierte das nirgends.
+ *
+ * ⚠️ Nachgesehen, wie Contao es macht: `DC_Folder::source()` versioniert um den
+ * Schreibvorgang herum (`Versions::initialize()` … `create()`), aber
+ * `Versions::create()` ist ein `SELECT * FROM <table> WHERE id=?` — es sichert
+ * die **Datenbankzeile**, nicht den Dateiinhalt. Contaos eigener Datei-Editor
+ * überschreibt also genauso unwiederbringlich; der gespeicherte `hash` lässt
+ * eine Änderung erkennen, nicht zurücknehmen.
+ *
+ * 🎯 Deshalb kein eigenes Backup-Regime, das von Contao abwiche und Fragen nach
+ * Ablageort und Aufbewahrung aufwürfe — sondern die Deklaration. `irreversible`
+ * existiert in `AiContract` genau dafür, und ein aufrufender Agent liest sie,
+ * bevor er zugreift. **Eine unumkehrbare Wirkung, die niemand ankündigt, ist
+ * der eigentliche Mangel.**
+ */
+#[AiContract(
+    writes: true,
+    tables: ['tl_files'],
+    trace: ['tl_version'],
+    traceWhen: 'before',
+    irreversible: 'overwrites the file content on disk — the tl_version snapshot holds the tl_files row and its hash, not the previous bytes',
+    repeatable: true,
+    answerShape: ['status', 'path'],
+)]
 #[AsCommand(name: 'contao:file:write', description: 'Write a text file to files/ and create a tl_version snapshot')]
 class FileWriteCommand extends AbstractWriteCommand
 {

@@ -5,7 +5,6 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Cloner;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\FaqCategoryModel;
 use Contao\FaqModel;
-use Contao\StringUtil;
 use Contao\UserModel;
 use Doctrine\DBAL\Connection;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
@@ -23,6 +22,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 class FaqCategoryCloner implements EntityClonerInterface
 {
     use CopiesSourceRows;
+    use GeneratesUniqueAlias;
     use FiltersModifications;
 
     private const ALLOWED_CATEGORY_MODIFICATIONS = ['title', 'headline'];
@@ -109,9 +109,9 @@ class FaqCategoryCloner implements EntityClonerInterface
         $clone->pid       = $newCategoryId;
         $clone->author    = $authorId;
         $clone->published = '0';
-        $clone->alias     = StringUtil::generateAlias(
-            (string) ($source->question ?? '') ?: ('kopie-' . time())
-        );
+        // 🔴 H-6 — siehe GeneratesUniqueAlias. `tl_faq.alias` ist
+        // `unique=>true, doNotCopy=>true`.
+        $clone->alias     = $this->uniqueAlias('tl_faq', (string) ($source->question ?? ''));
 
         $clone->save();
         return (int) $clone->id;

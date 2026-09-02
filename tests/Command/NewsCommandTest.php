@@ -7,6 +7,7 @@ use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Tester\CommandTester;
+use Webwerkwien\ContaoAiCoreBundle\Service\Writer\RecordWriterInterface;
 use Webwerkwien\ContaoAiCoreBundle\Command\NewsCreateCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\NewsDeleteCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\NewsReadCommand;
@@ -112,11 +113,16 @@ class NewsCommandTest extends TestCase
 
     // --- NewsRepairHeadlinesCommand ---
 
-    private function repairCmd(Connection $connection): NewsRepairHeadlinesCommand
+    private function repairCmd(Connection $connection, ?RecordWriterInterface $writer = null): NewsRepairHeadlinesCommand
     {
-        $cmd = new NewsRepairHeadlinesCommand($connection);
+        $cmd = new NewsRepairHeadlinesCommand($connection, $this->createMock(ContaoFramework::class));
         $cmd->setLogger($this->logger());
         $cmd->setVersionManager($this->vm());
+
+        if (null !== $writer) {
+            $cmd->setRecordWriter($writer);
+        }
+
         return $cmd;
     }
 
@@ -127,11 +133,22 @@ class NewsCommandTest extends TestCase
             ['id' => 1, 'headline' => serialize(['value' => 'Contao ist beliebt', 'unit' => 'h1'])],
             ['id' => 2, 'headline' => 'Schon sauberer Titel'],
         ]);
-        $connection->expects($this->once())
-            ->method('update')
-            ->with('tl_news', ['headline' => 'Contao ist beliebt'], ['id' => 1]);
+        // 🔴 Dieser Test verlangte bis zum 2026-09-02 genau den rohen
+        // `$connection->update()` — also den Fehler (H-3): eine Reparatur ohne
+        // tl_version-Snapshot, die sich nicht zurücknehmen ließ. Er war grün und
+        // hat das Verhalten festgeschrieben.
+        //
+        // 🎯 Jetzt die Umkehrung: die Datenbank darf NICHT direkt angefasst
+        // werden, der Writer muss es tun — der schreibt vorher den Snapshot.
+        $connection->expects($this->never())->method('update');
 
-        $tester = new CommandTester($this->repairCmd($connection));
+        $writer = $this->createMock(RecordWriterInterface::class);
+        $writer->expects($this->once())
+            ->method('update')
+            ->with('tl_news', 1, ['headline' => 'Contao ist beliebt'], $this->anything())
+            ->willReturn(['headline']);
+
+        $tester = new CommandTester($this->repairCmd($connection, $writer));
         $tester->execute([]);
         $out = json_decode($tester->getDisplay(), true);
 

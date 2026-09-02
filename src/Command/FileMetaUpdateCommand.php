@@ -84,9 +84,30 @@ class FileMetaUpdateCommand extends AbstractWriteCommand
             $updated[] = $key;
         }
 
-        $file->meta   = serialize($meta);
-        $file->tstamp = time();
-        $file->save();
+        // 🔴 H-2 (Audit 2026-09-02): hier wurde direkt gespeichert, also ohne
+        // tl_version-Snapshot.
+        //
+        // 🎯 Dieser Befehl hat als einziger der fünf einen echten Grund für
+        // seinen Sonderweg — `tl_files.meta` ist ein serialisiertes Array je
+        // Sprache und muss gelesen, zusammengeführt und neu serialisiert
+        // werden. Aber das rechtfertigt das BAUEN der Werte, nicht das
+        // SPEICHERN: *"What deliberately stays outside: building a record's
+        // field values … The writer persists what it is handed."* Die
+        // Zusammenführung oben bleibt, die Persistenz geht an den Writer.
+        $write = ['meta' => serialize($meta)];
+
+        foreach ($fields as $key => $value) {
+            if (!in_array($key, self::META_FIELDS, true)) {
+                $write[$key] = $file->$key;
+            }
+        }
+
+        $this->writer()->update(
+            FilesModel::getTable(),
+            (int) $file->id,
+            $write,
+            $this->resolveOperator(),
+        );
 
         $this->outputSuccess(['path' => $path, 'lang' => $lang, 'updated' => $updated]);
         return Command::SUCCESS;

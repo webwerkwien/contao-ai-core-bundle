@@ -51,13 +51,31 @@ class UserUpdateCommand extends AbstractWriteCommand
             return $this->outputError("User not found: $username");
         }
 
-        foreach ($fields as $key => $value) {
-            $user->$key = $value;
-        }
-        $user->tstamp = time();
-        $user->save();
+        $id = (int) $user->id;
 
-        $this->outputSuccess(['username' => $username, 'updated' => array_keys($fields)]);
+        // 🔴 H-2 (Audit 2026-09-02): hier wurden die Werte ROH aufs Model
+        // geschrieben und gespeichert. Zwei Fehler in einem:
+        //
+        //  1. kein tl_version-Snapshot — die Änderung war nicht rückholbar
+        //  2. keine DCA-Konvertierung — `--set groups=1,2` schrieb den String in
+        //     eine serialisierte Spalte und meldete `ok`
+        //
+        // 🎯 Punkt 2 ist derselbe Fehler, den AbstractWriteCommand in seinem
+        // eigenen Docblock beschreibt: *"of eleven create commands that accept
+        // --set … the rest wrote a raw string into a serialized column and
+        // reported success"*. Er wurde am 31.08. für den generischen Pfad
+        // behoben und mit einem Test abgesichert — dieser Befehl lief daran
+        // vorbei, weil er den Datensatz über den Benutzernamen sucht.
+        $fields = $this->convertFields(UserModel::getTable(), $fields, $id);
+
+        $updated = $this->writer()->update(
+            UserModel::getTable(),
+            $id,
+            $fields,
+            $this->resolveOperator(),
+        );
+
+        $this->outputSuccess(['username' => $username, 'updated' => $updated ?? []]);
         return \Symfony\Component\Console\Command\Command::SUCCESS;
     }
 }

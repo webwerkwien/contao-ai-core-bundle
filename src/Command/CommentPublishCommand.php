@@ -37,11 +37,24 @@ class CommentPublishCommand extends AbstractWriteCommand
             return $this->outputError("Invalid action '$action'. Use: publish or unpublish");
         }
 
-        $comment->published = $this->booleanFlag('publish' === $action);
-        $comment->tstamp    = time();
-        $comment->save();
+        // 🔴 H-2 (Audit 2026-09-02): hier stand `$comment->published = …; $comment->save();` —
+        // am Writer vorbei. Folge: kein tl_version-Eintrag, also war ein
+        // versehentliches publish über die Versionshistorie nicht rückholbar.
+        //
+        // 🎯 Der Writer nimmt fertige Werte und erledigt Snapshot, tstamp und
+        // save. Werte zu BAUEN bleibt Sache des Befehls — genau so steht es im
+        // Vertrag von RecordWriterInterface. Diese Befehle hatten nichts zu
+        // bauen und trotzdem selbst gespeichert.
+        $publish = 'publish' === $action;
 
-        $this->outputSuccess(['id' => $id, 'published' => $comment->published === '1']);
+        $this->writer()->update(
+            CommentsModel::getTable(),
+            $id,
+            ['published' => $this->booleanFlag($publish)],
+            $this->resolveOperator(),
+        );
+
+        $this->outputSuccess(['id' => $id, 'published' => $publish]);
         return Command::SUCCESS;
     }
 }

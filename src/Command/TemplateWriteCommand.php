@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 use Contao\CoreBundle\Monolog\ContaoContext;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Webwerkwien\ContaoAiCoreBundle\Attribute\AiContract;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -22,6 +23,32 @@ use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
  *  partial:  templates/<dir>/_<basename>.html.twig  (underscore auto-prepended)
  *  variant:  templates/<base>/<name>.html.twig
  */
+/**
+ * 🔴 H-4 (Audit 2026-09-02): Dieser Befehl überschreibt Dateiinhalte, ohne die
+ * vorherigen Bytes zu sichern — und deklarierte das nirgends.
+ *
+ * ⚠️ Nachgesehen, wie Contao es macht: `DC_Folder::source()` versioniert um den
+ * Schreibvorgang herum (`Versions::initialize()` … `create()`), aber
+ * `Versions::create()` ist ein `SELECT * FROM <table> WHERE id=?` — es sichert
+ * die **Datenbankzeile**, nicht den Dateiinhalt. Contaos eigener Datei-Editor
+ * überschreibt also genauso unwiederbringlich; der gespeicherte `hash` lässt
+ * eine Änderung erkennen, nicht zurücknehmen.
+ *
+ * 🎯 Deshalb kein eigenes Backup-Regime, das von Contao abwiche und Fragen nach
+ * Ablageort und Aufbewahrung aufwürfe — sondern die Deklaration. `irreversible`
+ * existiert in `AiContract` genau dafür, und ein aufrufender Agent liest sie,
+ * bevor er zugreift. **Eine unumkehrbare Wirkung, die niemand ankündigt, ist
+ * der eigentliche Mangel.**
+ */
+#[AiContract(
+    writes: true,
+    tables: [],
+    trace: ['tl_log'],
+    traceWhen: 'on-success',
+    irreversible: 'overwrites the template file on disk — the previous content is not kept',
+    repeatable: true,
+    answerShape: ['status', 'template'],
+)]
 #[AsCommand(name: 'contao:template:write', description: 'Write a Twig template to the correct path under templates/')]
 class TemplateWriteCommand extends Command
 {

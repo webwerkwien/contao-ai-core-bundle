@@ -2,7 +2,9 @@
 
 Contao 5 bundle that exposes CMS operations as Symfony console commands. The agnostic operator layer for the **contao-ai** family — programmatic read and write access to pages, articles, news, files, members, and more, without any LLM dependency.
 
-> **Beta software.** Bundle interfaces (command names/options, JSON output schema) may change between minor versions. Use at your own risk in production.
+> **Pre-1.0.** Runs in production on the author's own installations. Interfaces —
+> command names, options, JSON output schema — still change between minor
+> versions. Read the changelog before updating.
 
 ## The contao-ai ecosystem
 

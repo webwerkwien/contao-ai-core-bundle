@@ -33,6 +33,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 class PageCloner implements EntityClonerInterface
 {
     use CopiesSourceRows;
+    use ClonesContentSubtree;
     use FiltersModifications;
 
     /**
@@ -112,7 +113,7 @@ class PageCloner implements EntityClonerInterface
         $recursive = (bool) ($options['recursive'] ?? false);
 
         return $this->connection->transactional(function () use ($source, $filteredMods, $ignoredMods, $operator, $authorId, $recursive): array {
-            $stats = ['articles' => 0, 'contents' => 0, 'subpages' => 0, 'capped' => false];
+            $stats = ['articles' => 0, 'contents' => 0, 'subpages' => 0, 'subpages_skipped' => 0, 'capped' => false];
 
             $newRootId = $this->doClone(
                 $source,
@@ -132,6 +133,9 @@ class PageCloner implements EntityClonerInterface
                 'article_count'  => $stats['articles'],
                 'content_count'  => $stats['contents'],
                 'subpage_count'  => $stats['subpages'],
+                // M-1: getrennt ausgewiesen. `capped: true` sagte bisher nur
+                // DASS etwas übersprungen wurde, nicht wie viel.
+                'subpages_skipped' => $stats['subpages_skipped'],
                 'capped'         => $stats['capped'],
                 // Overrides this cloner refused. Empty on a clean call; never omitted,
                 // so a caller can check the key instead of guessing.
@@ -161,11 +165,24 @@ class PageCloner implements EntityClonerInterface
         // hochreichen damit der Operator es erfährt.
         if ($depth > self::MAX_RECURSIVE_DEPTH) {
             $stats['capped'] = true;
+            ++$stats['subpages_skipped'];
             return 0;
         }
+        // 🔴 M-1 (Audit 2026-09-02): `$stats['subpages']` zählte bis dahin
+        // VERSUCHE, nicht Erzeugungen — der Aufrufer erhöhte vor dem Aufruf,
+        // und ein durch die Grenze abgewiesener Aufruf lieferte 0, ohne den
+        // Zähler zurückzunehmen. Die Antwort meldete damit mehr geklonte
+        // Unterseiten, als es gab.
+        //
+        // Die Grenze rechnete mit demselben Zähler, deshalb ändert sich hier
+        // `>` zu `>=`: vorher enthielt `subpages` die gerade versuchte Seite
+        // bereits, jetzt nicht mehr. Die Obergrenze bleibt dieselbe — nach 49
+        // Unterseiten plus Root sind 50 erreicht und die nächste wird
+        // abgewiesen.
         $totalSoFar = 1 /*root*/ + $stats['subpages'];
-        if ($totalSoFar > self::MAX_TOTAL_PAGES) {
+        if ($totalSoFar >= self::MAX_TOTAL_PAGES) {
             $stats['capped'] = true;
+            ++$stats['subpages_skipped'];
             return 0;
         }
 
@@ -190,8 +207,15 @@ class PageCloner implements EntityClonerInterface
                         $newContentId = $this->cloneContentRow($sourceContent, $newArticleId);
                         $this->versionManager->createVersion('tl_content', $newContentId, $operator);
                         ++$stats['contents'];
-                        // Verschachtelte Content-Children (ptable=tl_content)
-                        $this->cloneNestedContent((int) $sourceContent->id, $newContentId, $operator, $stats);
+                        // Verschachtelte Content-Children (ptable=tl_content) —
+                        // seit H-5 in ClonesContentSubtree, geteilt mit den
+                        // Archiv- und Kalender-Klonern.
+                        $stats['contents'] += $this->cloneContentSubtree(
+                            (int) $sourceContent->id,
+                            $newContentId,
+                            'tl_content',
+                            $operator,
+                        );
                     }
                 }
             }
@@ -202,8 +226,9 @@ class PageCloner implements EntityClonerInterface
             $subpages = PageModel::findBy('pid', (int) $source->id);
             if (null !== $subpages) {
                 foreach ($subpages as $subpage) {
-                    ++$stats['subpages'];
-                    $this->doClone(
+                    // Erst zählen, wenn wirklich eine Seite entstanden ist.
+                    // doClone() liefert 0, wenn Tiefe oder Gesamtzahl greifen.
+                    $clonedId = $this->doClone(
                         $subpage,
                         [], // Modifications nur für Root anwenden
                         $operator,
@@ -213,6 +238,10 @@ class PageCloner implements EntityClonerInterface
                         $stats,
                         $newPageId,
                     );
+
+                    if ($clonedId > 0) {
+                        ++$stats['subpages'];
+                    }
                 }
             }
         }
@@ -220,29 +249,6 @@ class PageCloner implements EntityClonerInterface
         return $newPageId;
     }
 
-    /**
-     * Recursively clone tl_content children attached via ptable=tl_content
-     * (accordion, colset, grouped layouts). Each level: WHERE pid=oldId
-     * AND ptable=tl_content → clone with pid=newId AND ptable=tl_content.
-     *
-     * @param array{articles:int, contents:int, subpages:int, capped:bool} $stats
-     */
-    private function cloneNestedContent(int $oldParentId, int $newParentId, string $operator, array &$stats): void
-    {
-        $children = ContentModel::findBy(
-            ['pid=?', 'ptable=?'],
-            [$oldParentId, 'tl_content']
-        );
-        if (null === $children) {
-            return;
-        }
-        foreach ($children as $sourceChild) {
-            $newChildId = $this->cloneContentRow($sourceChild, $newParentId);
-            $this->versionManager->createVersion('tl_content', $newChildId, $operator);
-            ++$stats['contents'];
-            $this->cloneNestedContent((int) $sourceChild->id, $newChildId, $operator, $stats);
-        }
-    }
 
     /**
      * @param array<string, scalar|null> $modifications  Empty for subpage-recursion descent;
@@ -289,23 +295,6 @@ class PageCloner implements EntityClonerInterface
         return (int) $clone->id;
     }
 
-    /**
-     * Klont einen tl_content-Eintrag mit dem angegebenen neuen pid. Die `ptable`
-     * wird unverändert von row() übernommen — aufrufende Stelle entscheidet
-     * implizit über den Container-Typ (tl_article vs. tl_content) durch den
-     * passenden $newPid.
-     */
-    private function cloneContentRow(ContentModel $source, int $newPid): int
-    {
-        $clone = new ContentModel();
-        $this->copySourceRow($clone, $this->fetchSourceRow('tl_content', (int) $source->id));
-        $clone->tstamp    = time();
-        $clone->pid       = $newPid;
-        $clone->invisible = '1'; // Klon-Inhalte unsichtbar bis Operator-Review
-
-        $clone->save();
-        return (int) $clone->id;
-    }
 
     private function resolveAuthorId(string $operator): int
     {

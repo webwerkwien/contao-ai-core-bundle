@@ -4,6 +4,83 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.4.0 - 2026-09-02
+
+Second security audit. Everything below was found in one pass over the write path
+and the cloners; the version jumps to 0.4.0 to stay in step with
+contao-ai-backend-bundle, which is released alongside it.
+
+### Fixed
+
+- **Seven commands wrote past the record writer.** `contao:user:delete`,
+  `contao:member:delete`, `contao:page:publish`, `contao:comment:publish`,
+  `contao:user:update`, `contao:member:update` and `contao:files:meta` called
+  `save()` or `delete()` on the model directly. Each lost exactly what the writer
+  brings: the `tl_version` snapshot, the `tl_undo` entry, the cascade, the DCA
+  conversion. `contao:user:update --set groups=1,2` wrote the literal string into
+  a serialized column and answered `ok`.
+
+  All seven for one structural reason: they look their record up by username or
+  path rather than by id, so they could never extend `AbstractModelUpdateCommand`
+  and inherit the path. The shortcut was the only thing available, not
+  carelessness — which is why the fix is a shared route rather than seven
+  patches.
+
+- **`contao:undo:restore` ran without a transaction.** A restore that failed
+  halfway left some rows back in their tables and the `tl_undo` entry either
+  consumed or not, depending on where it stopped. Inserts and the entry deletion
+  now commit together; the DCA callbacks run after the commit, which is a
+  deliberate deviation from Contao's own `DC_Table::undo()` and is documented at
+  the call site.
+
+- **`contao:news:repair-headlines` wrote raw SQL**, so a one-off migration over
+  every news headline produced no version history at all. It goes through the
+  writer now and reports `versioned` in its answer.
+
+- **Cloning a news archive or a calendar left every content element behind.**
+  `PageCloner` pulled the `tl_content` subtree along and the other cloners did
+  not — so the clone counted only the news, answered `ok`, and the command
+  description promising *"including all cascading children"* was wrong for two of
+  the three.
+
+  The evidence was in this bundle's own prose: `RecordCascadeCollector` states
+  that `tl_content` hangs under articles, news and events. Deleting a news item
+  therefore took its content with it; cloning one did not bring it along. One
+  half of the pair knew and the other did not.
+
+- **Cloned aliases were generated but never checked for uniqueness.**
+  `Contao\Model::save()` does not run the DCA `save_callback`, so Contao's own
+  check never ran, and `tl_news`, `tl_calendar_events` and `tl_faq` all declare
+  `'unique' => true, 'doNotCopy' => true`. Cloning a news item called *Sommerfest*
+  produced a second row with the alias `sommerfest`, and which of the two an
+  alias lookup reaches was a matter of row order.
+
+  `tl_page` and `tl_article` are deliberately excluded: their aliases carry no
+  `eval.unique` and Contao scopes them by root and domain, so suffixing there
+  would rename a page for a clash that is not one.
+
+- **`contao:record:clone` counted subpages it had not cloned.** The cap was
+  applied after the counter, so an aborted subpage still raised the total. The
+  answer now carries `subpages_skipped` and `capped`, so a caller can see that
+  something was dropped instead of receiving `ok` with pages silently missing.
+
+- **Three commands that overwrite file contents declared no `#[AiContract]`.**
+  `contao:file:process`, `contao:file:write` and `contao:template:write` replace
+  bytes on disk with no version history behind them, and said nothing about it.
+  All three now declare `irreversible`, and `contao:file:process` writes a
+  `tl_log` entry as well.
+
+- **`contao:news:repair-headlines` never initialised the framework.** Introduced
+  by the fix above: the command had only ever taken a `Connection`, and raw SQL
+  needs no framework — the writer resolves its model class from
+  `$GLOBALS['TL_MODELS']`. The real run died with *"There is no class for table
+  tl_news registered"* while the test suite stayed green, because `--dry-run`
+  writes nothing and never reaches the writer.
+
+  Found on a live install, not in the tests. A rehearsal that skips the one step
+  that fails is not a rehearsal, so `WritePathTest` now pins the pairing: a
+  command that takes the writer takes `framework->initialize()` with it.
+
 ## v0.2.38 - 2026-09-02
 
 ### Added

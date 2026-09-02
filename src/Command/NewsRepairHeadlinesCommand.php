@@ -2,6 +2,7 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
+use Contao\CoreBundle\Framework\ContaoFramework;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -29,8 +30,10 @@ use Symfony\Component\Console\Input\InputOption;
 )]
 class NewsRepairHeadlinesCommand extends AbstractWriteCommand
 {
-    public function __construct(private readonly Connection $connection)
-    {
+    public function __construct(
+        private readonly Connection $connection,
+        private readonly ContaoFramework $framework,
+    ) {
         parent::__construct();
     }
 
@@ -46,6 +49,14 @@ class NewsRepairHeadlinesCommand extends AbstractWriteCommand
     protected function doExecute(array $fields): int
     {
         $dryRun = (bool) $this->input->getOption('dry-run');
+
+        // 🔴 Aufgefallen erst auf c5, nicht in 603 grünen Tests: seit der Fix
+        // für H-3 über `writer()->update()` läuft, braucht dieser Befehl das
+        // Model-Register. Vorher schrieb er rohes SQL und kam ohne aus.
+        // Ohne diese Zeile: `There is no class for table "tl_news" registered
+        // in $GLOBALS['TL_MODELS']` — und zwar **nur** im echten Lauf, weil
+        // `--dry-run` gar nicht schreibt und deshalb sauber durchging.
+        $this->framework->initialize();
 
         try {
             $rows = $this->connection->fetchAllAssociative('SELECT id, headline FROM tl_news');
@@ -66,14 +77,36 @@ class NewsRepairHeadlinesCommand extends AbstractWriteCommand
                 continue;
             }
 
+            $id = (int) $row['id'];
+
             $repaired[] = [
-                'id'   => (int) $row['id'],
+                'id'   => $id,
                 'from' => $current,
                 'to'   => $plain,
             ];
 
             if (!$dryRun) {
-                $this->connection->update('tl_news', ['headline' => $plain], ['id' => (int) $row['id']]);
+                // 🔴 H-3 (Audit 2026-09-02): hier stand ein rohes
+                // `$this->connection->update('tl_news', …)`. Ohne Version.
+                //
+                // `--dry-run` zeigt vorher, was passieren würde — aber eine
+                // ausgeführte Fehlreparatur war endgültig. Und der Erkenner ist
+                // eine Heuristik: `extractPlainHeadline()` hält alles für
+                // reparierbar, was mit `a:` beginnt und sich entserialisieren
+                // lässt. Ein Titel, der zufällig so aussieht, wurde
+                // stillschweigend ersetzt.
+                //
+                // 🎯 Eine Reparatur ist genau der Vorgang, bei dem man sich am
+                // ehesten irrt — sie läuft über Bestandsdaten, die niemand mehr
+                // im Kopf hat. Über den Writer entsteht je Datensatz ein
+                // tl_version-Snapshot, und `version:restore` holt einen
+                // Fehlgriff einzeln zurück.
+                $this->writer()->update(
+                    'tl_news',
+                    $id,
+                    ['headline' => $plain],
+                    $this->resolveOperator(),
+                );
             }
         }
 
@@ -81,6 +114,9 @@ class NewsRepairHeadlinesCommand extends AbstractWriteCommand
             'dry_run'  => $dryRun,
             'scanned'  => \count($rows),
             'repaired' => \count($repaired),
+            // H-3: sagt dem Aufrufer, dass ein Rückweg existiert — und im
+            // Trockenlauf ausdrücklich, dass noch nichts entstanden ist.
+            'versioned' => !$dryRun,
             'records'  => $repaired,
         ]);
 

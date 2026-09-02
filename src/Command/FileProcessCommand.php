@@ -5,9 +5,36 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\CoreBundle\Monolog\ContaoContext;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Webwerkwien\ContaoAiCoreBundle\Attribute\AiContract;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
 
+/**
+ * 🔴 H-4 (Audit 2026-09-02): Dieser Befehl überschreibt Dateiinhalte, ohne die
+ * vorherigen Bytes zu sichern — und deklarierte das nirgends.
+ *
+ * ⚠️ Nachgesehen, wie Contao es macht: `DC_Folder::source()` versioniert um den
+ * Schreibvorgang herum (`Versions::initialize()` … `create()`), aber
+ * `Versions::create()` ist ein `SELECT * FROM <table> WHERE id=?` — es sichert
+ * die **Datenbankzeile**, nicht den Dateiinhalt. Contaos eigener Datei-Editor
+ * überschreibt also genauso unwiederbringlich; der gespeicherte `hash` lässt
+ * eine Änderung erkennen, nicht zurücknehmen.
+ *
+ * 🎯 Deshalb kein eigenes Backup-Regime, das von Contao abwiche und Fragen nach
+ * Ablageort und Aufbewahrung aufwürfe — sondern die Deklaration. `irreversible`
+ * existiert in `AiContract` genau dafür, und ein aufrufender Agent liest sie,
+ * bevor er zugreift. **Eine unumkehrbare Wirkung, die niemand ankündigt, ist
+ * der eigentliche Mangel.**
+ */
+#[AiContract(
+    writes: true,
+    tables: ['tl_files'],
+    trace: ['tl_log'],
+    traceWhen: 'on-success',
+    irreversible: 'overwrites the image file on disk — the original bytes are not kept anywhere',
+    repeatable: false,
+    answerShape: ['status', 'path'],
+)]
 #[AsCommand(name: 'contao:file:process', description: 'Validate and optionally resize a file already on the server')]
 class FileProcessCommand extends AbstractWriteCommand
 {
@@ -116,12 +143,32 @@ class FileProcessCommand extends AbstractWriteCommand
         }
 
         clearstatcache(true, $absPath);
-        $this->outputSuccess([
+        // 🔴 H-4: Bis 2026-09-02 hinterließ dieser Befehl NICHTS — kein
+        // tl_version, kein Systemlog. Ein unumkehrbares Überschreiben ohne
+        // jeden Eintrag, und der Vertragsleser hat es beim Hinschreiben der
+        // Deklaration selbst gemeldet: *"writes: true but no trace declared —
+        // a caller cannot tell whether that means 'leaves nothing behind' or
+        // 'not stated'."* Es war Ersteres, und das war der Mangel.
+        //
+        // Die Bytes lassen sich nicht zurückholen (Contao tut es auch nicht,
+        // siehe Klassenkommentar). Aber wer die Datei wann verändert hat,
+        // gehört festgehalten — sonst ist der Vorgang nicht nur unumkehrbar,
+        // sondern auch unsichtbar.
+        $payload = [
             'path'    => $path,
             'ext'     => $ext,
             'resized' => $resized,
             'bytes'   => filesize($absPath),
-        ]);
+        ];
+
+        $this->systemLog?->write(
+            sprintf('%s %s', $this->getName(), json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
+            (string) $this->getName(),
+            (string) $this->resolveOperator(),
+            ContaoContext::FILES,
+        );
+
+        $this->outputSuccess($payload);
         return Command::SUCCESS;
     }
 

@@ -5,7 +5,6 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Cloner;
 use Contao\CalendarEventsModel;
 use Contao\CalendarModel;
 use Contao\CoreBundle\Framework\ContaoFramework;
-use Contao\StringUtil;
 use Contao\UserModel;
 use Doctrine\DBAL\Connection;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
@@ -18,6 +17,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 class CalendarCloner implements EntityClonerInterface
 {
     use CopiesSourceRows;
+    use GeneratesUniqueAlias;
+    use ClonesContentSubtree;
     use FiltersModifications;
 
     private const ALLOWED_CALENDAR_MODIFICATIONS = ['title'];
@@ -56,13 +57,20 @@ class CalendarCloner implements EntityClonerInterface
             $newId = $this->cloneCalendarRow($source, $filteredMods);
             $this->versionManager->createVersion('tl_calendar', $newId, $operator);
 
-            $count = 0;
+            $count    = 0;
+            $contents = 0;
             $children = CalendarEventsModel::findBy('pid', $sourceId);
             if (null !== $children) {
                 foreach ($children as $child) {
                     $newChildId = $this->cloneEventRow($child, $newId, $authorId);
                     $this->versionManager->createVersion('tl_calendar_events', $newChildId, $operator);
                     ++$count;
+
+                    // 🔴 H-5: Inhaltselemente unter dem Kind wurden nie mitkopiert.
+                    // Der Löschpfad kaskadiert sie (RecordCascadeCollector: "tl_content
+                    // hangs under articles, news and events"), der Klon ließ sie stehen
+                    // und meldete trotzdem Erfolg.
+                    $contents += $this->cloneContentSubtree((int) $child->id, $newChildId, 'tl_calendar_events', $operator);
                 }
             }
 
@@ -70,6 +78,8 @@ class CalendarCloner implements EntityClonerInterface
                 'id'    => $newId,
                 'table' => 'tl_calendar',
                 'count' => $count,
+                // H-5: getrennt ausgewiesen, damit eine leere Zahl auffaellt
+                'contents' => $contents,
                 // Overrides this cloner refused. Empty on a clean call; never omitted.
                 'ignored_modifications' => $ignoredMods,
             ];
@@ -104,9 +114,9 @@ class CalendarCloner implements EntityClonerInterface
         $clone->pid       = $newCalendarId;
         $clone->author    = $authorId;
         $clone->published = '0';
-        $clone->alias     = StringUtil::generateAlias(
-            (string) ($source->title ?? '') ?: ('kopie-' . time())
-        );
+        // 🔴 H-6 — siehe GeneratesUniqueAlias. `tl_calendar_events.alias` ist
+        // `unique=>true, doNotCopy=>true`.
+        $clone->alias     = $this->uniqueAlias('tl_calendar_events', (string) ($source->title ?? ''));
 
         $clone->save();
         return (int) $clone->id;
