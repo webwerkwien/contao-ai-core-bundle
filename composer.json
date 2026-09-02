@@ -10,7 +10,11 @@
             "role": "Developer"
         }
     ],
-    "keywords": ["contao", "ai", "agent", "crud", "cli", "automation"],
+    "keywords": [
+        "contao", "ai", "agent", "crud", "cli", "automation", "console", "ssh",
+        "contao-ai",
+        "ki", "ki-agent", "redakteur", "automatisierung", "kommandozeile"
+    ],
     "homepage": "https://github.com/webwerkwien/contao-ai-core-bundle",
     "support": {
         "issues": "https://github.com/webwerkwien/contao-ai-core-bundle/issues",

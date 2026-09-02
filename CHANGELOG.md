@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.4.1 - 2026-09-02
+
+### Changed
+
+- **German keywords for the Contao extension index.** Metadata only; no code
+  changed.
+
+  Measured through the search API behind `extensions.contao.org`: the package is
+  listed and discoverable, but was findable only through English terms.
+  `agent`, `automation`, `console` and `crud` matched — `KI`, `Redakteur`, `ssh`
+  and even `contao-ai`, the product's own name, returned nothing. Other
+  extensions in that index are found through their German descriptions; this one
+  was not, which is the expensive half for a German-speaking audience.
+
+  Added: `console`, `ssh`, `contao-ai`, `ki`, `ki-agent`, `redakteur`,
+  `automatisierung`, `kommandozeile`.
+
 ## v0.4.0 - 2026-09-02
 
 Second security audit. Everything below was found in one pass over the write path
