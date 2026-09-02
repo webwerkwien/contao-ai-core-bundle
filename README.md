@@ -24,7 +24,7 @@ contao-ai-core-bundle exposes Contao 5 CMS operations as Symfony console command
 ## Installation
 
 ```bash
-composer require webwerkwien/contao-ai-core-bundle
+composer require "webwerkwien/contao-ai-core-bundle:>=0.2 <1.0"
 ```
 
 ## Available Commands
@@ -174,7 +174,8 @@ The package ships without `tests/` (`export-ignore`), so to run this mode agains
 installation, copy `tests/` and `phpunit.xml.dist` somewhere, install PHPUnit there, and
 point `CONTAO_ROOT` at the installation.
 
-Verified on Contao 5.7.11: 151 tests, 252 assertions, no skips.
+With `CONTAO_ROOT` set the suite runs complete; without it, the tests that resolve
+a model are skipped and say so.
 
 ## License
 
