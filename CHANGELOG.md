@@ -4,6 +4,52 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.5.0 - 2026-09-04
+
+### Added
+
+- **`ErrorReportBuilder` — failures a user can actually pass on.** Failures were
+  already being collected; what was missing was getting them out. Everything
+  lands in `var/logs/prod-*.log`, reachable only by someone with SSH, and
+  `tl_log` does not help: `ContaoTableHandler` formats with
+  `LineFormatter('%message%')`, so the context is dropped there. A user whose
+  back end says "Serverfehler" could hand the maintainer nothing.
+
+  The builder turns a `Throwable` into an `ErrorReport` with two halves. The
+  **summary** — versions, exception class, our own file and line, tool name,
+  argument *keys* — is an allow-list and carries nothing worth protecting. The
+  **message** is the only sensitive part and is kept separate, so a caller
+  decides deliberately whether to disclose it.
+
+  The summary is assembled from named fields rather than filtered afterwards.
+  Masking asks "does this look like a secret?", which is a guess that goes stale
+  with every new provider prefix; an allow-list asks "is this on the list?",
+  which cannot. `CredentialMasker` still runs over the message, as the second
+  line of defence rather than the first.
+
+  Nothing is sent and nothing is stored — the report is a return value.
+
+- **Stack traces keep our frames and collapse foreign runs.** As a side effect
+  this also drops the argument values PHP renders into `getTraceAsString()`.
+
+  🔴 The first implementation asked whether a path contained `contao-ai-` and
+  called that ours. In a development checkout the whole project *is* a directory
+  of that name with `vendor/` inside it, so every framework frame matched — the
+  first test run put ten PHPUnit frames into a report as our own code. It now
+  looks only at the part after the last `/vendor/`.
+
+### Changed
+
+- **`CredentialMasker` moved here from contao-ai-backend-bundle**
+  (`Webwerkwien\ContaoAiCoreBundle\Service\CredentialMasker`). `ErrorReportBuilder`
+  needs the same masking, and the CLI needs reports without being able to depend
+  on the backend bundle. Copying the pattern list would have restored exactly the
+  duplication this class was created to remove on 2026-09-02 — a third copy is no
+  better than the second. Its ten tests moved with it.
+
+  ⚠️ Breaking for anyone importing the old namespace. contao-ai-backend-bundle
+  v0.7.0 is adjusted; nothing else is known to use it.
+
 ## v0.4.1 - 2026-09-02
 
 ### Changed

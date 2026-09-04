@@ -152,6 +152,37 @@ with `contao:version:restore`, plus a `tl_undo` entry for deletions.
 
 Failed commands are not logged — a rejected `--set` changed nothing.
 
+## Error reports
+
+`ErrorReportBuilder` turns a `Throwable` into a report a user can hand to the
+maintainer — versions, exception class, our own file and line, tool name and
+argument *keys*. contao-ai-backend-bundle attaches it to failed chat turns;
+contao-ai-cli builds its own equivalent for failures that never reach the server.
+
+```php
+$report = $builder->build($e, 'backend', ['tool' => 'news_update'], [$apiKey]);
+
+$report->toMarkdown();            // summary only — nothing worth protecting
+$report->toMarkdown(true);        // plus the masked exception message
+$report->toBbCode(true);          // same, as vBulletin markup for the forum
+$report->withoutMessage();        // strip the sensitive half for good
+```
+
+Two properties are worth knowing before you call it:
+
+**The summary is an allow-list, not a filtered dump.** Fields are named
+explicitly, so a value cannot arrive because nobody thought to exclude it. That
+is the one safeguard here that does not depend on anyone behaving well.
+
+**The message is the only sensitive half**, and it is separate for that reason.
+It runs through `CredentialMasker`, which is a pattern net rather than a
+guarantee — pass any literal secret you hold (an API key, a bridge token) as the
+fourth argument so it can be struck by value instead of by shape.
+
+Nothing is sent and nothing is stored: the report is a return value. Who may see
+it, and whether it may be passed on, is the caller's decision — and, downstream
+of that, the user's.
+
 ## Tests
 
 ```bash
