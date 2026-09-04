@@ -157,6 +157,16 @@ final class ErrorReport
     /**
      * Flattens the summary into label/value pairs for rendering.
      *
+     * 🔴 Found on c5, not by a unit test. A map is worth splitting into
+     * `versionen.core`, `versionen.contao` — the sub-keys carry meaning. A
+     * *list* is not: the argument keys came out as `argument_schluessel.0`,
+     * `argument_schluessel.1`, numbering that says nothing and pushes the
+     * interesting part into a column of one-item rows.
+     *
+     * The unit tests could not see this because they assert on `summary()`, the
+     * array — which was correct all along. The defect only existed in the
+     * rendering, and nothing was reading the rendering. A live run was.
+     *
      * @return array<string, string>
      */
     private function flatSummary(): array
@@ -164,7 +174,7 @@ final class ErrorReport
         $flat = [];
 
         foreach ($this->summary as $key => $value) {
-            if (\is_array($value)) {
+            if (\is_array($value) && !array_is_list($value)) {
                 foreach ($value as $subKey => $subValue) {
                     $flat[$key . '.' . $subKey] = $this->stringify($subValue);
                 }

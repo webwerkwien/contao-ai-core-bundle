@@ -193,6 +193,38 @@ class ErrorReportBuilderTest extends TestCase
         self::assertStringNotContainsString('RuntimeException', $head);
     }
 
+    /**
+     * 🔴 Found on the live installation, not here — because every assertion in
+     * this class looked at `summary()`, which was correct all along. The defect
+     * was in the rendering, and nothing was reading the rendering.
+     *
+     * A map earns its sub-keys (`versionen.core` says something). A list does
+     * not: `argument_schluessel.0` numbers what needs no numbering and spreads
+     * one fact over several rows.
+     */
+    public function testAListRendersOnOneLineInsteadOfNumberedRows(): void
+    {
+        $rendered = $this->builder()->build($this->throwable(), 'backend', [
+            'argument_keys' => ['id' => 1, 'headline' => 'x', 'published' => true],
+        ])->toMarkdown();
+
+        self::assertStringContainsString('| argument_schluessel | `id, headline, published` |', $rendered);
+        self::assertStringNotContainsString('argument_schluessel.0', $rendered);
+
+        // A map still splits — that is what makes the versions readable.
+        self::assertStringContainsString('| versionen.core |', $rendered);
+    }
+
+    public function testTheSameHoldsForTheForumRendering(): void
+    {
+        $rendered = $this->builder()->build($this->throwable(), 'backend', [
+            'argument_keys' => ['id' => 1, 'headline' => 'x'],
+        ])->toBbCode();
+
+        self::assertStringContainsString('id, headline', $rendered);
+        self::assertStringNotContainsString('argument_schluessel.0', $rendered);
+    }
+
     public function testAnEmptyContextIsEnough(): void
     {
         $report = $this->builder()->build($this->throwable(), 'core');
