@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.5.1 - 2026-09-04
+
+### Fixed
+
+- **A list in the report rendered as numbered rows.** The argument keys came out
+  as `argument_schluessel.0`, `argument_schluessel.1` — numbering that says
+  nothing and spreads one fact over a column of single-item rows. A map earns its
+  sub-keys (`versionen.core` is informative); a list does not.
+
+  🔴 Found on the live installation, not by a test, and the reason is worth
+  keeping: every assertion in `ErrorReportBuilderTest` looked at `summary()`, the
+  array — which was correct all along. The defect existed only in the rendering,
+  and nothing was reading the rendering. Two tests now do.
+
+  *(This entry was written after the tag; the fix itself is in the v0.5.1 commit.)*
+
 ## v0.5.0 - 2026-09-04
 
 ### Added
