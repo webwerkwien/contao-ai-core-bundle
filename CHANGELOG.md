@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.6.1 - 2026-09-05
+
+### Changed
+
+- **`#[TaggedIterator]` replaced by `#[AutowireIterator]`** in
+  `RecordCloneCommand`. Symfony 8 removed the former; the latter has existed
+  since Symfony 6.4 and does the same thing, so this is a rename, not a switch.
+
+  Found by installing Contao 6.0.0 next to the 5.7 reference: it pulls **Symfony
+  8.1.6**, and the container failed to compile. Verified afterwards on both — the
+  container builds under Symfony 7.4 and 8.1 with identical code.
+
+  No behaviour changes. Constraints are untouched: this package still declares
+  `contao/core-bundle: ^5.3` and makes no promise about Contao 6.
+
 ## v0.6.0 - 2026-09-05
 
 ### Added

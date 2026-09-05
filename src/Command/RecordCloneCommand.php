@@ -7,7 +7,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\DependencyInjection\Attribute\TaggedIterator;
+use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Contracts\Service\Attribute\Required;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\EntityClonerInterface;
 use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
@@ -39,7 +39,7 @@ class RecordCloneCommand extends Command
      * @param iterable<EntityClonerInterface> $cloners Tagged-iterator over every registered cloner.
      */
     public function __construct(
-        #[TaggedIterator('contao_ai.entity_cloner')]
+        #[AutowireIterator('contao_ai.entity_cloner')]
         private readonly iterable $cloners = [],
     ) {
         parent::__construct();
