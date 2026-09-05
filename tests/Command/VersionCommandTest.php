@@ -15,21 +15,25 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 class VersionCommandTest extends TestCase
 {
+    /** @return ContaoFramework&\PHPUnit\Framework\MockObject\MockObject */
     private function fw(): ContaoFramework
     {
         return $this->createMock(ContaoFramework::class);
     }
 
+    /** @return VersionManager&\PHPUnit\Framework\MockObject\MockObject */
     private function vm(): VersionManager
     {
         return $this->createMock(VersionManager::class);
     }
 
+    /** @return Connection&\PHPUnit\Framework\MockObject\MockObject */
     private function conn(): Connection
     {
         return $this->createMock(Connection::class);
     }
 
+    /** @return LoggerInterface&\PHPUnit\Framework\MockObject\MockObject */
     private function logger(): LoggerInterface
     {
         return $this->createMock(LoggerInterface::class);

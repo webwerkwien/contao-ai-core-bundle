@@ -4,6 +4,78 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.6.0 - 2026-09-05
+
+### Added
+
+- **`composer ci` — a gate that means something.** PHPStan level 6 followed by
+  PHPUnit, both green, no extra flags. Until now this package had no static
+  analysis at all while the sibling backend bundle had both; the asymmetry had
+  grown, it was not designed.
+
+  🔴 **The first run is worth recording.** With PHPStan 1.12 on PHP 8.4 it ended
+  with `[ERROR] Found 4 errors` — for a 210-file package that reads like a
+  well-kept result. It was not a result:
+
+  ```
+  Child process error (exit code 255)
+  PHP Fatal error: Type of PHPStan\BetterReflection\…::IS_READONLY must be …
+  ```
+
+  PHPStan 1.x is not PHP 8.4 compatible in its worker processes, and below
+  roughly a hundred files it never forks — which is why the backend bundle ran
+  green on the same version. Hence `phpstan/phpstan: ^2.1` here and there.
+
+  🎯 The lesson is not the version. **An abort still prints a count, and a
+  plausible count is more dangerous than an implausible one.** `2 of 56` invited
+  a second look; `4 of 210` did not.
+
+- `contao/manager-plugin` and `contao/newsletter-bundle` added to `require-dev`.
+  Both were referenced by code that static analysis could therefore not resolve.
+
+### Fixed
+
+- **`contao:file:read` never initialised the Contao framework.** It received a
+  `ContaoFramework` through the constructor, never read it, and then used
+  `FilesModel` — which resolves through `$GLOBALS['TL_MODELS']`, empty until
+  `initialize()` runs.
+
+  🎯 Structurally identical to `news:repair-headlines`, which shipped with 603
+  green tests and a clean dry run and died on its first real invocation. The
+  sibling base class `AbstractModelReadCommand` calls `initialize()`;
+  `AbstractReadCommand`, which this command extends, does not. Whether it broke
+  in practice depended entirely on whether the console had already booted the
+  framework — a dependency nobody wanted to keep once it was known.
+
+  Verified on the test server: `contao:file:read` answers
+  `{"status":"ok",…,"size":26}`.
+
+- **`PageCloner`'s array shape had fallen behind the code.** `subpages_skipped`
+  is initialised and read three times, but was missing from the `@param`
+  annotation — added with the M-1 audit on 2026-09-02, the docblock stayed.
+
+- **`TemplateReadCommand` declared `strict_types` twice.** Both `php -l` and the
+  autoloader accept it; only static analysis noticed.
+
+- Two redundant `??` operators removed where the offset is guaranteed, and an
+  unreachable `match` arm in `TemplateWriteCommand` given an explicit `default`
+  that throws — the exhaustiveness rests on a validation a hundred lines above,
+  and a `LogicException` says so better than an `UnhandledMatchError` would.
+
+### Note on the `ignoreErrors` entries
+
+Every entry in `phpstan.neon.dist` carries its reason, and several of them exist
+because **a declared type is a promise the runtime does not keep**:
+
+- `is_string($key)` while iterating an `array<string, …>` is not redundant. PHP
+  silently casts a numeric string key to `int`, so a field named `"5"` arrives
+  as an integer.
+- The null check in `NeedsContaoContainerTrait` is what lets 26 tests skip
+  themselves instead of dying on a method call on `null`. `System::getContainer()`
+  declares `ContainerInterface` and returns null when nothing is booted.
+
+Removing either guard would be the dangerous repair, not the tidy one.
+
 ## v0.5.1 - 2026-09-04
 
 ### Fixed

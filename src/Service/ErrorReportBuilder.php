@@ -193,7 +193,7 @@ final class ErrorReportBuilder
                 '%s%s%s() in %s:%s',
                 $frame['class'] ?? '',
                 $frame['type'] ?? '',
-                $frame['function'] ?? '?',
+                $frame['function'],
                 isset($frame['file']) ? $this->shortenPath((string) $frame['file']) : '?',
                 $frame['line'] ?? '?',
             ), ...$knownSecrets);

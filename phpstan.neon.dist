@@ -1,0 +1,126 @@
+# PHPStan configuration.
+#
+# Added 2026-09-05. Until then this bundle had no static analysis at all and no
+# `composer ci` — the sibling backend bundle had both. The asymmetry had grown,
+# it was not designed.
+#
+# 🔴 The first run here is worth remembering. With PHPStan 1.12 on PHP 8.4 it
+# ended with `[ERROR] Found 4 errors` — which looked like a nearly clean result
+# for a 210-file package. It was not a result at all:
+#
+#     Child process error (exit code 255)
+#     PHP Fatal error: Type of PHPStan\BetterReflection\...::IS_READONLY must be …
+#
+# PHPStan 1.x is not PHP 8.4 compatible in its worker processes. Below roughly a
+# hundred files it never forks and the problem stays invisible — which is exactly
+# why the backend bundle (66 files) ran green on the same version. Both packages
+# were moved to 2.x the same day, so neither is waiting for the file count to
+# betray it.
+#
+# 🎯 The lesson is not the version. It is that an abort prints a count, and a
+# small count reads like quality.
+includes:
+    - vendor/phpstan/phpstan-phpunit/extension.neon
+    - vendor/phpstan/phpstan-phpunit/rules.neon
+
+parameters:
+    level: 6
+
+    paths:
+        - src
+        - tests
+
+    ignoreErrors:
+        # Contao resolves model properties through `__get()`, driven by the DCA
+        # at runtime. Assigning a string to a column the DCA types as boolean is
+        # how Contao itself writes these — `$model->published = '1'` is the
+        # idiom throughout the core. Listed per property rather than silenced as
+        # a class, so a genuinely misspelled column still fails.
+        -
+            identifier: assign.propertyType
+            path: src/Service/Cloner/*.php
+
+        # `System::getContainer()` declares `ContainerInterface` and returns null
+        # whenever no container has been booted. PHPStan believes the signature
+        # and calls the null check dead code.
+        #
+        # 🎯 Removing the check would be the dangerous repair. It is what lets 26
+        # tests skip themselves instead of dying on a call to a method on null —
+        # the skip *is* the feature. An optimistic third-party signature does not
+        # make a defensive check redundant; it makes it necessary.
+        -
+            identifier: identical.alwaysFalse
+            path: tests/NeedsContaoContainerTrait.php
+
+        # Level 6 wants a value type for every array parameter. Here that would
+        # be `array<string, mixed>` in 89 places: DCA rows, console options,
+        # decoded JSON payloads — collections whose whole point is that the
+        # shape is not known until runtime.
+        #
+        # 🎯 An annotation that says `mixed` adds no information and takes some
+        # away: it makes 89 signatures look as though their types had been
+        # considered. Where a shape *is* known it is written out — see
+        # `PageCloner::cloneSubpages()`, whose `array{articles:int, …}` caught a
+        # docblock that had fallen behind the code.
+        #
+        # Revisit if the level ever rises, or if someone wants to type the
+        # command options properly. That would be real work, not a docblock pass.
+        - identifier: missingType.iterableValue
+
+        # `$parent?->uuid ?? ''` — PHPStan is right that `??` alone would do,
+        # since reading a property on null yields null there. The nullsafe
+        # operator says out loud that `findByPath()` can miss; dropping it would
+        # trade a visible intent for a silent warning.
+        -
+            identifier: nullsafe.neverNull
+            path: src/Command/FolderCreateCommand.php
+
+        # Contao resolves `$tstamp` through `Model::__get()`, driven by the DCA.
+        -
+            identifier: property.notFound
+            path: src/Service/Writer/ModelWriter.php
+
+        # Test-side noise, all of one shape: a helper declares the base type of
+        # a mock, so the mock API (`method()`, `expects()`) is invisible; an
+        # assertion narrows a type PHPStan already knows; a data provider is
+        # typed loosely. None of it says anything about the code under test.
+        #
+        # ⚠️ Scoped to `tests/` on purpose. The same identifiers in `src/` stay
+        # errors — a dead catch or an always-true comparison in production code
+        # is worth knowing about.
+        - { identifier: method.notFound, path: tests/* }
+        - { identifier: argument.type, path: tests/* }
+        - { identifier: class.notFound, path: tests/* }
+        - { identifier: method.alreadyNarrowedType, path: tests/* }
+        - { identifier: staticMethod.alreadyNarrowedType, path: tests/* }
+        - { identifier: method.unused, path: tests/* }
+        - { identifier: arrayValues.list, path: tests/* }
+
+        # `is_string($key)` while iterating an `array<string, …>` looks redundant
+        # to PHPStan, which believes the docblock.
+        #
+        # 🎯 PHP does not. A numeric string key is silently cast to int on
+        # insertion, so a field literally named "5" arrives as `int`. The guard
+        # is the difference between skipping that field and calling
+        # `str_ends_with()` on an integer. Same for `is_object()` next to
+        # `method_exists()`: the value comes out of the DI container as `mixed`.
+        #
+        # These are the cases where a declared type is a promise and the runtime
+        # is not bound by it.
+        - identifier: function.alreadyNarrowedType
+        - identifier: notIdentical.alwaysTrue
+
+        # The `default` arm in `resizeIfNeeded()` is unreachable: `$ext` was
+        # already checked against `$allowed` and `GD_IMAGE_TYPES` further up, and
+        # PHPStan follows that chain and finds the match exhaustive.
+        #
+        # 🎯 It stays anyway. Exhaustiveness here rests on two lists a hundred
+        # lines above; should they ever drift apart, `default` catches it instead
+        # of an UnhandledMatchError reaching the caller. Unreachable today is not
+        # the same as guaranteed unreachable.
+        #
+        # Only PHPStan 2.2 reports this — 2.1 did not. Worth knowing when a
+        # finding appears in one package and not the other.
+        -
+            identifier: match.alwaysTrue
+            path: src/Command/FileProcessCommand.php

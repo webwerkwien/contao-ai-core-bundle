@@ -193,6 +193,10 @@ class TemplateWriteCommand extends Command
             'override' => $base . '.html.twig',
             'partial'  => dirname($base) . '/_' . basename($base) . '.html.twig',
             'variant'  => $base . '/' . $name . '.html.twig',
+            // Unerreichbar: doExecute() prueft $mode oben mit in_array().
+            // Der Zweig haelt die Annahme fest, statt sie einem
+            // UnhandledMatchError zu ueberlassen, falls die Pruefung je faellt.
+            default    => throw new \LogicException(\sprintf('Unvalidated mode "%s" reached buildRelPath().', $mode)),
         };
     }
 }

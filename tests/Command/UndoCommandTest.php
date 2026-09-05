@@ -34,11 +34,13 @@ class UndoCommandTest extends TestCase
 {
     use NeedsContaoContainerTrait;
 
+    /** @return Connection&\PHPUnit\Framework\MockObject\MockObject */
     private function connection(): Connection
     {
         return $this->createMock(Connection::class);
     }
 
+    /** @param Connection&\PHPUnit\Framework\MockObject\MockObject $connection */
     private function restorer(Connection $connection): UndoRestoreCommand
     {
         $cmd = new UndoRestoreCommand($this->createMock(ContaoFramework::class), $connection);
@@ -65,6 +67,7 @@ class UndoCommandTest extends TestCase
         $connection->method('createSchemaManager')->willReturn($schema);
     }
 
+    /** @param Connection&\PHPUnit\Framework\MockObject\MockObject $connection */
     private function reader(Connection $connection): UndoReadCommand
     {
         return new UndoReadCommand($this->createMock(ContaoFramework::class), $connection);

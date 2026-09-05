@@ -27,6 +27,22 @@ class FileReadCommand extends AbstractReadCommand
 
     protected function doExecute(): int
     {
+        // 🔴 Aufgefallen 2026-09-05 durch PHPStan: `$framework` war injiziert
+        // und wurde nie gelesen. Der Befehl liest weiter unten `FilesModel`,
+        // und ein Model braucht `$GLOBALS['TL_MODELS']` — gefüllt erst hier.
+        //
+        // 🎯 Das ist derselbe Bau wie bei `news:repair-headlines`, das mit 603
+        // grünen Tests und sauberem Dry-Run starb: Die Schwester-Basisklasse
+        // `AbstractModelReadCommand` ruft `initialize()`, dieser Befehl erbt
+        // aber von `AbstractReadCommand` und tat es nicht. Ob es im Betrieb
+        // knallte, hing allein daran, ob die Konsole das Framework schon
+        // gebootet hatte — eine Abhängigkeit, auf die sich niemand verlassen
+        // wollte, als sie bekannt war.
+        //
+        // `initialize()` ist idempotent; der Aufruf kostet nichts und macht die
+        // vorhandene Injektion zu dem, wofür sie gedacht war.
+        $this->framework->initialize();
+
         $path = $this->input->getOption('path');
         if (!$path) {
             return $this->outputError('--path is required');

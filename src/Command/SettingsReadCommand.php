@@ -112,6 +112,6 @@ class SettingsReadCommand extends AbstractReadCommand
             $matches,
         );
 
-        return array_values(array_unique($matches[1] ?? []));
+        return array_values(array_unique($matches[1]));
     }
 }

@@ -67,7 +67,7 @@ class PluginCommandRegistrationTest extends TestCase
         $patterns = [];
 
         preg_match_all('#^\s*-\s*\.\./src/Command/(\S+\.php)\s*$#m', $yaml, $matches);
-        foreach ($matches[1] ?? [] as $pattern) {
+        foreach ($matches[1] as $pattern) {
             $patterns[] = $pattern;
         }
 

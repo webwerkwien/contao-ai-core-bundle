@@ -148,7 +148,7 @@ class PageCloner implements EntityClonerInterface
      * @param array<string, scalar|null> $modifications  Apply only to the ROOT clone (the user's
      *   explicit target). Subpage clones during recursive descent get an empty modifications
      *   array — they preserve whatever the source-subpage already had, just with the new pid.
-     * @param array{articles:int, contents:int, subpages:int, capped:bool} $stats  Mutable stats counter.
+     * @param array{articles:int, contents:int, subpages:int, subpages_skipped:int, capped:bool} $stats  Mutable stats counter.
      */
     private function doClone(
         PageModel $source,
