@@ -49,7 +49,12 @@ class BooleanValueRefusalTest extends TestCase
             'protected' => ['sql' => ['type' => 'boolean', 'default' => false]],
             'title'     => ['sql' => "varchar(255) NOT NULL default ''"],
             'sorting'   => ['sql' => ['type' => 'integer', 'notnull' => true]],
-            // A `sql` given as a string declares a text column; nothing to cast.
+            // A `sql` given as a string declares the column the old way. The
+            // stock DCA of 5.7 and 6.0 has zero string-form `tinyint` columns —
+            // this is the shape a *project* uses when it declares a number as
+            // tinyint, and it is deliberately outside this rule. See
+            // testAProjectsStringFormTinyintIsOutsideThisRule().
+            'stunden'   => ['sql' => 'tinyint(4) NOT NULL default 0'],
             'legacy'    => ['sql' => "char(1) NOT NULL default ''"],
         ];
     }
@@ -129,6 +134,30 @@ class BooleanValueRefusalTest extends TestCase
     public function testNonBooleanColumnsAreNotTouched(): void
     {
         $this->refuse(['title' => 'vielleicht', 'sorting' => '7', 'legacy' => 'x']);
+        $this->addToAssertionCount(1);
+    }
+
+    /**
+     * ⚠️ **The boundary this rule deliberately does not cross.**
+     *
+     * A project that declares a *number* as `tinyint` writes it the old way —
+     * `'sql' => 'tinyint(4) NOT NULL default 0'`. DBAL still maps it to boolean
+     * on read, so `2` comes back as `true`, and writing that back still lands as
+     * `1`. This rule does not catch that, and must not: the column is declared
+     * as a number, so refusing a number would break the field.
+     *
+     * The stock DCA of 5.7 and 6.0 contains **zero** string-form `tinyint`
+     * columns — every core flag uses `['type' => 'boolean']`. So the two cases
+     * separate cleanly: core flags are covered here, a project's
+     * tinyint-as-number stays the caller's problem and is documented as such in
+     * the CLI's guide.
+     *
+     * → `02 Webentwicklung/Contao/tinyint kommt als Boolean zurück.md`
+     */
+    public function testAProjectsStringFormTinyintIsOutsideThisRule(): void
+    {
+        $this->refuse(['stunden' => '2']);
+        $this->refuse(['stunden' => 'true']);
         $this->addToAssertionCount(1);
     }
 
