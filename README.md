@@ -1,6 +1,6 @@
 # contao-ai-core-bundle
 
-Contao 5 bundle that exposes CMS operations as Symfony console commands. The agnostic operator layer for the **contao-ai** family — programmatic read and write access to pages, articles, news, files, members, and more, without any LLM dependency.
+Contao 5 and 6 bundle that exposes CMS operations as Symfony console commands. The agnostic operator layer for the **contao-ai** family — programmatic read and write access to pages, articles, news, files, members, and more, without any LLM dependency.
 
 > **Pre-1.0.** Runs in production on the author's own installations. Interfaces —
 > command names, options, JSON output schema — still change between minor
@@ -16,7 +16,7 @@ Contao 5 bundle that exposes CMS operations as Symfony console commands. The agn
 
 ## What it does
 
-contao-ai-core-bundle exposes Contao 5 CMS operations as Symfony console commands. It is the bridge layer between AI agents and the Contao CMS — used via SSH by [contao-ai-cli](https://github.com/webwerkwien/contao-ai-cli), or called in-process by [contao-ai-backend-bundle](https://github.com/webwerkwien/contao-ai-backend-bundle).
+contao-ai-core-bundle exposes Contao 5 and 6 CMS operations as Symfony console commands. It is the bridge layer between AI agents and the Contao CMS — used via SSH by [contao-ai-cli](https://github.com/webwerkwien/contao-ai-cli), or called in-process by [contao-ai-backend-bundle](https://github.com/webwerkwien/contao-ai-backend-bundle).
 
 ## Requirements
 

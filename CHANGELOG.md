@@ -4,6 +4,45 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.8.0 - 2026-09-05
+
+### Added
+
+- **Contao 6 support.** `contao/core-bundle` now reads `^5.3 || ^6.0`, and the
+  six other version-bound constraints move with it — the optional bundles
+  (calendar, comments, faq, news, newsletter) and `symfony/console`, which gains
+  `^8.0` because Contao 6.0.0 pulls Symfony 8.1.
+
+  Seven lines in this package, ten in `contao-ai-backend-bundle`. `twig/twig`
+  and `contao/manager-plugin` are deliberately unchanged: Contao 6.0.0 installs
+  Twig 3.28 and manager-plugin 2.13.6, both already covered. That was read from
+  the installed `composer.lock`, not assumed.
+
+  **This constraint is the actual commitment**, and it was opened last on
+  purpose. It rests on a Contao 6.0.0 installation built beside the 5.7
+  reference and on three behaviour questions answered against both:
+
+  | question | answer |
+  |---|---|
+  | input encoding | no observable difference — this package applies none, on either version |
+  | the model layer that now throws | better for integers, worse for booleans — closed in v0.7.0 |
+  | the `xx128` DBAFS hash | confirmed, same column width, our own bug fixed in v0.6.2 |
+
+  Both directions of the widened constraint were resolved before release, in a
+  throwaway project against a pinned core version:
+
+  ```
+  contao/core-bundle 5.7.13 → symfony/console v7.4.18, twig/twig v3.28.0  ✅
+  contao/core-bundle 6.0.0  → symfony/console v8.1.6,  twig/twig v3.28.0  ✅
+  ```
+
+  Widening a constraint can break the *old* version as easily as it enables the
+  new one, and nothing in the Contao 6 work so far had tested that direction.
+
+### Changed
+
+- Package description and README now name both versions.
+
 ## v0.7.0 - 2026-09-05
 
 ### Changed
