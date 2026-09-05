@@ -4,6 +4,37 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.6.2 - 2026-09-05
+
+### Fixed
+
+- **`contao:file:write` wrote a wrong `tl_files.hash` on Contao 6.** Overwriting
+  an existing file set the hash with `md5($content)`. That is only correct up to
+  Contao 5.7: `Contao\File::getHash()` is `md5_file()` there and
+  `hash_file('xxh128', …)` from Contao 6.0 on. The command now takes the hash
+  from `Contao\File` itself, so the installed Contao version decides the
+  algorithm — which is what Contao's own file editor does
+  (`DC_Folder::source()`: `$objMeta->hash = $objFile->hash`).
+
+  Measured on 2026-09-05 against 5.7.13 and 6.0.0, same content in both:
+
+  | | create | overwrite | `contao:filesync` afterwards |
+  |---|---|---|---|
+  | 5.7.13 before | md5 ✅ | md5 ✅ | *No changes* |
+  | 6.0.0 before | xxh128 ✅ | **md5 ❌** | reports a change, repairs it |
+  | both after | correct | correct | *No changes* |
+
+  The create path was already correct by accident, because it goes through
+  `Dbafs::addResource()`. No data was lost — the next `contao:filesync` fixed
+  the value — but until then Contao considered the file modified, and anything
+  comparing `tl_files.hash` compared a value from the wrong algorithm.
+
+  The column width is unchanged: xxh128 is also 32 hex characters. No migration.
+
+  `DbafsHashIsNotComputedLocallyTest` guards the source against a
+  reintroduction. It is a source check, not a proof of correctness — that came
+  from the live runs above, and the test says so.
+
 ## v0.6.1 - 2026-09-05
 
 ### Changed

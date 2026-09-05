@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\CoreBundle\Monolog\ContaoContext;
 use Contao\Dbafs;
+use Contao\File;
 use Contao\FilesModel;
 use Contao\StringUtil;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -138,8 +139,19 @@ class FileWriteCommand extends AbstractWriteCommand
         $bytes = strlen($content);
 
         if ($filesModel !== null) {
+            // ⚠️ Den Hash nicht selbst rechnen. Bis v0.6.1 stand hier
+            // `md5($content)` — das stimmt nur bis Contao 5.7.
+            // `Contao\File::getHash()` ist dort `md5_file()`, ab Contao 6.0
+            // aber `hash_file('xxh128', …)`. Auf Contao 6 landete nach jedem
+            // Überschreiben ein falscher Hash in tl_files, bis der nächste
+            // `contao:filesync` ihn korrigierte. Gemessen am 2026-09-05 gegen
+            // 5.7.13 und 6.0.0.
+            //
+            // Contaos eigener Datei-Editor macht es genauso (`DC_Folder::source()`:
+            // `$objMeta->hash = $objFile->hash; $objMeta->save();`) — die
+            // Version entscheidet über den Algorithmus, nicht wir.
             $filesModel->tstamp = time();
-            $filesModel->hash   = md5($content);
+            $filesModel->hash   = (new File($path))->hash;
             $filesModel->save();
             $version = true;
         } else {
