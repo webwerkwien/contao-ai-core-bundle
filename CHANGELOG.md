@@ -4,6 +4,50 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.7.0 - 2026-09-05
+
+### Changed
+
+- **A boolean column now takes `1`, `0` or an empty value — anything else is
+  refused.** `--set published=vielleicht` used to reach the database; from here
+  it answers `{"status":"error"}` and exit 1 without writing.
+
+  This closes a failure that exists **only on Contao 6**. Measured on 2026-09-05
+  with `contao:page:update --set`:
+
+  | input | Contao 5.7.13 | Contao 6.0.0 | now |
+  |---|---|---|---|
+  | `published=vielleicht` | exit 1, `DriverException` | **exit 0, `published=true`** | exit 1 on both |
+  | `published=true` | exit 1, `DriverException` | **exit 0, `published=true`** | exit 1 on both |
+  | `published=1` / `=0` / `=` | correct | correct | unchanged |
+
+  Contao 6 casts a value into the column's declared type rather than letting the
+  database refuse it. For integers that is an improvement — the error arrives
+  earlier and names the field. For booleans there is no error left, because
+  `(bool) 'vielleicht'` is `true`: a typo publishes the page and the command
+  reports success.
+
+  **This is not a defect in Contao.** In the back end the value comes from a
+  checkbox widget that cannot produce `vielleicht`. This write path goes around
+  `DC_Table` and therefore around the widget — the same shape as `unique`,
+  `eval.rgxp` and the empty-value mapping, and it gets the same answer: enforce
+  what the DCA says.
+
+  `true`, `yes` and `on` are refused too, deliberately. Accepting them would
+  invent a vocabulary Contao does not have, and they were never a working input:
+  `published=true` is an error on Contao 5.7.13 as well. The column is
+  recognised by `sql.type === 'boolean'`, which is how Contao recognises it
+  itself in `Widget::getEmptyValueByFieldType()` — 115 such columns in the stock
+  DCA of 5.7 and 6.0 alike.
+
+  Minor rather than patch: a caller that passed `published=true` on Contao 6 got
+  exit 0 before and gets exit 1 now. The old outcome was wrong, but it was
+  visible, so the version says so.
+
+  `BooleanValueRefusalTest` covers both directions — the accepted values and the
+  refused ones, including `nein`, which would have unpublished nothing while
+  reporting success.
+
 ## v0.6.2 - 2026-09-05
 
 ### Fixed

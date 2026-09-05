@@ -247,6 +247,10 @@ abstract class AbstractWriteCommand extends Command
         // and lists into serialized strings — a rule about what the caller
         // typed has to see what the caller typed.
         $this->refuseInvalidValues($table, $fields);
+        // Also on the raw input, and for the same reason: `convertEmptyValues()`
+        // below turns '' into false, which would hide the difference between a
+        // deliberately empty value and a typo.
+        $this->refuseInvalidBooleans($table, $fields);
         $this->refuseTakenUniqueValues($table, $fields, $excludeId);
 
         $fields = $this->convertFileTreeFields($table, $fields);
@@ -651,6 +655,113 @@ abstract class AbstractWriteCommand extends Command
         $method = self::RGXP_VALIDATORS[$rgxp] ?? null;
 
         return null === $method || Validator::$method($value);
+    }
+
+    /**
+     * The strings a boolean column accepts. Everything else is refused.
+     *
+     * Not a taste decision — this is the set Contao itself produces for such a
+     * column: `''` is what an unchecked checkbox submits, `'1'` what a checked
+     * one and the back end's toggle write, and `'0'` what this class's own
+     * `booleanFlag()` emits.
+     *
+     * ⚠️ **`'true'` and `'yes'` are deliberately absent.** Accepting them would
+     * be inventing a vocabulary Contao does not have, and every caller would
+     * then have to guess which words this bundle happens to know.
+     *
+     * They were never a working input either. Measured on 2026-09-05:
+     * `--set published=true` exits 1 with a `DriverException` on Contao 5.7.13
+     * and leaves the record untouched. Accepting it here would not restore old
+     * behaviour — it would add new behaviour, on the one field where being
+     * wrong publishes something.
+     */
+    private const BOOLEAN_INPUTS = ['', '0', '1'];
+
+    /**
+     * Refuse a non-boolean value for a boolean column.
+     *
+     * 🔴 **Measured on 2026-09-05 against 5.7.13 and 6.0.0**, same command, same
+     * input:
+     *
+     * | `--set` | Contao 5.7.13 | Contao 6.0.0 |
+     * |---|---|---|
+     * | `sorting=keinezahl` | exit 1, `DriverException` | exit 1, `InvalidArgumentException` naming the field |
+     * | `published=vielleicht` | exit 1, `DriverException` | **exit 0, `published=true`** |
+     * | `published=true` | exit 1, `DriverException` | **exit 0, `published=true`** |
+     * | `published=1` / `=0` / `=` | exit 0, correct | exit 0, correct |
+     *
+     * Contao 6 casts a value into the column's declared type instead of letting
+     * the database refuse it. For integers that is an improvement: the error
+     * arrives earlier and names the field. For booleans there is no error left
+     * — `(bool) 'vielleicht'` is `true`, so a typo publishes the page.
+     *
+     * ⚠️ **This is not a defect in Contao.** In the back end the value comes
+     * from a checkbox widget, which cannot produce `vielleicht`; the cast never
+     * sees anything but `''` or `'1'`. The write path here goes around
+     * `DC_Table` and therefore around the widget — the same shape as `unique`,
+     * `eval.rgxp` and the empty-value mapping, and it gets the same answer:
+     * enforce what the DCA says instead of writing past it.
+     *
+     * 🎯 **Refused rather than coerced.** Accepting `yes`/`on`/`ja` would invent
+     * a rule Contao does not have, and every caller would then have to guess
+     * which words this bundle happens to know. A refusal that names the
+     * accepted values is something an agent can act on; a coercion is something
+     * it never learns about.
+     *
+     * The signal is `sql.type === 'boolean'`, which is how Contao recognises
+     * such a column itself (`Widget::getEmptyValueByFieldType()`), and it is
+     * identical in 5.7 and 6.0 — 115 columns in the stock DCA of both. A `sql`
+     * given as a string is left alone: that form declares a text column, which
+     * has no cast to be surprised by.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @throws \InvalidArgumentException listing every offending field
+     */
+    protected function refuseInvalidBooleans(string $table, array $fields): void
+    {
+        if ([] === $fields) {
+            return;
+        }
+
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+
+        $offenders = [];
+
+        foreach ($fields as $name => $value) {
+            $sql = $GLOBALS['TL_DCA'][$table]['fields'][$name]['sql'] ?? null;
+
+            if (!\is_array($sql) || 'boolean' !== ($sql['type'] ?? null)) {
+                continue;
+            }
+
+            // Real booleans and the integers 0/1 are already the value the
+            // column holds; only strings can carry a typo.
+            if (\is_bool($value) || 0 === $value || 1 === $value) {
+                continue;
+            }
+
+            if (\is_string($value) && \in_array($value, self::BOOLEAN_INPUTS, true)) {
+                continue;
+            }
+
+            $offenders[] = \sprintf('%s=%s', $name, \is_scalar($value) ? (string) $value : \gettype($value));
+        }
+
+        if ([] === $offenders) {
+            return;
+        }
+
+        throw new \InvalidArgumentException(\sprintf(
+            'Not a boolean value for %s: %s. Nothing was written. Pass 1 or 0 '
+            . '(an empty value is also accepted and means 0). Any other text is '
+            . 'cast to true on Contao 6 and refused by the database on Contao 5 — '
+            . 'neither does what the value says.',
+            $table,
+            implode('; ', $offenders),
+        ));
     }
 
     /**

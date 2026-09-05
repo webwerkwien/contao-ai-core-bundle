@@ -74,6 +74,30 @@ touching the implementation. Do not edit test files while making the fix.
 - Every scanning test needs a counter and at least one known non-match. A search
   that finds nothing passes exactly like one that finds everything.
 
+## What `--set` refuses
+
+Every write command runs the caller's fields through `convertFields()` before
+anything reaches the database. Four rules refuse rather than write, each of them
+a rule Contao has in the DCA and loses when a write goes around `DC_Table`:
+
+| rule | refuses |
+|---|---|
+| `refuseUnknownFields()` | a field that is not a column of the table |
+| `refuseInvalidValues()` | a value failing the field's `eval.rgxp` |
+| `refuseInvalidBooleans()` | anything but `1`, `0` or empty for a `sql.type => boolean` column |
+| `refuseTakenUniqueValues()` | a duplicate in a `eval.unique` field |
+
+All four answer with `{"status":"error"}` and exit 1, and nothing is written.
+
+> ⚠️ **Booleans take `1` or `0` — not `true`, `yes` or `on`.** From v0.7.0 those
+> are refused with a message naming the field. This is stricter than it looks
+> necessary, and the reason is Contao 6: it casts a value into the column's
+> declared type instead of letting the database refuse it, so
+> `--set published=vielleicht` became `published=true` and reported success.
+> Measured on 2026-09-05 — on Contao 5.7.13 the same input was an error, so this
+> is a Contao-6-only silent failure. An empty value (`--set published=`) is
+> accepted and means 0, because that is what an unchecked checkbox submits.
+
 ## Things that go wrong here
 
 Both of the following are already pinned by tests. Extend those tests when you
