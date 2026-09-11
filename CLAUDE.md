@@ -85,9 +85,10 @@ a rule Contao has in the DCA and loses when a write goes around `DC_Table`:
 | `refuseUnknownFields()` | a field that is not a column of the table |
 | `refuseInvalidValues()` | a value failing the field's `eval.rgxp` |
 | `refuseInvalidBooleans()` | anything but `1`, `0` or empty for a `sql.type => boolean` column |
+| `refuseInvalidOptions()` | a value not in the field's declared `options` list |
 | `refuseTakenUniqueValues()` | a duplicate in a `eval.unique` field |
 
-All four answer with `{"status":"error"}` and exit 1, and nothing is written.
+All five answer with `{"status":"error"}` and exit 1, and nothing is written.
 
 > ⚠️ **Booleans take `1` or `0` — not `true`, `yes` or `on`.** From v0.7.0 those
 > are refused with a message naming the field. This is stricter than it looks
@@ -114,19 +115,54 @@ label is computed** — Contao's own `tl_member` declares
 `optionsSource` still says `foreignKey`, so a caller learns the values are
 elsewhere either way.
 
-> ⚠️ **`--set` does not validate against any of these.** The four rules above
-> cover `rgxp`, `unique`, `mandatory` and booleans; options and foreign keys are
-> not among them. `--set consho_shop=999` writes a number with no shop behind it
-> and reports success — the back end prevents that with a select list, the
-> database does not.
+> ⚠️ **`--set` enforces `static` only.** From v0.9.0 a value outside a declared
+> `options` list is refused; `foreignKey` and `options_callback` are not checked.
+> Measured on 2026-09-11 against a stock 5.7.13 with all five optional bundles,
+> **279 of 1183 fields declare an options source**:
 >
-> Measured on 2026-09-11 against a stock 5.7.13 with all five optional bundles:
-> **279 of 1183 fields declare an options source** — 106 `options_callback`,
-> 94 static, 79 `foreignKey`. The 173 static and foreign-key ones are checkable
-> without a `DataContainer`; the 106 callbacks are not, because a callback may
-> return different options per record.
+> | source | fields | enforced | why |
+> |---|---|---|---|
+> | `options` | 94 | **yes** | the list is in the DCA, complete and closed |
+> | `foreignKey` | 79 | no | Contao itself produces dangling references — see below |
+> | `options_callback` | 106 | no | needs a live `DataContainer` this path has not, and may answer differently per record |
 >
-> Until a rule exists, `optionsTarget` is what lets a caller check for itself.
+> **The `foreignKey` exclusion is deliberate.** Of 55 scalar, checkable
+> foreign-key fields on that installation, one was broken: `tl_news.jumpTo`
+> points at page 13 in all 27 rows that set it, and page 13 does not exist — in
+> a field declared `mandatory`. Contao allowed the page to be deleted and cleans
+> up nothing. Refusing that on write while the framework creates it on delete
+> would make this CLI stricter than Contao.
+>
+> `optionsTarget` is what lets a caller run the check itself where it wants one.
+
+### The sentence that bounds all five rules
+
+> **What is checked is what the DCA *declares* — not what an extension checks in
+> a `save_callback`.**
+
+This write path goes through Contao's model layer, not `DC_Table`, so callbacks
+do not run. That is deliberate: the model layer is what produces the
+`tl_version`, `tl_undo` and system-log entries this bundle exists for. But it
+means the five rules cover the declared surface and nothing beyond it.
+
+Reported from the Consho bundle on 2026-09-11, and worth quoting because it
+shows both halves of the cost:
+
+- `page update --set conshoPathTemplate={category}/{alias}` was **stored**.
+  The back end refuses it — `{category}` is not a valid placeholder — but that
+  check lives in a `save_callback`. Over the CLI it answered `"status": "ok"`.
+- The same callback **records the old product URLs so they can be redirected**.
+  Changed through `--set`, no recording happens: the old addresses break, and
+  nothing fails while it happens.
+
+So a rule in a callback is invisible here, and a *side effect* in a callback is
+invisible here too — and the second is the one that leaves no trace.
+
+⚠️ **For an agent this is an instruction, not trivia.** Where an extension is
+known to validate or to act in a callback, drive that field through the
+extension's own command (`ext run`, see `#[AiContract]`) or through the back
+end — not through `--set`. Where no such command exists, the extension has not
+said how it wants to be operated, and `--set` is a guess.
 
 ## Things that go wrong here
 

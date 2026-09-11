@@ -4,6 +4,55 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.9.0 - 2026-09-11
+
+### Changed
+
+- **A value outside a field's declared `options` list is now refused.**
+  `--set sitemap=map_alwys` used to reach the database; it now answers
+  `{"status":"error"}` and exit 1 without writing, and the message names the
+  allowed values.
+
+  Fifth rule beside `refuseUnknownFields`, `refuseInvalidValues` (rgxp),
+  `refuseInvalidBooleans` and `refuseTakenUniqueValues` — the same shape as all
+  of them: a rule that lives in the DCA and is lost when a write goes around
+  `DC_Table`.
+
+  **Only `options` is enforced.** Measured on 2026-09-11 against a stock 5.7.13
+  with all five optional bundles — 279 of 1183 fields declare an options source:
+
+  | source | fields | enforced | why |
+  |---|---|---|---|
+  | `options` | 94 | **yes** | the list is in the DCA, complete and closed |
+  | `foreignKey` | 79 | no | see below |
+  | `options_callback` | 106 | no | needs a live `DataContainer` this path has not, and may answer differently per record |
+
+  ⚠️ **`foreignKey` is excluded on purpose, and the measurement is the reason.**
+  Of 55 scalar, checkable foreign-key fields on that installation, 54 were clean
+  and one was not: `tl_news.jumpTo` points at page 13 in all 27 rows that set
+  it, and page 13 does not exist. The field is declared `mandatory`. Contao
+  allowed the page to be deleted and cleans up nothing — a dangling reference is
+  a state **Contao itself produces**. Refusing it on write while the framework
+  creates it on delete would make this CLI stricter than Contao at a place where
+  Contao has decided otherwise. `optionsTarget` (v0.8.1) lets a caller run that
+  check where it wants one.
+
+  Multi-value fields are checked part by part: `--set tags=red,purple` names
+  `purple`, not the whole string. A value that already arrives serialized is
+  checked member by member, the same way `convertMultipleFields()` recognises
+  it. An empty value passes — it clears the field rather than choosing, exactly
+  as `DC_Table::save()` treats it.
+
+  Minor rather than patch: input that used to be written is now refused. All 658
+  existing tests stayed green, which says no command in this bundle ever set a
+  value outside its own option list.
+
+- **`optionValues()` moved into a `ReadsDcaOptions` trait**, shared by
+  `DcaSchemaCommand` and `AbstractWriteCommand`. The read side answers *which
+  values exist*, the write side *whether this value is one of them*; with no
+  common base class the alternative was a second copy, and the two must not be
+  able to disagree.
+
 ## v0.8.1 - 2026-09-11
 
 ### Added

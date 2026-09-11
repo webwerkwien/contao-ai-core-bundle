@@ -20,6 +20,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Writer\RecordWriterInterface;
 abstract class AbstractWriteCommand extends Command
 {
     use JsonErrorBoundary;
+    use ReadsDcaOptions;
 
     protected InputInterface $input;
     protected OutputInterface $output;
@@ -251,6 +252,10 @@ abstract class AbstractWriteCommand extends Command
         // below turns '' into false, which would hide the difference between a
         // deliberately empty value and a typo.
         $this->refuseInvalidBooleans($table, $fields);
+        // Also on the raw input: a multi-value field arrives as "a,b,c" and is
+        // serialized further down, so this is the last point at which the parts
+        // are still readable as the caller typed them.
+        $this->refuseInvalidOptions($table, $fields);
         $this->refuseTakenUniqueValues($table, $fields, $excludeId);
 
         $fields = $this->convertFileTreeFields($table, $fields);
@@ -676,6 +681,150 @@ abstract class AbstractWriteCommand extends Command
      * wrong publishes something.
      */
     private const BOOLEAN_INPUTS = ['', '0', '1'];
+
+    /**
+     * Refuse a value that is not in the field's declared option list.
+     *
+     * 🔴 **The gap, measured on 2026-09-11.** `--set consho_shop=999` wrote a
+     * number with no record behind it and answered `{"status":"ok"}`. The back
+     * end prevents that with a select list; the database does not, and this
+     * write path goes around the widget. Same shape as `unique`, `eval.rgxp`
+     * and the empty-value mapping — a rule that lives in the DCA and is lost
+     * together with `DC_Table`.
+     *
+     * ## Only `options`. Not `foreignKey`, not `options_callback`.
+     *
+     * Of 1183 fields in a stock 5.7.13 with all five optional bundles, 279
+     * declare an options source. The split decided the scope:
+     *
+     * | source | fields | enforced | why |
+     * |---|---|---|---|
+     * | `options` | 94 | **yes** | the list is in the DCA, complete and closed |
+     * | `foreignKey` | 79 | no | see below |
+     * | `options_callback` | 106 | no | needs a live `DataContainer` this path has not, and may answer differently per record |
+     *
+     * ⚠️ **`foreignKey` is deliberately not enforced, and the measurement is
+     * why.** Of 55 scalar, checkable foreign-key fields on that installation,
+     * one was broken: `tl_news.jumpTo` points at page 13 in all 27 rows that
+     * set it, and page 13 does not exist. The field is declared `mandatory`.
+     * Contao allowed the page to be deleted and cleans up nothing — so a
+     * dangling reference is a state **Contao itself produces**. Refusing it on
+     * write while the framework creates it on delete would make this CLI
+     * stricter than Contao at a place where Contao has decided otherwise.
+     *
+     * `DcaSchemaCommand` reports `optionsTarget` (v0.8.1) so a caller who wants
+     * the check can do it. That is the honest division: we enforce what the DCA
+     * settles, and hand over what it merely describes.
+     *
+     * The same reasoning as unknown `rgxp` keywords, which pass rather than
+     * fail: what an extension contributes is not ours to reject.
+     *
+     * ## Multi-value fields
+     *
+     * A field with `eval.multiple` arrives as `"a,b,c"` and is serialized by
+     * `convertMultipleFields()` further down, so every part is checked
+     * separately here — this is the last point at which they are still readable
+     * as the caller typed them. A value that already arrives serialized is
+     * checked member by member, the same way that converter recognises it.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @throws \InvalidArgumentException listing every value that is not an option
+     */
+    protected function refuseInvalidOptions(string $table, array $fields): void
+    {
+        if ([] === $fields) {
+            return;
+        }
+
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+
+        $dca       = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
+        $offenders = [];
+
+        foreach ($fields as $name => $value) {
+            $def     = $dca[$name] ?? null;
+            $allowed = null === $def ? null : $this->optionValues($def);
+
+            // No declared list — nothing to hold the value against.
+            if (null === $allowed || [] === $allowed) {
+                continue;
+            }
+
+            foreach ($this->optionParts($def, $value) as $part) {
+                // An empty value is cleared, not chosen; `convertEmptyValues()`
+                // maps it afterwards, exactly as `DC_Table::save()` does.
+                if ('' === $part || \in_array($part, $allowed, true)) {
+                    continue;
+                }
+
+                $offenders[] = \sprintf(
+                    '%s=%s (allowed: %s)',
+                    $name,
+                    $part,
+                    implode(', ', \array_slice($allowed, 0, 12)) . (\count($allowed) > 12 ? ', …' : ''),
+                );
+            }
+        }
+
+        if ([] === $offenders) {
+            return;
+        }
+
+        throw new \InvalidArgumentException(\sprintf(
+            'Not an allowed value for %s: %s. Nothing was written. These are the '
+            . 'options the DCA declares for the field — the same list the back '
+            . 'end offers in its select.',
+            $table,
+            implode('; ', $offenders),
+        ));
+    }
+
+    /**
+     * The individual values behind one `--set`, as strings.
+     *
+     * One for a plain field; several for a multi-value one, which arrives
+     * comma-separated or already serialized.
+     *
+     * @param array<string, mixed> $def
+     *
+     * @return list<string>
+     */
+    private function optionParts(array $def, mixed $value): array
+    {
+        if (\is_bool($value) || null === $value) {
+            return [];
+        }
+
+        if (\is_array($value)) {
+            return array_map(static fn ($v): string => (string) $v, array_values($value));
+        }
+
+        if (!\is_scalar($value)) {
+            return [];
+        }
+
+        $value = (string) $value;
+
+        $storesArray = ($def['eval']['multiple'] ?? false)
+            || \in_array($def['inputType'] ?? null, self::ARRAY_INPUT_TYPES, true);
+
+        if (!$storesArray) {
+            return [$value];
+        }
+
+        $unserialized = @unserialize($value, ['allowed_classes' => false]);
+        if (\is_array($unserialized)) {
+            return array_map(static fn ($v): string => (string) $v, array_values($unserialized));
+        }
+
+        return array_values(array_filter(
+            array_map('trim', explode(',', $value)),
+            static fn (string $part): bool => '' !== $part,
+        ));
+    }
 
     /**
      * Refuse a non-boolean value for a boolean column.
