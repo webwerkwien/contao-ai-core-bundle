@@ -4,6 +4,52 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.8.1 - 2026-09-11
+
+### Added
+
+- **`contao:dca:schema` now names the table a `foreignKey` points at.** A new
+  `optionsTarget` field sits beside `optionsSource`:
+
+  ```json
+  "consho_shop": {
+    "optionsSource": "foreignKey",
+    "optionsTarget": { "table": "tl_consho_shop", "labelField": "title" }
+  }
+  ```
+
+  `optionsSource` said *that* the values come from another table and left the
+  caller unable to find out *which*. The answer stopped one step short of
+  useful: a caller knew it may not invent a value and still could not learn
+  which values exist.
+
+  Both halves are reported because both are needed — the table to query, the
+  field for the label a human would recognise. Split rather than raw, so a
+  caller does not parse a string this command has already parsed.
+
+  `optionsTarget` is `null` for everything else, **including a `foreignKey`
+  whose label is computed.** Contao's own `tl_comments.member` declares
+  `CONCAT(firstname," ",lastname)` — there is no column to name, and reporting
+  `labelField: "CONCAT(firstname"` would be worse than saying nothing.
+  `optionsSource` still answers `foreignKey`, so the caller learns the values
+  are elsewhere either way. Counted on a stock 5.7.13 with all five optional
+  bundles: exactly one of 21 distinct declarations is of that kind.
+
+  **Why this was built:** `--set` validates `rgxp`, `unique`, `mandatory` and
+  booleans, but not options. `--set consho_shop=999` writes a number with no
+  shop behind it and reports success — the back end prevents that with a select
+  list, the database does not. Of 1183 fields on that installation, **279
+  declare an options source**: 106 `options_callback`, 94 static, 79
+  `foreignKey`. Until a rule exists, `optionsTarget` is what lets a caller check
+  for itself.
+
+  ⚠️ **A caller that reads the schema for this purpose should know what the
+  measurement turned up:** of 55 scalar, checkable `foreignKey` fields on that
+  installation, 54 were clean and one was not — `tl_news.jumpTo` points at page
+  13 in all 27 rows that set it, and page 13 does not exist. The field is
+  declared `mandatory`. Contao allowed the page to be deleted and does not clean
+  up after it, so a dangling foreign key is a state Contao itself produces.
+
 ## v0.8.0 - 2026-09-05
 
 ### Added

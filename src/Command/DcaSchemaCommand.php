@@ -47,6 +47,7 @@ class DcaSchemaCommand extends AbstractReadCommand
                 'maxlength'     => $def['eval']['maxlength'] ?? null,
                 'options'       => $this->optionValues($def),
                 'optionsSource' => $this->optionsSource($def),
+                'optionsTarget' => $this->optionsTarget($def),
             ];
         }
 
@@ -145,5 +146,49 @@ class DcaSchemaCommand extends AbstractReadCommand
         }
 
         return null;
+    }
+
+    /**
+     * Where a `foreignKey` field's options actually live.
+     *
+     * `optionsSource` says *that* the values come from another table;
+     * this says **which one**. Without it the answer stops one step short of
+     * useful: a caller knows it may not invent a value and still cannot find
+     * out which values exist.
+     *
+     * 🔴 **The gap this closes, measured on 2026-09-11.** A field added to
+     * `tl_page` by an extension (`consho_shop`, `foreignKey` →
+     * `tl_consho_shop.title`) accepts any number through `--set`. The back end
+     * prevents a dangling reference with its select list, the database does
+     * not. Of 1183 fields in a stock 5.7.13 with all five optional bundles,
+     * **79 declare a `foreignKey`** — every one of them the same shape.
+     *
+     * Contao writes the declaration as `table.labelField`, and both halves are
+     * needed: the table to look the values up, the field for the label a human
+     * would recognise. Reported split rather than raw so a caller does not
+     * parse a string this command has already parsed.
+     *
+     * ⚠️ **Only the declared form is reported, and only when it parses.**
+     * `foreignKey` may carry an SQL expression rather than a plain
+     * `table.field`. Counted on the same installation: of 21 distinct
+     * declarations exactly one is such a case —
+     * `tl_member.CONCAT(firstname," ",lastname)`. The label is computed, so
+     * there is no column to name, and the answer stays `null` rather than
+     * reporting a field that does not exist. `optionsSource` still says
+     * `foreignKey`, so the caller learns the options are elsewhere either way.
+     *
+     * @param array<string, mixed> $def
+     *
+     * @return array{table: string, labelField: string}|null
+     */
+    private function optionsTarget(array $def): ?array
+    {
+        $fk = $def['foreignKey'] ?? null;
+
+        if (!\is_string($fk) || !preg_match('/^([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)$/', $fk, $m)) {
+            return null;
+        }
+
+        return ['table' => $m[1], 'labelField' => $m[2]];
     }
 }

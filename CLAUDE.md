@@ -98,6 +98,36 @@ All four answer with `{"status":"error"}` and exit 1, and nothing is written.
 > is a Contao-6-only silent failure. An empty value (`--set published=`) is
 > accepted and means 0, because that is what an unchecked checkbox submits.
 
+## What `contao:dca:schema` answers about options
+
+Three fields, and they answer different questions:
+
+| field | meaning |
+|---|---|
+| `options` | the values a caller may set — or `null` when they are not in the DCA array |
+| `optionsSource` | where they come from: `static`, `callback`, `foreignKey`, or `null` for a field that takes any value |
+| `optionsTarget` | **from v0.8.1** — for a `foreignKey`, the table the values live in: `{"table": "tl_consho_shop", "labelField": "title"}` |
+
+`optionsTarget` is `null` for everything else, **including a `foreignKey` whose
+label is computed** — Contao's own `tl_member` declares
+`CONCAT(firstname," ",lastname)`, where there is no column to name. In that case
+`optionsSource` still says `foreignKey`, so a caller learns the values are
+elsewhere either way.
+
+> ⚠️ **`--set` does not validate against any of these.** The four rules above
+> cover `rgxp`, `unique`, `mandatory` and booleans; options and foreign keys are
+> not among them. `--set consho_shop=999` writes a number with no shop behind it
+> and reports success — the back end prevents that with a select list, the
+> database does not.
+>
+> Measured on 2026-09-11 against a stock 5.7.13 with all five optional bundles:
+> **279 of 1183 fields declare an options source** — 106 `options_callback`,
+> 94 static, 79 `foreignKey`. The 173 static and foreign-key ones are checkable
+> without a `DataContainer`; the 106 callbacks are not, because a callback may
+> return different options per record.
+>
+> Until a rule exists, `optionsTarget` is what lets a caller check for itself.
+
 ## Things that go wrong here
 
 Both of the following are already pinned by tests. Extend those tests when you

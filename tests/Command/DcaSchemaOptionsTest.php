@@ -146,4 +146,81 @@ class DcaSchemaOptionsTest extends TestCase
             'plain text'    => [['inputType' => 'text'], null],
         ];
     }
+
+    // --- optionsTarget: which table the foreign values live in ---
+
+    /**
+     * @return array{table: string, labelField: string}|null
+     */
+    private function target(array $definition): ?array
+    {
+        $command = new DcaSchemaCommand($this->createMock(ContaoFramework::class));
+        $method  = new \ReflectionMethod($command, 'optionsTarget');
+
+        return $method->invoke($command, $definition);
+    }
+
+    /**
+     * `optionsSource` said *that* the values come from another table and left
+     * the caller unable to find out *which*. Measured on 2026-09-11 against a
+     * stock 5.7.13 with all five optional bundles: 79 of 1183 fields declare a
+     * `foreignKey`, and `--set` accepts any number for every one of them.
+     */
+    public function testAForeignKeyNamesItsTableAndLabelField(): void
+    {
+        $this->assertSame(
+            ['table' => 'tl_consho_shop', 'labelField' => 'title'],
+            $this->target(['foreignKey' => 'tl_consho_shop.title']),
+        );
+    }
+
+    /**
+     * 🎯 The case that keeps this honest. `foreignKey` may hold an SQL
+     * expression instead of a column, and then there is nothing to name.
+     * Counted on the same installation: exactly one of 21 distinct
+     * declarations, and it is in Contao's own DCA.
+     *
+     * Answering `['table' => 'tl_member', 'labelField' => 'CONCAT(firstname']`
+     * would be worse than `null` — it names a column that does not exist, and
+     * a caller querying it gets an SQL error instead of a hint.
+     */
+    public function testAComputedLabelIsNotTornIntoPieces(): void
+    {
+        $this->assertNull($this->target(['foreignKey' => 'tl_member.CONCAT(firstname," ",lastname)']));
+    }
+
+    /**
+     * @dataProvider nonTargets
+     */
+    public function testAnythingWithoutAForeignKeyAnswersNull(mixed $definition): void
+    {
+        $this->assertNull($this->target($definition));
+    }
+
+    /**
+     * @return array<string, array{array<string, mixed>}>
+     */
+    public static function nonTargets(): array
+    {
+        return [
+            'static options' => [['options' => ['a', 'b']]],
+            'callback'       => [['options_callback' => ['tl_x', 'getY']]],
+            'plain text'     => [['inputType' => 'text']],
+            'no dot'         => [['foreignKey' => 'tl_page']],
+            'not a string'   => [['foreignKey' => ['tl_page', 'title']]],
+            'empty'          => [['foreignKey' => '']],
+        ];
+    }
+
+    /**
+     * The two fields answer different questions and must not be confused: a
+     * computed label has a source but no target.
+     */
+    public function testSourceAndTargetAreIndependent(): void
+    {
+        $computed = ['foreignKey' => 'tl_member.CONCAT(firstname," ",lastname)'];
+
+        $this->assertSame('foreignKey', $this->source($computed));
+        $this->assertNull($this->target($computed));
+    }
 }
