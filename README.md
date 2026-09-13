@@ -6,7 +6,9 @@ Contao 5 and 6 bundle that exposes CMS operations as Symfony console commands. T
 > command names, options, JSON output schema — still change between minor
 > versions. Read the changelog before updating.
 
-## The contao-ai ecosystem
+## ConpAI — the contao-ai family
+
+**ConpAI** is the family name of the contao-ai packages. The story is *kanpai* (乾杯, Japanese for "cheers") — a toast to Contao and AI working together. The P stands for *protocol*: changes are recorded in Contao's own [audit trail](#audit-trail) instead of bypassing it. The package names stay `contao-ai-*`.
 
 | Package | What it is | When to use |
 |---|---|---|
