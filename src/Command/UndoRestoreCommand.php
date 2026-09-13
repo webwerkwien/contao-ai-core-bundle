@@ -202,6 +202,28 @@ class UndoRestoreCommand extends AbstractWriteCommand
             $this->runUndoCallbacks($table, $record);
         }
 
+        // 🔴 HIER MACHEN WIR ES BESSER ALS DAS BACKEND, mit Absicht (entschieden
+        // 2026-09-13). `DC_Table::undo()` ruft `invalidateCacheTags()` auf sich
+        // selbst — und dessen Tabelle ist in dem Moment tl_undo. Die
+        // wiederhergestellten Datensätze werden nie entwertet, ihre
+        // `oninvalidate_cache_tags_callback`s laufen nie (Contao 5.3, 5.7, 6.0).
+        // Am 13.09. auf c5 gesehen: ein wiederhergestellter Consho-Preis, und die
+        // gecachte Sitemap blieb ohne sein Produkt.
+        //
+        // Jede wiederhergestellte Zeile, nach dem Commit und nach onundo — damit
+        // die Callbacks sehen, was die Erweiterungen dort wieder aufgebaut haben.
+        if (null !== $this->cacheTags) {
+            $tags = [];
+
+            foreach ($pending as [$table, , $record]) {
+                if (isset($record['id'])) {
+                    $tags = [...$tags, ...$this->cacheTags->collect($table, (int) $record['id'])];
+                }
+            }
+
+            $this->cacheTags->invalidate($tags);
+        }
+
         $this->logUndone((string) ($row['query'] ?? ''));
 
         $this->outputSuccess([

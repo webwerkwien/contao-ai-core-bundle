@@ -18,6 +18,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 #[AsCommand(name: 'contao:version:restore', description: 'Restore a record to a specific version')]
 class VersionRestoreCommand extends Command
 {
+    use InvalidatesCacheTags;
+
     use JsonErrorBoundary;
 
     use OperatorOptionTrait;
@@ -97,6 +99,9 @@ class VersionRestoreCommand extends Command
         $this->connection->update('`' . $table . '`', $quotedData, ['id' => $id]);
         $this->versionManager->markActiveVersion($table, $id, $version);
 
+        // DC_Table::edit() invalidates right after restoring a version.
+        $this->cacheTags?->recordChanged($table, $id);
+
         $payload = ['table' => $table, 'id' => $id, 'restored_version' => $version];
         $user    = $this->resolveOperatorName($input);
 
@@ -112,12 +117,11 @@ class VersionRestoreCommand extends Command
             (string) $user,
         );
 
-        $output->writeln(json_encode([
-            'status'           => 'ok',
+        $output->writeln(json_encode(['status' => 'ok'] + $this->withCacheReport([
             'table'            => $table,
             'id'               => $id,
             'restored_version' => $version,
-        ], JSON_UNESCAPED_UNICODE));
+        ]), JSON_UNESCAPED_UNICODE));
 
         return Command::SUCCESS;
     }

@@ -141,7 +141,7 @@ elsewhere either way.
 > a `save_callback`.**
 
 This write path goes through Contao's model layer, not `DC_Table`, so callbacks
-do not run. That is deliberate: the model layer is what produces the
+do not run — with one narrow exception, cache tags (next section). That is deliberate: the model layer is what produces the
 `tl_version`, `tl_undo` and system-log entries this bundle exists for. But it
 means the five rules cover the declared surface and nothing beyond it.
 
@@ -163,6 +163,51 @@ known to validate or to act in a callback, drive that field through the
 extension's own command (`ext run`, see `#[AiContract]`) or through the back
 end — not through `--set`. Where no such command exists, the extension has not
 said how it wants to be operated, and `--set` is a guess.
+
+### The one kind of callback that does run: cache tags (v0.10.0)
+
+Every write invalidates the HTTP cache the way `DC_Table` does. Before v0.10.0
+nothing did — `Model::save()` does not invalidate on its own — and cached pages
+kept their old state, `/sitemap.xml` (`s-maxage=2592000`) for up to thirty days.
+
+The tags are `DataContainer::invalidateCacheTags()`'s, identical in Contao 5.3,
+5.7 and 6.0: the record's tag, its parent's tag (or the table tag), and whatever
+the table's **`oninvalidate_cache_tags_callback`s** add. Those callbacks are the
+only source of `contao.sitemap.<root>` — in tl_page, tl_news, tl_calendar and in
+every extension with addresses of its own in the sitemap. So they run; they are
+declared in the DCA and only hand back a list of tags. `save_callback`,
+`onsubmit_callback` and `ondelete_callback` still do not (decided 2026-09-13).
+
+What a caller sees in a successful answer:
+
+| key | present | meaning |
+|---|---|---|
+| `cacheTags` | when anything was invalidated | the tags that went out |
+| `cacheWarnings` | **only** when something failed | that part of the cache may still be stale — `cache clear` removes it |
+
+Where it happens, and where it differs from the back end:
+
+- **Delete:** tags are collected **before** the rows go, as `DC_Table::delete()`
+  does — the sitemap callbacks look the record up. Only the root record.
+- **`undo restore`: every restored row is invalidated. This is better than the
+  back end, on purpose.** `DC_Table::undo()` invalidates on itself, whose table
+  is `tl_undo` at that point, so restored records are never invalidated there.
+  An extension that works around this with an `onundo_callback` needs that
+  workaround for the back end still.
+- **Creates, `record clone`, `version restore`, `--set`, `publish`:** after the
+  write.
+- **tl_content and other `dynamicPtable` tables:** the parent tag comes from the
+  record's `ptable` column, as `DC_Table::findPtable()` does — the DCA has no
+  ptable for them. A nested element's parent is `tl_content` itself.
+- The callbacks get a `DC_Table` built without its constructor (which needs a
+  session and a request), carrying `id`, `table` and `activeRecord` — what
+  Contao's own callbacks read. One that needs a request, a user or
+  `getCurrentRecord()` fails, is named in `cacheWarnings`, and does not stop the
+  others.
+- Contao 5.3 has no `contao.cache.tag_manager`; `fos_http_cache.cache_manager`
+  is used there, as 5.3's own `DataContainer` does.
+- **Not covered:** file writes (`tl_files`), and anything written around this
+  bundle (raw SQL). For those, `cache clear` is still the way.
 
 ## Things that go wrong here
 

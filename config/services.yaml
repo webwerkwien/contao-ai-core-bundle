@@ -70,6 +70,14 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
+    # Contao 5.7 and 6.0 invalidate through contao.cache.tag_manager; 5.3 has none,
+    # and its DataContainer::invalidateCacheTags() calls fos_http_cache.cache_manager
+    # directly. `@?` passes null for whichever the installation lacks.
+    Webwerkwien\ContaoAiCoreBundle\Service\Cache\CacheTagInvalidator:
+        arguments:
+            $tagManager: '@?contao.cache.tag_manager'
+            $cacheManager: '@?fos_http_cache.cache_manager'
+
     # The write path behind its interface. Autowiring does not alias an interface
     # to its single implementation on its own, and without this every command's
     # #[Required] setRecordWriter() fails to resolve at compile time.

@@ -4,6 +4,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Tests\Service\Writer;
 
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
+use Webwerkwien\ContaoAiCoreBundle\Service\Cache\CacheTagInvalidator;
 use Webwerkwien\ContaoAiCoreBundle\Service\RecordCascadeCollector;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 use Webwerkwien\ContaoAiCoreBundle\Service\Writer\ModelWriter;
@@ -25,14 +26,14 @@ class ModelWriterTest extends TestCase
      * @param array<string, list<int>>              $collected
      * @param array<string, array<string, mixed>>   $rows       keyed "<table>:<id>"
      */
-    private function writer(array $collected, array $rows, ?Connection $connection = null): ModelWriter
+    private function writer(array $collected, array $rows, ?Connection $connection = null, ?CacheTagInvalidator $cacheTags = null): ModelWriter
     {
         $connection ??= $this->connection($rows);
 
         $collector = $this->createMock(RecordCascadeCollector::class);
         $collector->method('collect')->willReturn($collected);
 
-        return new ModelWriter($connection, $this->createMock(VersionManager::class), $collector);
+        return new ModelWriter($connection, $this->createMock(VersionManager::class), $collector, $cacheTags);
     }
 
     /**
@@ -143,6 +144,49 @@ class ModelWriterTest extends TestCase
         $this->writer(['tl_page' => [5]], [], $connection)->delete('tl_page', 5, 'claude', 0);
 
         $this->assertSame(0, $inserts, 'An empty snapshot restores nothing and only clutters the undo list.');
+    }
+
+    /**
+     * `DC_Table::delete()` invalidates BEFORE its DELETE loop — in 5.3, 5.7 and
+     * 6.0 alike. The sitemap callbacks look the record up: a page that is
+     * already gone has no root, and its sitemap would never be invalidated.
+     *
+     * Only the root record, as in Contao: the children's pages are covered by
+     * the parent's tag.
+     */
+    public function testCacheTagsAreCollectedWhileTheRecordStillExistsAndInvalidatedAfterwards(): void
+    {
+        $order      = [];
+        $connection = $this->connection([]);
+        $connection->method('delete')->willReturnCallback(
+            static function (string $table, array $criteria) use (&$order): int {
+                $order[] = 'delete ' . $table . ':' . $criteria['id'];
+                return 1;
+            }
+        );
+
+        $cacheTags = $this->createMock(CacheTagInvalidator::class);
+        $cacheTags->method('collect')->willReturnCallback(
+            static function (string $table, int $id) use (&$order): array {
+                $order[] = 'collect ' . $table . ':' . $id;
+                return ['contao.db.tl_page.5', 'contao.sitemap.1'];
+            }
+        );
+        $cacheTags->method('invalidate')->willReturnCallback(
+            static function (array $tags) use (&$order): void {
+                $order[] = 'invalidate ' . implode(',', $tags);
+            }
+        );
+
+        $this->writer(['tl_page' => [5], 'tl_article' => [9]], [], $connection, $cacheTags)
+            ->delete('tl_page', 5, 'claude', 0);
+
+        $this->assertSame([
+            'collect tl_page:5',
+            'delete tl_article:9',
+            'delete tl_page:5',
+            'invalidate contao.db.tl_page.5,contao.sitemap.1',
+        ], $order);
     }
 
     public function testTheResultCountsWhatWasRemoved(): void

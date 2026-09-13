@@ -29,6 +29,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 )]
 class RecordCloneCommand extends Command
 {
+    use InvalidatesCacheTags;
+
     use JsonErrorBoundary;
 
     use OperatorOptionTrait;
@@ -105,6 +107,12 @@ class RecordCloneCommand extends Command
             } catch (\Throwable $e) {
                 return $this->error($output, $e->getMessage());
             }
+
+            // A clone is a finished record in one step; the back end only gets
+            // there after copy and save, and invalidates on the save. The new
+            // root carries the tags its children hang under.
+            $this->cacheTags?->recordChanged((string) $result['table'], (int) $result['id']);
+
             $this->systemLog?->write(
                 sprintf('%s %s', $this->getName(), json_encode(
                     ['sourceTable' => $table, 'sourceId' => $sourceId, 'recursive' => $recursive] + $result,
@@ -115,7 +123,7 @@ class RecordCloneCommand extends Command
             );
 
             $output->writeln(json_encode(
-                ['status' => 'ok'] + $result,
+                ['status' => 'ok'] + $this->withCacheReport($result),
                 JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE
             ));
             return Command::SUCCESS;

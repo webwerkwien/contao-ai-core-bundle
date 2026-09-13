@@ -4,6 +4,59 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.10.0 - 2026-09-13
+
+### Fixed
+
+- **Writes now invalidate the HTTP cache the way the back end does.** No write
+  through this bundle invalidated anything before: `Model::save()` does not, and
+  only `DC_Table` calls `invalidateCacheTags()`. Cached pages kept their old
+  state until they expired — `/sitemap.xml`, cached with `s-maxage=2592000`, for
+  up to thirty days. `cache:clear` was the only way out, and nothing told a
+  caller it was needed. Reported from the Consho project on 2026-09-13.
+
+  Covered: `--set` updates, `publish`, deletes, all 22 `*-create` commands,
+  `record clone` (the new root), `version restore` and `undo restore`.
+
+  The tags are those of `DataContainer::invalidateCacheTags()`, identical in
+  Contao 5.3, 5.7 and 6.0: the record, its parent (or the table), and whatever
+  the `oninvalidate_cache_tags_callback`s add. **Those callbacks run** — they are
+  the only source of `contao.sitemap.<root>`, in Contao's own tables and in
+  extensions. They are the one kind of callback this bundle runs; `save_callback`
+  and the rest still do not. A callback that fails on the console is reported and
+  does not stop the others.
+
+  A delete collects its tags before the rows go, as `DC_Table::delete()` does,
+  because the sitemap callbacks look the record up.
+
+  For a `dynamicPtable` table — tl_content — the parent tag comes from the
+  record's own `ptable` column, which is where `DC_Table::findPtable()` takes it
+  from in the back end. Found in the live test: the first build tagged a new
+  content element `contao.db.tl_content` instead of `contao.db.tl_article.<pid>`,
+  and the page showing it would never have been refreshed.
+
+  Verified live on c5 (Contao 5.7.13) that an invalidation from the console
+  reaches the Symfony HTTP cache (`fos_http_cache` with `use_kernel_dispatcher`).
+  On Contao 5.3, which has no `contao.cache.tag_manager`,
+  `fos_http_cache.cache_manager` is used — what 5.3's `DataContainer` calls.
+
+- **`undo restore` invalidates the records it brings back.** Deliberately better
+  than the back end: `DC_Table::undo()` calls `invalidateCacheTags()` on itself,
+  whose table is `tl_undo` at that point, so the restored records' tags and
+  callbacks never run there (5.3, 5.7, 6.0). Every restored row is invalidated,
+  after the commit and after the `onundo_callback`s.
+
+### Changed
+
+- **Successful write answers carry `cacheTags`** — the tags that were
+  invalidated — and **`cacheWarnings` only when something failed**, naming the
+  callback and the reason. Additive; no existing key changed.
+
+### Not covered
+
+- File writes (`tl_files`) and anything written around the bundle. `cache clear`
+  remains the way for those.
+
 ## v0.9.0 - 2026-09-11
 
 ### Changed

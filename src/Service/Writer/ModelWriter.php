@@ -4,6 +4,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Writer;
 
 use Contao\Model;
 use Doctrine\DBAL\Connection;
+use Webwerkwien\ContaoAiCoreBundle\Service\Cache\CacheTagInvalidator;
 use Webwerkwien\ContaoAiCoreBundle\Service\RecordCascadeCollector;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
@@ -24,6 +25,7 @@ class ModelWriter implements RecordWriterInterface
         private readonly Connection $connection,
         private readonly VersionManager $versionManager,
         private readonly RecordCascadeCollector $cascadeCollector,
+        private readonly ?CacheTagInvalidator $cacheTags = null,
     ) {
     }
 
@@ -45,11 +47,21 @@ class ModelWriter implements RecordWriterInterface
         $record->tstamp = time();
         $record->save();
 
+        // After the write, as DC_Table::submit() does — before it, a request in
+        // between would cache the old state again.
+        $this->cacheTags?->recordChanged($table, $id);
+
         return array_keys($fields);
     }
 
     public function delete(string $table, int $id, string $operator, int $undoUserId): array
     {
+        // 🔴 Collected while the record still exists. DC_Table::delete() invalidates
+        // BEFORE its DELETE loop (Contao 5.3, 5.7, 6.0): the sitemap callbacks look
+        // the record up, and a page that is already gone has no root. Only the root
+        // record, as in Contao — its children hang under its tag.
+        $tags = $this->cacheTags?->collect($table, $id) ?? [];
+
         // See RecordCascadeCollector for what DC_Table::delete() does and why it
         // cannot be called from the console.
         $collected = $this->cascadeCollector->collect($table, $id);
@@ -59,9 +71,13 @@ class ModelWriter implements RecordWriterInterface
         // [table => [row, ...]].
         $this->snapshotToUndo($table, $id, $rows, $undoUserId);
 
+        $rowsTotal = $this->deleteRows($collected);
+
+        $this->cacheTags?->invalidate($tags);
+
         return [
             'cascade'   => array_map('\count', $collected),
-            'rowsTotal' => $this->deleteRows($collected),
+            'rowsTotal' => $rowsTotal,
         ];
     }
 

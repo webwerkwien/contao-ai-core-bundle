@@ -19,6 +19,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Writer\RecordWriterInterface;
 
 abstract class AbstractWriteCommand extends Command
 {
+    use InvalidatesCacheTags;
     use JsonErrorBoundary;
     use ReadsDcaOptions;
 
@@ -132,9 +133,16 @@ abstract class AbstractWriteCommand extends Command
         return $result;
     }
 
+    /**
+     * Called by every create command right after its record is saved, which makes
+     * it the one place all creates pass once the record exists — so the cache is
+     * invalidated here too. CacheInvalidationAfterCreateTest keeps "save first"
+     * true for every *CreateCommand.
+     */
     protected function createVersion(string $table, int $id): void
     {
         $this->versionManager->createVersion($table, $id, $this->resolveOperator());
+        $this->cacheTags?->recordChanged($table, $id);
     }
 
     /**
@@ -1449,7 +1457,7 @@ abstract class AbstractWriteCommand extends Command
     protected function outputSuccess(array $data): void
     {
         $this->logSuccess($data);
-        $this->output->writeln(json_encode(['status' => 'ok'] + $data, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
+        $this->output->writeln(json_encode(['status' => 'ok'] + $this->withCacheReport($data), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
     }
 
     protected function outputError(string $message, int $code = 1): int
