@@ -127,7 +127,10 @@ class CreateCommandConversionTest extends TestCase
             // pattern silently matched nothing. Caught by mutating a command
             // and watching this test stay green — the same CRLF trap that made
             // an md5 comparison disagree on 2026-08-31.
-            preg_match_all('/^[ \t]+\$\w+->(\w+)\s*=\s*(?!\$value\b)[^\r\n]+;\r?$/m', $source, $matches);
+            // `$this->…` is excluded: an assignment to the command itself — a setter
+            // for an injected service — is not a write onto the record. It matched
+            // on 2026-09-16 when PageCreateCommand got setPageUrlGuard().
+            preg_match_all('/^[ \t]+\$(?!this\b)\w+->(\w+)\s*=\s*(?!\$value\b)[^\r\n]+;\r?$/m', $source, $matches);
 
             foreach ($matches[1] as $field) {
                 if ('tstamp' !== $field) {

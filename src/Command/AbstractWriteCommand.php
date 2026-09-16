@@ -14,6 +14,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Contracts\Service\Attribute\Required;
+use Webwerkwien\ContaoAiCoreBundle\Service\Sorting;
 use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 use Webwerkwien\ContaoAiCoreBundle\Service\Writer\RecordWriterInterface;
@@ -380,9 +381,6 @@ abstract class AbstractWriteCommand extends Command
      *
      * @return array<string, mixed>
      */
-    /** Contao's own gap between two adjacent sorting values (DC_Table::getNewPosition()). */
-    protected const SORTING_STEP = 128;
-
     /**
      * The sorting value for a record created at the end of its siblings.
      *
@@ -425,7 +423,7 @@ abstract class AbstractWriteCommand extends Command
 
     protected function sortingAfter(?int $max): int
     {
-        return ($max ?? 0) + self::SORTING_STEP;
+        return Sorting::after($max);
     }
 
     protected function preparedFields(string $table, array $own, array $set, ?int $excludeId = null): array

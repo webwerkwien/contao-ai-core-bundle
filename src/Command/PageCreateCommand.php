@@ -8,13 +8,23 @@ use Contao\StringUtil;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Contracts\Service\Attribute\Required;
+use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageUrlGuard;
 
 #[AsCommand(name: 'contao:page:create', description: 'Create a Contao page')]
 class PageCreateCommand extends AbstractWriteCommand
 {
+    private ?PageUrlGuard $pageUrlGuard = null;
+
     public function __construct(private readonly ContaoFramework $framework)
     {
         parent::__construct();
+    }
+
+    #[Required]
+    public function setPageUrlGuard(PageUrlGuard $pageUrlGuard): void
+    {
+        $this->pageUrlGuard = $pageUrlGuard;
     }
 
     protected function configure(): void
@@ -53,14 +63,28 @@ class PageCreateCommand extends AbstractWriteCommand
             'published' => '0',
         ], $fields);
 
-        $page         = new PageModel();
-        $page->tstamp = time();
+        // Write and check the URL rules in one transaction (v0.15.0): a second root on
+        // the same domain and prefix, or a page at a URL that is taken, is rolled back
+        // — Contao refuses both in the back end. See PageUrlGuardTest.
+        $write = function () use ($fields): PageModel {
+            $page         = new PageModel();
+            $page->tstamp = time();
 
-        foreach ($fields as $key => $value) {
-            $page->$key = $value;
-        }
-        $page->save();
-        $this->createVersion('tl_page', (int) $page->id);
+            foreach ($fields as $key => $value) {
+                $page->$key = $value;
+            }
+            $page->save();
+            $this->createVersion('tl_page', (int) $page->id);
+
+            if (null !== $this->pageUrlGuard) {
+                $this->pageUrlGuard->assertRootUnique((int) $page->id);
+                $this->pageUrlGuard->assertAliases([(int) $page->id]);
+            }
+
+            return $page;
+        };
+
+        $page = null === $this->pageUrlGuard ? $write() : $this->pageUrlGuard->transactional($write);
 
         $this->outputSuccess(['id' => (int) $page->id, 'title' => $page->title, 'alias' => $page->alias]);
         return Command::SUCCESS;

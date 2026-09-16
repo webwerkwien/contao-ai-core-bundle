@@ -125,6 +125,37 @@ All six answer with `{"status":"error"}` and exit 1, and nothing is written.
 > `playerSize`, `mooClasses`, `contextLength` and the mandatory `tl_form_field.size` could
 > not be written in any form. See `RgxpPartsTest`.
 
+### Page URLs follow Contao's back-end rules (v0.15.0)
+
+`PageUrlGuard` keeps page create, update and clone to what `PageUrlListener` enforces in
+the back end. Each of the three writes **in a transaction and checks afterwards**; a
+refusal rolls the write back, version and log entry included.
+
+| rule | how |
+|---|---|
+| no second root with the same `dns` and `urlPrefix` (an empty prefix is a prefix) | Contao's own query from `validateUrlPrefix()`, verbatim — identical in 5.3, 5.7, 6.0 |
+| no second page at the same URL | **Contao's `generateAlias()` is called**, not rebuilt — it compares whole URLs through the router |
+
+`validateUrlPrefix()` itself cannot be called: it goes through `getCurrentRecord()`, which
+asks the permission voters and fails without a back-end user. `generateAlias()` needs only
+`$dc->id` and reads the stored record — hence check-after-write.
+
+> ⚠️ **`generateAlias()` detaches the model it looks up.** `findWithDetails()` →
+> `loadDetails()` removes that instance from the registry and forbids saving it. Holding
+> the same `PageModel` and calling `save()` afterwards fails with *"The model instance has
+> been detached"*. Write the result through the connection.
+
+**Cloning a root** accepts `language`, `urlPrefix`, `urlSuffix`, `fallback` and `dns` as
+modifications, so a site can be cloned into another language in one step. A root cloned
+onto its source's domain and prefix is refused. Cloned pages get their alias from
+`generateAlias()`, as a back-end copy does (`tl_page.alias` carries `doNotCopy`); the cloned
+root goes behind its last sibling (`Service\Sorting`).
+
+> 🔴 Up to v0.14.0: `page update --set urlPrefix=en` made a second root `conpai.eu/en`,
+> `--set alias=packages` a second page at `/en/packages`, and `record clone` of a root left
+> two roots on the same domain and prefix — all `ok`. Measured on c5 on 2026-09-16, see
+> `PageUrlGuardTest`.
+
 ### New records go behind their last sibling (v0.14.0)
 
 A create in a table with `pid` and `sorting` passes `'sorting' => $this->nextSorting($table,

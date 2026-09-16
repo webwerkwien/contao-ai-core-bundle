@@ -9,6 +9,8 @@ use Contao\PageModel;
 use Contao\StringUtil;
 use Contao\UserModel;
 use Doctrine\DBAL\Connection;
+use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageUrlGuard;
+use Webwerkwien\ContaoAiCoreBundle\Service\Sorting;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 /**
@@ -57,6 +59,16 @@ class PageCloner implements EntityClonerInterface
     private const ALLOWED_PAGE_MODIFICATIONS = ['title', 'pageTitle', 'description', 'published', 'hide'];
 
     /**
+     * Accepted in addition when the source is a root (v0.15.0).
+     *
+     * Cloning a site into another language is the main reason to clone a root, and
+     * until v0.14.0 it could only go through the state Contao forbids: the clone kept
+     * the source's domain and prefix, and `language`/`urlPrefix` were ignored. The
+     * result is checked by PageUrlGuard before the transaction commits.
+     */
+    private const ROOT_PAGE_MODIFICATIONS = ['language', 'urlPrefix', 'urlSuffix', 'fallback', 'dns'];
+
+    /**
      * Whitelisted overrides that address a tinyint flag column and therefore
      * must not be written verbatim — see FiltersModifications::normaliseFlag().
      * Every entry here must also appear in ALLOWED_PAGE_MODIFICATIONS.
@@ -81,6 +93,7 @@ class PageCloner implements EntityClonerInterface
         private readonly Connection $connection,
         private readonly ContaoFramework $framework,
         private readonly VersionManager $versionManager,
+        private readonly PageUrlGuard $pageUrlGuard,
     ) {
     }
 
@@ -98,12 +111,14 @@ class PageCloner implements EntityClonerInterface
             throw new \RuntimeException(\sprintf('Page %d nicht gefunden.', $sourceId));
         }
 
+        $isRoot = 'root' === $source->type;
+
         ['accepted' => $filteredMods, 'ignored' => $ignoredMods] = $this->partitionModifications(
             $modifications,
-            self::ALLOWED_PAGE_MODIFICATIONS,
+            $isRoot ? [...self::ALLOWED_PAGE_MODIFICATIONS, ...self::ROOT_PAGE_MODIFICATIONS] : self::ALLOWED_PAGE_MODIFICATIONS,
         );
 
-        foreach (self::FLAG_PAGE_MODIFICATIONS as $flag) {
+        foreach ([...self::FLAG_PAGE_MODIFICATIONS, 'fallback'] as $flag) {
             if (\array_key_exists($flag, $filteredMods)) {
                 $filteredMods[$flag] = $this->normaliseFlag($filteredMods[$flag]);
             }
@@ -125,6 +140,17 @@ class PageCloner implements EntityClonerInterface
                 $stats,
                 null,
             );
+
+            // Before the commit: a clone may not produce what Contao's back end
+            // refuses (v0.15.0). A root cloned onto the same domain and prefix is
+            // rolled back — pass `urlPrefix`, `dns` or both in the modifications.
+            try {
+                $this->pageUrlGuard->assertRootUnique($newRootId);
+            } catch (\InvalidArgumentException $e) {
+                throw new \InvalidArgumentException($e->getMessage() . ' When cloning a root, give it its own "urlPrefix" or "dns" in --modifications.', 0, $e);
+            }
+            $this->pageUrlGuard->assertAliases([$newRootId]);
+            $this->pageUrlGuard->assertTree($newRootId);
 
             return [
                 'id'             => $newRootId,
@@ -268,15 +294,32 @@ class PageCloner implements EntityClonerInterface
         if (!isset($modifications['title'])) {
             $clone->title = ((string) ($source->title ?? '')) . ' (Kopie)';
         }
-        // Alias muss eindeutig sein. `tl_page.alias` hat in stock Contao eine
-        // unique-per-parent-Constraint — wir hängen `-kopie-<short-rand>` an,
-        // damit auch beim recursive-clone (mehrere Pages mit gleicher Source-
-        // alias unter neuem parent) keine Collision entsteht.
-        $clone->alias = StringUtil::generateAlias((string) ($clone->title ?? ''))
-            . '-kopie-' . substr(md5(uniqid('', true)), 0, 4);
 
+        // The cloned root goes behind its last sibling, like every created record
+        // (v0.15.0; it kept sorting 0). Subpages keep their source sorting, which
+        // preserves their order under the new parent.
+        if (null === $parentNewId) {
+            $max = $this->connection->fetchOne('SELECT MAX(sorting) FROM tl_page WHERE pid = ?', [(int) $clone->pid]);
+            $clone->sorting = Sorting::after(null === $max || false === $max ? null : (int) $max);
+        }
+
+        // The alias is Contao's, as in a back-end copy: `tl_page.alias` carries
+        // `doNotCopy`, and PageUrlListener::generateAlias() makes one from the
+        // title that is unique for the page's URL. Until v0.14.0 this appended
+        // `-kopie-<random>` to a slug of the already suffixed title, which turned
+        // `index` into `startseite-kopie-kopie-9224`.
+        $clone->alias = '';
         $clone->save();
-        return (int) $clone->id;
+        $newId = (int) $clone->id;
+
+        // Written through the connection, not `$clone->save()`: generateAlias() calls
+        // PageModel::findWithDetails(), whose loadDetails() detaches this very
+        // instance from the registry and forbids saving it ("The model instance has
+        // been detached"). Measured on c5 on 2026-09-16. The version snapshot is
+        // taken after this method returns, so it carries the alias.
+        $this->connection->update('tl_page', ['alias' => $this->pageUrlGuard->generateAlias($newId)], ['id' => $newId]);
+
+        return $newId;
     }
 
     private function cloneArticleRow(ArticleModel $source, int $newPageId, int $authorId): int

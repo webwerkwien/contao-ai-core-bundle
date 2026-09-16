@@ -4,6 +4,43 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.15.0 - 2026-09-16
+
+Found in phase 4 (second language) of the ConpAI 1.0 acceptance test on 2026-09-16 and
+verified live on c5 (Contao 5.7.13).
+
+### Fixed
+
+- **Page writes produced URLs Contao's back end refuses.** `page update 132 --set
+  urlPrefix=en` answered `ok` although another root on `conpai.eu` had `en` — two roots
+  `conpai.eu/en`. `page update 141 --set alias=packages` answered `ok` although page 140
+  had it — two pages at `/en/packages`, one of them unreachable. Contao refuses both in
+  `PageUrlListener`, a save callback this bundle does not run. Domain and prefix pick the
+  root, and with it the language, the 404 page, the sitemap and robots.txt.
+
+  New service `PageUrlGuard`, used by page create, page update and the page cloner. Each
+  writes in a transaction and checks afterwards; a refusal rolls back the write, its
+  version and its log entry. Root uniqueness is Contao's own query from
+  `validateUrlPrefix()`. URL uniqueness calls Contao's `generateAlias()` instead of
+  rebuilding it, because Contao compares whole URLs through the router. The root check
+  runs when `dns`, `urlPrefix`, `urlSuffix` or `type` change, as Contao checks on saving
+  the prefix; changing a root's URL fields re-checks every page below it.
+
+- **Cloned page aliases were invented.** The cloner appended `-kopie-<random>` to a slug of
+  the already suffixed title, which turned `index` into `startseite-kopie-kopie-9224`.
+  Aliases now come from Contao's `generateAlias()`, as in a back-end copy (`tl_page.alias`
+  carries `doNotCopy`): `startseite-kopie`.
+
+- **A cloned root kept `sorting = 0`.** It now goes behind its last sibling. The rule moved
+  to `Service\Sorting`, shared by the create commands and the cloner.
+
+### Changed
+
+- **A root can be cloned into another language in one step.** For a root, the cloner
+  accepts `language`, `urlPrefix`, `urlSuffix`, `fallback` and `dns` as modifications. They
+  were ignored before, so the clone always landed on its source's domain and prefix. A root
+  cloned without its own domain or prefix is refused now.
+
 ## v0.14.0 - 2026-09-16
 
 All found in the ConpAI 1.0 acceptance test on 2026-09-16 and verified live on c5
