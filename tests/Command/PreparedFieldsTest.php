@@ -54,12 +54,15 @@ class PreparedFieldsTest extends TestCase
         return $method->invoke($subject, 'tl_test', $own, $set);
     }
 
-    private function alias(string $given, string $from, string $table = 'tl_test'): string
+    /**
+     * @param array<string, mixed> $record
+     */
+    private function alias(string $given, string $from, string $table = 'tl_test', array $record = []): string
     {
         $subject = $this->subject();
         $method  = new \ReflectionMethod($subject, 'resolveAlias');
 
-        return $method->invoke($subject, $table, $given, $from);
+        return $method->invoke($subject, $table, $given, $from, 'alias', $record);
     }
 
     protected function setUp(): void
@@ -78,6 +81,10 @@ class PreparedFieldsTest extends TestCase
     protected function tearDown(): void
     {
         unset($GLOBALS['TL_DCA']['tl_test'], $GLOBALS['TL_DCA']['tl_loose']);
+
+        if (null !== $this->restoreContainer) {
+            ($this->restoreContainer)();
+        }
     }
 
     public function testOwnFieldsAndSetFieldsArriveTogether(): void
@@ -152,5 +159,84 @@ class PreparedFieldsTest extends TestCase
     public function testAnAliasIsNotSuffixedWhereTheDcaDoesNotDemandUniqueness(): void
     {
         $this->assertSame('mein-alias', $this->alias('', 'Mein Alias', 'tl_loose'));
+    }
+
+    // --- Contao's own alias callback (review 2026-09-16, see ContaoAliasTest) ---
+
+    public function testAGeneratedAliasComesFromTheDcaCallbackWhenThereIsOne(): void
+    {
+        $this->containerForCallbacks();
+        $GLOBALS['TL_DCA']['tl_loose']['fields']['alias']['save_callback'] = [[SlugOfPageCallback::class, 'generateAlias']];
+
+        $this->assertSame('ueber-uns@12', $this->alias('', 'Über uns', 'tl_loose', ['title' => 'Über uns', 'pid' => 12]));
+    }
+
+    public function testAFailingCallbackFallsBackVisibly(): void
+    {
+        $this->containerForCallbacks();
+        $GLOBALS['TL_DCA']['tl_loose']['fields']['alias']['save_callback'] = [[SlugOfPageCallback::class, 'generateAlias']];
+
+        $subject = $this->subject();
+        // No activeRecord title → the callback throws, like a missing news archive.
+        $alias = (new \ReflectionMethod($subject, 'resolveAlias'))->invoke($subject, 'tl_loose', '', 'Mein Alias', 'alias', ['pid' => 12]);
+
+        $this->assertSame('mein-alias', $alias);
+        $this->assertStringContainsString("alias callback for tl_loose failed", (string) (new \ReflectionProperty(\Webwerkwien\ContaoAiCoreBundle\Command\AbstractWriteCommand::class, 'aliasWarning'))->getValue($subject));
+    }
+
+    public function testAGivenAliasIsNotReplacedByTheCallback(): void
+    {
+        $this->containerForCallbacks();
+        $GLOBALS['TL_DCA']['tl_loose']['fields']['alias']['save_callback'] = [[SlugOfPageCallback::class, 'generateAlias']];
+
+        $this->assertSame('team', $this->alias('team', 'Über uns', 'tl_loose', ['title' => 'Über uns', 'pid' => 12]));
+    }
+
+    public function testPagesAreLeftToThePageUrlGuard(): void
+    {
+        // PageUrlListener::generateAlias() needs a saved page; PageCreateCommand
+        // generates the alias after the write.
+        $this->containerForCallbacks();
+        $GLOBALS['TL_DCA']['tl_page']['fields']['alias'] = ['eval' => [], 'save_callback' => [[SlugOfPageCallback::class, 'generateAlias']]];
+
+        try {
+            $this->assertSame('über-uns', $this->alias('', 'Über uns', 'tl_page', ['title' => 'Über uns', 'pid' => 12]));
+        } finally {
+            unset($GLOBALS['TL_DCA']['tl_page']);
+        }
+    }
+
+    private function containerForCallbacks(): void
+    {
+        $previous  = \Contao\System::getContainer();
+        $container = new \Symfony\Component\DependencyInjection\ContainerBuilder();
+        $container->setParameter('kernel.debug', false);
+        \Contao\System::setContainer($container);
+
+        // Other tests skip on a missing container and would run against this empty one.
+        $this->restoreContainer = static function () use ($previous): void {
+            (new \ReflectionProperty(\Contao\System::class, 'objContainer'))->setValue(null, $previous);
+            (new \ReflectionProperty(\Contao\System::class, 'arrStaticObjects'))->setValue(null, []);
+        };
+    }
+
+    private ?\Closure $restoreContainer = null;
+}
+
+/**
+ * Stands in for `tl_article::generateAlias()` and its twins.
+ */
+class SlugOfPageCallback
+{
+    public function generateAlias(mixed $value, \Contao\DataContainer $dc): string
+    {
+        /** @var object{title: string, pid: int} $record */
+        $record = $dc->__get('activeRecord');
+
+        if (!isset($record->title)) {
+            throw new \RuntimeException('no title');
+        }
+
+        return str_replace(['ü', ' '], ['ue', '-'], mb_strtolower($record->title)) . '@' . $record->pid;
     }
 }

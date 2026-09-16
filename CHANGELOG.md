@@ -4,6 +4,50 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.17.0 - 2026-09-16
+
+Findings of an independent review of v0.11.0 to v0.16.0, each checked live before it was
+fixed — on c5 (Contao 5.7.13) and on the Contao 6.0.0 test installation. The review's
+concern that page writes fail on Contao 6 (`Input::post()` without a request) did not hold:
+create, alias, conflict check, clone, palette and options all work on 6.0.0.
+
+### Changed
+
+- **Generated aliases are Contao's.** A create without an alias — pages, articles, news,
+  events, newsletters — gets the alias the field's own `save_callback` makes: from the
+  title, with the language and `validAliasCharacters` of the page the record belongs to.
+  `Über uns` on a German root is now `ueber-uns`; until v0.16.0 the bundle made
+  `über-uns`, and on a root set to `0-9a-z` aliases the installation forbids. A clone of
+  the same page already got Contao's alias. **This changes what callers receive for new
+  records.** A callback that cannot run leaves the old slug and says so in `aliasWarning`.
+- **Resizing an upload no longer goes through `FileUpload::resizeUploadedImage()`.** The
+  bundle computes the size and calls `File::resizeTo()`. The old path needed a session for
+  `Message::addInfo()` and only got through because the language file was not loaded,
+  leaving PHP warnings in the log.
+
+### Fixed
+
+- **An upload with only one image limit set became an empty file.** `imageWidth=100`,
+  `imageHeight=0`: a 600×20 PNG was stored with 0 bytes and `resized: true`. Contao's own
+  method scales to 0×0 in that case — in the back end too. A limit below 1 counts as unset
+  now; the same image becomes 100×3.
+- **`--set headline_unit=h1` without `headline` wrote nothing and answered `ok`.** The unit
+  now applies to the stored value, which is kept.
+- **Units from associative option lists were refused.** An `inputUnit` field declaring
+  `['h1' => 'Heading 1']` refused `h1`; the unit is compared with the keys, as Contao and
+  the options check do.
+- **A page list written as JSON was stored as strings.** `--set 'pagemounts=[1,2]'` stored
+  `"1"`, `"2"`, the comma form integers — a read written back changed the stored form.
+
+### Documentation
+
+- v0.15.0 said a root can be cloned into another language "in one step". That holds for the
+  root; the pages below keep Contao's copy titles (`… (Kopie)`) and are renamed afterwards.
+- The `UploadPolicy` docblock gave Contao's order of checks; the bundle checks the extension
+  together with the size, before the image is read.
+- A comment named `tl_layout.rows` as a DCA field without a column. The column exists; what
+  failed on 2026-08-31 was `rows` being a reserved word in MySQL 8.
+
 ## v0.16.0 - 2026-09-16
 
 The collected findings of the ConpAI 1.0 acceptance test, fixed before its repetition run.

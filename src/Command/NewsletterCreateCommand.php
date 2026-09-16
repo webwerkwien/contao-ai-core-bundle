@@ -96,7 +96,7 @@ class NewsletterCreateCommand extends AbstractWriteCommand
         $fields = $this->preparedFields('tl_newsletter', [
             'pid'     => (int) $pid,
             'subject' => $subject,
-            'alias'   => $this->resolveAlias('tl_newsletter', '', $subject),
+            'alias'   => $this->resolveAlias('tl_newsletter', '', $subject, record: ['subject' => $subject, 'pid' => (int) $pid]),
         ], $fields);
 
         $newsletter          = new NewsletterModel();

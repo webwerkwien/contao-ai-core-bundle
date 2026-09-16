@@ -14,6 +14,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Contracts\Service\Attribute\Required;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\ContaoAlias;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\OptionsResolver;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\StructuredFields;
 use Webwerkwien\ContaoAiCoreBundle\Service\Sorting;
@@ -145,6 +146,9 @@ abstract class AbstractWriteCommand extends Command
      */
     /** @var array<string, int> versions found under a created record's ID, per `table.id` */
     private array $earlierVersions = [];
+
+    /** Why a generated alias did not come from Contao's callback, see resolveAlias(). */
+    private ?string $aliasWarning = null;
 
     /**
      * @param bool $created true right after creating the record: its first version is
@@ -338,8 +342,10 @@ abstract class AbstractWriteCommand extends Command
      * be the looser of the two.
      *
      * ⚠️ **Checked against the real columns, not the DCA.** They are not the
-     * same set — `tl_layout.rows` is declared in the DCA and does not exist in
-     * the database, which the undo work of 2026-08-31 ran into. What decides
+     * same set — a DCA can declare a field without an `sql` key, and an extension
+     * can leave a column behind. (Until 2026-09-16 this named `tl_layout.rows` as
+     * the example; the column exists in 5.3 and 5.7. What the undo work of
+     * 2026-08-31 ran into was `rows` being a reserved word in MySQL 8.) What decides
      * whether a write lands is the column list, so that is what this asks, via
      * the very function `Model::save()` uses to make that decision.
      *
@@ -478,12 +484,39 @@ abstract class AbstractWriteCommand extends Command
      *
      * @throws \InvalidArgumentException on a purely numeric alias
      */
-    protected function resolveAlias(string $table, string $given, string $from, string $field = 'alias'): string
+    protected function resolveAlias(string $table, string $given, string $from, string $field = 'alias', array $record = []): string
     {
         if ('' !== $given) {
             $this->refuseNumericAlias($given);
 
             return $given;
+        }
+
+        // Generated: by the field's own Contao callback where there is one, which
+        // honours the language and `validAliasCharacters` of the page the record
+        // belongs to. Until v0.16.0 every create made `über-uns` where Contao makes
+        // `ueber-uns` (review 2026-09-16, ContaoAliasTest). Pages are generated after
+        // the write by PageUrlGuard; the callback needs the saved page.
+        if ([] !== $record && 'tl_page' !== $table) {
+            try {
+                $alias = ContaoAlias::generate($table, $record, $field);
+            } catch (\Throwable $e) {
+                // A callback that cannot run here (a missing parent, a service it
+                // needs) leaves the alias to the fallback below rather than failing
+                // the create — the fallback is what every create did until v0.16.0.
+                // Not silently: in the first live test a missing import landed here
+                // and looked exactly like success (2026-09-16).
+                $alias = null;
+                $this->aliasWarning = \sprintf("Contao's alias callback for %s failed (%s: %s); the alias was generated without it.", $table, $e::class, $e->getMessage());
+
+                if (isset($this->logger)) {
+                    $this->logger->warning('contao-ai-core-bundle alias fallback', ['table' => $table, 'error' => $e->getMessage()]);
+                }
+            }
+
+            if (null !== $alias && '' !== $alias) {
+                return $alias;
+            }
         }
 
         $base = StringUtil::generateAlias($from);
@@ -1290,7 +1323,11 @@ abstract class AbstractWriteCommand extends Command
 
             $decoded = json_decode($value, true);
             if (\is_array($decoded)) {
-                $fields[$key] = serialize(self::stringLeaves($decoded));
+                // A page list as integers, like the comma form (castListValues()) and
+                // Contao's picker. Until v0.16.0 JSON stored strings (review 2026-09-16).
+                $fields[$key] = 'pageTree' === ($def['inputType'] ?? null) && array_is_list($decoded)
+                    ? serialize(array_map('intval', $decoded))
+                    : serialize(self::stringLeaves($decoded));
             }
         }
 
@@ -1741,6 +1778,26 @@ abstract class AbstractWriteCommand extends Command
         }
         $dca = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
 
+        // A unit without its value: `--set headline_unit=h1` changes the level of
+        // the stored headline. Until v0.16.0 the companion key was consumed below
+        // and the command answered "ok" with nothing written (review 2026-09-16).
+        // The stored value is carried over as the JSON form, so the steps below
+        // treat it like any caller-given value — the unit check included.
+        foreach ($fields as $key => $value) {
+            if (!\is_string($key) || !str_ends_with($key, '_unit') || !\is_string($value) || '' === $value) {
+                continue;
+            }
+            $base = substr($key, 0, -5);
+            if (($dca[$base]['inputType'] ?? null) !== 'inputUnit' || \array_key_exists($base, $fields)) {
+                continue;
+            }
+
+            $stored = null === $record ? null : ($record->$base ?? null);
+            $prev   = \is_string($stored) && '' !== $stored ? @unserialize($stored, ['allowed_classes' => false]) : null;
+
+            $fields[$base] = json_encode(['value' => \is_array($prev) ? (string) ($prev['value'] ?? '') : '']);
+        }
+
         foreach ($fields as $key => $value) {
             if (!\is_string($key) || str_ends_with($key, '_unit')) {
                 continue; // companion keys are handled alongside their base field
@@ -1757,7 +1814,10 @@ abstract class AbstractWriteCommand extends Command
                 continue;
             }
 
-            $options = $dca[$key]['options'] ?? [];
+            // The allowed units as Contao reads them: the values of a list, the keys
+            // of an associative array — the same as refuseInvalidOptions(). Until
+            // v0.16.0 the raw array was compared, which refused `['h1' => 'Heading 1']`.
+            $options = $this->optionValues($dca[$key]) ?? [];
             $val     = $value;
             $unit    = null;
             $fieldDefault = $defaultUnit ?? $this->sqlDefaultUnit($dca[$key]);
@@ -1891,6 +1951,10 @@ abstract class AbstractWriteCommand extends Command
         // not have to find out that way.
         if ([] !== $this->earlierVersions) {
             $data['earlierVersions'] = $this->earlierVersions;
+        }
+
+        if (null !== $this->aliasWarning) {
+            $data['aliasWarning'] = $this->aliasWarning;
         }
 
         $this->logSuccess($data);

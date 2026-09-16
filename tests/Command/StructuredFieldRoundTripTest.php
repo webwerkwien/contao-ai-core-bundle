@@ -118,6 +118,18 @@ class StructuredFieldRoundTripTest extends TestCase
         $this->assertSame(serialize($modules), $this->write(['modules' => json_encode($modules)])['modules']);
     }
 
+    /**
+     * `--set pagemounts=1,2` stores integers, as Contao's page picker does. As JSON the
+     * same list was stored as strings until v0.16.0, so a read-and-write-back changed
+     * the stored form (review 2026-09-16).
+     */
+    public function testAPageTreeListIsStoredAsIntegersFromJsonToo(): void
+    {
+        $GLOBALS['TL_DCA']['tl_test']['fields']['pagemounts'] = ['inputType' => 'pageTree', 'eval' => ['multiple' => true]];
+
+        $this->assertSame(serialize([1, 2]), $this->write(['pagemounts' => '["1",2]'])['pagemounts']);
+    }
+
     public function testAnImageSizeCanBeGivenAsJson(): void
     {
         $this->assertSame(serialize(['', '', '6']), $this->write(['size' => '["","","6"]'])['size']);

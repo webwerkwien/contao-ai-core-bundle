@@ -135,9 +135,53 @@ class UploadPolicyTest extends TestCase
     {
         $source = (string) file_get_contents(__DIR__ . '/../../src/Command/UploadPolicy.php');
 
-        foreach (['sanitizeSvg(', 'reject_large_uploads', 'resizeUploadedImage(', 'uploadTypes', 'maxFileSize'] as $needle) {
+        foreach (['sanitizeSvg(', 'reject_large_uploads', 'resizeTo(', 'uploadTypes', 'maxFileSize'] as $needle) {
             $this->assertStringContainsString($needle, $source);
         }
+
+        // Not Contao's resizeUploadedImage(): it calls Message::addInfo(), which needs
+        // a session the console does not have — and it scales to 0×0 when only one
+        // limit is set. See the resize tests below.
+        $this->assertStringNotContainsString('->resizeUploadedImage(', $source);
+    }
+
+    // --- resize ---
+
+    /**
+     * 🔴 Measured on c5 (5.7.13) on 2026-09-16: `imageWidth=100`, `imageHeight=0`,
+     * a 600×20 PNG through `file upload` → **0 bytes on disk**, `resized: true`.
+     * `FileUpload::resizeUploadedImage()` checks the width (→ 100×3), then
+     * `3 > imageHeight (0)` → width `round(0 * 100 / 3)` = 0, height 0. The back end
+     * computes the same; the bundle no longer does.
+     *
+     * @return iterable<string, array{int, int, int, int, array{int, int}|null}>
+     */
+    public static function resizeCases(): iterable
+    {
+        yield 'within both limits' => [80, 40, 100, 100, null];
+        yield 'too wide' => [600, 20, 100, 100, [100, 3]];
+        yield 'too high' => [20, 600, 100, 100, [3, 100]];
+        yield 'both, width decides' => [1000, 500, 100, 100, [100, 50]];
+        yield 'both, height decides after width' => [400, 1000, 200, 100, [40, 100]];
+        yield 'only a width limit (the 0×0 case)' => [600, 20, 100, 0, [100, 3]];
+        yield 'only a height limit' => [20, 600, 0, 100, [3, 100]];
+        yield 'only a width limit, image within' => [80, 2000, 100, 0, null];
+        yield 'never below one pixel' => [5000, 1, 100, 100, [100, 1]];
+    }
+
+    /**
+     * @param array{int, int}|null $expected
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('resizeCases')]
+    public function testResizeDimensions(int $width, int $height, int $maxWidth, int $maxHeight, ?array $expected): void
+    {
+        $subject = new class {
+            use UploadPolicy {
+                resizeDimensions as public;
+            }
+        };
+
+        $this->assertSame($expected, $subject->resizeDimensions($width, $height, $maxWidth, $maxHeight));
     }
 
     public function testFileProcessCannotWidenTheSystemList(): void

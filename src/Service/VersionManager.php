@@ -47,7 +47,7 @@ class VersionManager
     /**
      * The first version of a record just created, marked as such.
      *
-     * @return int how many versions already existed under this ID — a previous record's
+     * @return int the highest version number already under this ID (0 for none) — a previous record's
      */
     public function createInitialVersion(string $table, int $id, ?string $operator = null): int
     {

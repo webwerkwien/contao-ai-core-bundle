@@ -53,7 +53,12 @@ class PageCreateCommand extends AbstractWriteCommand
             'title'    => $title,
             'type'     => $this->input->getOption('type'),
             'language' => $this->input->getOption('language'),
-            'alias'    => $this->resolveAlias('tl_page', (string) $this->input->getOption('alias'), $title),
+            // A given alias is taken as is. A missing one is Contao's, generated after
+            // the write below — PageUrlListener::generateAlias() needs the saved page.
+            // Without the guard (unit tests) the old slug remains.
+            'alias'    => null === $this->pageUrlGuard || '' !== (string) $this->input->getOption('alias')
+                ? $this->resolveAlias('tl_page', (string) $this->input->getOption('alias'), $title)
+                : '',
             'cuser'    => $this->resolveAuthorId(),
             // cgroup deliberately left at 0 — Contao's chmod system treats 0 as
             // "no group ownership"; setting an arbitrary group could grant or
@@ -74,6 +79,19 @@ class PageCreateCommand extends AbstractWriteCommand
                 $page->$key = $value;
             }
             $page->save();
+
+            // Contao's alias, as the back end makes it when the field is left blank:
+            // from the title, with the root's language and validAliasCharacters, unique
+            // for the URL. Until v0.16.0 `über-uns` where Contao makes `ueber-uns`
+            // (review 2026-09-16, Nr. 45). generateAlias() detaches the instance it
+            // looks up, so the alias is saved through a fresh one, as in PageCloner.
+            if (null !== $this->pageUrlGuard && '' === (string) $page->alias) {
+                $alias = $this->pageUrlGuard->generateAlias((int) $page->id);
+                $page  = PageModel::findByPk((int) $page->id) ?? throw new \RuntimeException('The new page vanished before its alias could be saved.');
+                $page->alias = $alias;
+                $page->save();
+            }
+
             $this->createVersion('tl_page', (int) $page->id, created: true);
 
             if (null !== $this->pageUrlGuard) {

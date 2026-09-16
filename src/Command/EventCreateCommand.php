@@ -42,7 +42,7 @@ class EventCreateCommand extends AbstractWriteCommand
         $fields = $this->preparedFields('tl_calendar_events', [
             'pid'       => (int) $pid,
             'title'     => $title,
-            'alias'     => $this->resolveAlias('tl_calendar_events', '', $title),
+            'alias'     => $this->resolveAlias('tl_calendar_events', '', $title, record: ['title' => $title, 'pid' => (int) $pid]),
             'startDate' => $startDate,
             'endDate'   => $endDate,
             'startTime' => $startDate,

@@ -40,7 +40,7 @@ class ArticleCreateCommand extends AbstractWriteCommand
             // Behind the last article of the page. Was 0 until v0.13.0.
             'sorting'   => $this->nextSorting('tl_article', (int) $pid),
             'title'     => $title,
-            'alias'     => $this->resolveAlias('tl_article', '', $title),
+            'alias'     => $this->resolveAlias('tl_article', '', $title, record: ['title' => $title, 'pid' => (int) $pid]),
             'inColumn'  => $this->input->getOption('inColumn'),
             'author'    => $this->resolveAuthorId(),
             'published' => '0',

@@ -148,10 +148,33 @@ asks the permission voters and fails without a back-end user. `generateAlias()` 
 > connection instead; it worked but left the model layer, and was replaced in v0.15.1.
 
 **Cloning a root** accepts `language`, `urlPrefix`, `urlSuffix`, `fallback` and `dns` as
-modifications, so a site can be cloned into another language in one step. A root cloned
-onto its source's domain and prefix is refused. Cloned pages get their alias from
+modifications, so the root takes its new language in one step. The pages below keep
+Contao's copy titles (`… (Kopie)`, alias `…-kopie`) and are renamed afterwards. A root
+cloned onto its source's domain and prefix is refused. Cloned pages get their alias from
 `generateAlias()`, as a back-end copy does (`tl_page.alias` carries `doNotCopy`); the cloned
 root goes behind its last sibling (`Service\Sorting`).
+
+### Generated aliases are Contao's (v0.17.0)
+
+A create without an alias gets the one Contao's own `save_callback` of the alias field
+makes — from the title, with the language and `validAliasCharacters` of the page the
+record belongs to, unique as Contao checks it. `Über uns` on a German root is `ueber-uns`.
+
+- **Pages:** `PageCreateCommand` writes an empty alias and asks `PageUrlGuard::generateAlias()`
+  after the save, in the same transaction — `PageUrlListener::generateAlias()` loads the page
+  by its id. Saved through a fresh `findByPk()` instance (see the detached-model note above).
+- **Everything else** (articles, news, events, newsletters, any extension with a
+  `generateAlias` callback): `resolveAlias($table, '', $from, record: [...])` calls the
+  callback before the write through `Service\Dca\ContaoAlias`, with a `RecordDataContainer`
+  that answers `activeRecord` with the fields to be created and `id` with 0. Pass the fields
+  the callback reads — `title`/`headline`/`subject` and `pid`.
+- A callback that throws leaves the old slug (`StringUtil::generateAlias()`) and says so:
+  `aliasWarning` in the answer, a warning in the log. **Never catch it silently** — in the
+  first live test a missing import landed there and looked exactly like success.
+
+> 🔴 Up to v0.16.0 every create used `StringUtil::generateAlias()`: `über-uns` where Contao
+> makes `ueber-uns`, and on a root set to `0-9a-z` aliases the installation forbids. A clone
+> of the same page got Contao's `uber-uns-kopie`. Found on the Contao 6.0 test installation.
 
 > 🔴 Up to v0.14.0: `page update --set urlPrefix=en` made a second root `conpai.eu/en`,
 > `--set alias=packages` a second page at `/en/packages`, and `record clone` of a root left
@@ -193,6 +216,12 @@ that already is a `{value, unit}` pair is left alone.
 **A unit the caller names and the DCA does not list is refused**, with
 `headline_unit=h9` in the message. A stored or default unit that is not listed
 still falls back to the default, so old data cannot make a record unwritable.
+The option list is read as Contao reads it (`optionValues()`): the values of a list,
+the **keys** of an associative array (v0.17.0; before, `['h1' => 'Heading 1']` refused `h1`).
+
+**A unit on its own changes the unit and keeps the value** (v0.17.0): `content update 5
+--set headline_unit=h1` rewrites the stored pair with `h1`. Up to v0.16.0 the companion key
+was consumed, nothing was written and the answer was `ok` with `updated: []`.
 
 > 🔴 **v0.2.28 to v0.10.0 could not write these fields at all.** The conversion
 > into the pair ran before the checks, so `refuseInvalidValues()` held the whole
@@ -317,9 +346,9 @@ Where it happens, and where it differs from the back end:
 
 **What goes into files/ is what the installation allows to be uploaded.** `UploadPolicy`
 (trait, used by `FileWriteCommand` and `FileProcessCommand`) applies the rules of
-`Contao\FileUpload::uploadTo()`, in its order: `maxFileSize`, image dimensions
+`Contao\FileUpload::uploadTo()`: `maxFileSize` and `uploadTypes` first, then image dimensions
 (`imageWidth`/`imageHeight`, refused when `contao.image.reject_large_uploads`, else resized
-after the write), `FileUpload::sanitizeSvg()`, `uploadTypes`. The one difference: PHP's
+after the write), `FileUpload::sanitizeSvg()`. The one difference: PHP's
 `upload_max_filesize` is not applied — it governs HTTP uploads, not a file that came over
 SCP. `--allowed-types` on file process narrows `uploadTypes` and may not widen it.
 
@@ -327,6 +356,13 @@ SCP. `--allowed-types` on file process narrows `uploadTypes` and may not widen i
 > 10 MB, no SVG sanitising — and `--allowed-types` replaced the system list. Measured on
 > c5 on 2026-09-16, see `UploadPolicyTest`. `contao:file:write` reads bytes; the CLI's
 > `file upload` sends binaries through it.
+
+**Resizing computes the size itself and calls `File::resizeTo()`** (v0.17.0), not
+`FileUpload::resizeUploadedImage()`. That method calls `Message::addInfo()`, which needs a
+session the console lacks — it only got through because the language file was not loaded,
+with PHP warnings in the log. And with only one limit set it scales to 0×0: `imageWidth=100`,
+`imageHeight=0` turned a 600×20 PNG into a file of **0 bytes** (measured on c5; the back end
+does the same). `resizeDimensions()` treats a limit below 1 as unset.
 
 **A folder record comes from `Dbafs::addResource()`, never from `new FilesModel()`.**
 `FolderCreateCommand` built one by hand until v0.12.0 and never set a UUID; a file written

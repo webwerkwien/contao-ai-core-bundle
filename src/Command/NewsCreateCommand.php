@@ -54,7 +54,7 @@ class NewsCreateCommand extends AbstractWriteCommand
             // put the raw `a:2:{…}` string into every listing, feed and front end title
             // — see NewsRepairHeadlinesCommand for repairing records written that way.
             'headline'  => (string) $headline,
-            'alias'     => $this->resolveAlias('tl_news', '', (string) $headline),
+            'alias'     => $this->resolveAlias('tl_news', '', (string) $headline, record: ['headline' => (string) $headline, 'pid' => (int) $pid]),
             'date'      => $date,
             'time'      => $date,
             'published' => '0',

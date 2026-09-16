@@ -133,6 +133,14 @@ class CreateCommandConversionTest extends TestCase
             preg_match_all('/^[ \t]+\$(?!this\b)\w+->(\w+)\s*=\s*(?!\$value\b)[^\r\n]+;\r?$/m', $source, $matches);
 
             foreach ($matches[1] as $field) {
+                // The one allowed exception: a page alias generated after the write by
+                // Contao's own PageUrlListener::generateAlias() (Nr. 45, 2026-09-16) —
+                // it needs the saved page, and it is Contao's rule that makes the value.
+                // A given alias still passes preparedFields().
+                if ('PageCreateCommand.php' === $name && 'alias' === $field) {
+                    continue;
+                }
+
                 if ('tstamp' !== $field) {
                     $leaks[] = $name . '::$record->' . $field;
                 }

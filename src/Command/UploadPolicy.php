@@ -3,6 +3,7 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\Config;
+use Contao\File;
 use Contao\FileUpload;
 use Contao\StringUtil;
 use Contao\System;
@@ -15,8 +16,10 @@ use Contao\System;
  * `contao:file:process --allowed-types` could widen the system list. See
  * UploadPolicyTest for the measurement.
  *
- * The rules are those of `Contao\FileUpload::uploadTo()` (5.7.13), in its order:
- * size, image dimensions, SVG sanitising, extension. The one deliberate difference:
+ * The rules are those of `Contao\FileUpload::uploadTo()` (5.7.13): size, image
+ * dimensions, SVG sanitising, extension. Contao checks the extension last; here it
+ * is checked together with the size, before the image is read — only the reported
+ * reason differs when a file breaks more than one rule. The one deliberate difference:
  * Contao also caps the size at PHP's `upload_max_filesize`, which governs HTTP
  * uploads and does not apply to a file that arrived over SCP.
  */
@@ -82,25 +85,81 @@ trait UploadPolicy
      * Scale an image down to `imageWidth` × `imageHeight` after it was written, when
      * the installation resizes rather than refuses — as `FileUpload` does after the
      * move. Returns whether it was resized.
+     *
+     * The size is computed here and handed to Contao's `File::resizeTo()`, the call
+     * `FileUpload::resizeUploadedImage()` ends in. Until v0.16.0 that method was called
+     * itself, which had two flaws on the console (review and measurement 2026-09-16):
+     *
+     * - it calls `Message::addInfo()`, which needs a session. It only got through
+     *   because the language file is not loaded there, so the message was empty and
+     *   `Message::add()` returned early — with two PHP warnings in the log;
+     * - with only one limit set, it scales to 0×0 and leaves an empty file (see
+     *   resizeDimensions()). The back end does the same; the bundle no longer does.
      */
     protected function resizeAfterUpload(string $targetPath): bool
     {
-        // Same early return as FileUpload::resizeUploadedImage(), before anything
-        // of the back-end class is constructed on the console.
-        if (!\in_array($this->extensionOf($targetPath), self::IMAGE_EXTENSIONS, true)
-            || (Config::get('imageWidth') < 1 && Config::get('imageHeight') < 1)
-        ) {
+        $maxWidth  = (int) Config::get('imageWidth');
+        $maxHeight = (int) Config::get('imageHeight');
+
+        if (!\in_array($this->extensionOf($targetPath), self::IMAGE_EXTENSIONS, true) || ($maxWidth < 1 && $maxHeight < 1)) {
             return false;
         }
 
-        $upload = new class() extends FileUpload {
-            public function resize(string $path): bool
-            {
-                return (bool) $this->resizeUploadedImage($path);
-            }
-        };
+        $file = new File($targetPath);
 
-        return $upload->resize($targetPath);
+        // Same guards as Contao: not a GD image, or no readable size → leave it.
+        if (!$file->isGdImage) {
+            return false;
+        }
+
+        $size = $file->imageSize;
+
+        if (!isset($size[0], $size[1])) {
+            return false;
+        }
+
+        $target = $this->resizeDimensions((int) $size[0], (int) $size[1], $maxWidth, $maxHeight);
+
+        if (null === $target) {
+            return false;
+        }
+
+        $file->resizeTo($target[0], $target[1]);
+
+        System::getContainer()->get('monolog.logger.contao.files')->info('File "' . $targetPath . '" was scaled down to the maximum dimensions');
+
+        return true;
+    }
+
+    /**
+     * The size an image is scaled down to, or null when it fits.
+     *
+     * Contao's order: the width limit first, then the height limit on the result,
+     * each keeping the aspect ratio. Unlike `FileUpload::resizeUploadedImage()`
+     * (5.3 to 6.0), a limit below 1 counts as unset. There, `imageWidth=100` with
+     * `imageHeight=0` passes the width step and then finds any height `> 0`, so it
+     * scales to `round(0 * w / h)` × 0 — measured on c5: a 600×20 PNG became a file
+     * of 0 bytes.
+     *
+     * @return array{int, int}|null
+     */
+    protected function resizeDimensions(int $width, int $height, int $maxWidth, int $maxHeight): ?array
+    {
+        $resize = false;
+
+        if ($maxWidth > 0 && $width > $maxWidth) {
+            $height = max(1, (int) round($maxWidth * $height / $width));
+            $width  = $maxWidth;
+            $resize = true;
+        }
+
+        if ($maxHeight > 0 && $height > $maxHeight) {
+            $width  = max(1, (int) round($maxHeight * $width / $height));
+            $height = $maxHeight;
+            $resize = true;
+        }
+
+        return $resize ? [$width, $height] : null;
     }
 
     /**

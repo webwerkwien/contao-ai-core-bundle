@@ -33,6 +33,9 @@ final class RecordDataContainer
             {
                 $this->strTable = $table;
                 $this->intId    = $id;
+                // The deprecated `$dc->activeRecord` reads this property in 5.3, 5.7
+                // and 6.0 alike — and it is what Contao's alias callbacks still use.
+                $this->objActiveRecord = [] === $record ? null : (object) $record;
             }
 
             public function getCurrentRecord(int|string|null $id = null, string|null $table = null): array|null
