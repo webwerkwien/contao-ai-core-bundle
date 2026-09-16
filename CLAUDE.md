@@ -342,6 +342,29 @@ Where it happens, and where it differs from the back end:
 - **Not covered:** file writes (`tl_files`), and anything written around this
   bundle (raw SQL). For those, `cache clear` is still the way.
 
+## Deleting files: as the back end, but not while used (v0.18.0)
+
+`contao:file:delete --path files/… [--force]` follows `DC_Folder::delete()` (identical in 5.7.13
+and 6.0.0): `Files::rrdir()` plus the web-dir symlink for a folder, `Files::delete()` for a file,
+**then** `Dbafs::deleteResource()`, then the files log channel (`tl_log`: *File or folder "…" has
+been deleted*). If the resource still exists after the file-system step, the database is left
+alone.
+
+**Before that, `Service\Files\FileUsageFinder`** — the check Contao does not make. It searches
+every `tl_` table with a loadable DCA, except `tl_files`, `tl_version`, `tl_undo`, `tl_log`:
+`fileTree` columns for the binary UUID (equality, or containment for serialized lists), and
+`text`/`textarea`/`inputUnit` columns for the UUID as text (insert tags) and for the path. A hit
+refuses the delete with `usages` (at most 50) unless `--force`; with `--force` the answer still
+carries them. Not searched: templates and CSS on disk, values outside a DCA.
+
+`undoable: false` is part of the answer on purpose: there is no `tl_undo` and no version for a
+file. `WritePathTest` excuses the command — the record work is Contao's `Dbafs`.
+
+> 🔴 Up to v0.17.0 there was no way to delete a file through the bundle (Nr. 46 of the ConpAI 1.0
+> acceptance test). Verified live on c5 (a file used by four image elements refused, free files
+> deleted with their records) and on 6.0.0 (folder with a used file refused, `--force` deleted
+> three records; an insert tag `{{picture::…}}` in a text element found).
+
 ## Files: the installation's rules, and the DBAFS (v0.13.0)
 
 **What goes into files/ is what the installation allows to be uploaded.** `UploadPolicy`

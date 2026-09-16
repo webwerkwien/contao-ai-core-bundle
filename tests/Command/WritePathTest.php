@@ -56,6 +56,10 @@ class WritePathTest extends TestCase
         'SettingsUpdateCommand.php' => 'writes localconfig.php, not a table',
         'TemplateWriteCommand.php'  => 'writes a file on disk, not a record',
         'FileWriteCommand.php'      => 'writes file bytes, not a record',
+        // `Files::delete()` removes bytes on disk; the tl_files records go through
+        // Contao's own Dbafs::deleteResource(), as in DC_Folder::delete(). The back
+        // end files no undo entry for a file either — there is nothing to restore.
+        'FileDeleteCommand.php'     => 'deletes a file on disk; DBAFS records via Dbafs::deleteResource(), as the back end',
     ];
 
     /**

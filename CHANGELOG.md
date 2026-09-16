@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.18.0 - 2026-09-16
+
+### Added
+
+- **`contao:file:delete --path files/… [--force]`** — delete a file or folder with its `tl_files`
+  records, as the back end does (`DC_Folder::delete()`: the resource and a folder's web-dir
+  symlink, then `Dbafs::deleteResource()`, then the log). Until now there was no way to delete a
+  file through the bundle; three probe images of the acceptance test could not be removed.
+- **Refused while the file is still used**, which Contao does not check: `fileTree` fields of
+  every table with a DCA, and insert tags or paths in text fields. The answer lists the `usages`;
+  `--force` deletes anyway and still lists them. There is no undo for files (`undoable: false`).
+- `Service\Files\FileUsageFinder`.
+
+Verified on c5 (Contao 5.7.13) and Contao 6.0.0.
+
 ## v0.17.0 - 2026-09-16
 
 Findings of an independent review of v0.11.0 to v0.16.0, each checked live before it was

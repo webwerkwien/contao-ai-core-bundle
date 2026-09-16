@@ -47,7 +47,7 @@ All commands output JSON and follow a consistent `{"status":"ok", ...}` / `{"sta
 | FAQ | `contao:faq:read` `contao:faq:create` `contao:faq:update` `contao:faq:delete` |
 | Members | `contao:member:update` `contao:member:delete` |
 | Users | `contao:user:update` `contao:user:delete` |
-| Files | `contao:file:read` `contao:file:write` `contao:file:meta` `contao:file:process` `contao:folder:create` |
+| Files | `contao:file:read` `contao:file:write` `contao:file:meta` `contao:file:process` `contao:file:delete` `contao:folder:create` `contao:folder:publish` |
 | Templates | `contao:template:list` `contao:template:read` `contao:template:write` |
 | Comments | `contao:comment:delete` `contao:comment:publish` |
 | Layout | `contao:layout:read` |
