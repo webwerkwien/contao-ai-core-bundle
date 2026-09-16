@@ -45,6 +45,10 @@ class ContentCreateCommand extends AbstractWriteCommand
         $fields = $this->preparedFields('tl_content', [
             'pid'    => (int) $pid,
             'ptable' => $this->input->getOption('ptable'),
+            // Behind the last element of the same parent — pid *and* ptable, since
+            // tl_content hangs under articles, news, events and more. Was 0 until
+            // v0.13.0, which left the order on the page to the database.
+            'sorting' => $this->nextSorting('tl_content', (int) $pid, (string) $this->input->getOption('ptable')),
             'type'   => $type,
             // invisible is a boolean column; '' fails under strict SQL mode
             // (MariaDB rejects the empty string for an integer field).

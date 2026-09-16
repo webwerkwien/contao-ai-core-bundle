@@ -3,6 +3,7 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\Controller;
+use Contao\Database;
 use Contao\CoreBundle\Monolog\ContaoContext;
 use Contao\StringUtil;
 use Contao\Validator;
@@ -379,6 +380,54 @@ abstract class AbstractWriteCommand extends Command
      *
      * @return array<string, mixed>
      */
+    /** Contao's own gap between two adjacent sorting values (DC_Table::getNewPosition()). */
+    protected const SORTING_STEP = 128;
+
+    /**
+     * The sorting value for a record created at the end of its siblings.
+     *
+     * Until v0.13.0 pages, articles, content elements and FAQs were created with
+     * `sorting = 0` — only the form field and image size item commands computed a
+     * value, each with a private copy. See SortingOnCreateTest.
+     *
+     * Siblings are the same `pid`, and for a `dynamicPtable` table the same
+     * `ptable`. Hand the result to preparedFields() as the command's own value, so
+     * a `--set sorting=` of the caller still wins.
+     *
+     * `$table` is always a literal of the calling command, never caller input.
+     */
+    protected function nextSorting(string $table, int $pid, ?string $ptable = null): int
+    {
+        return $this->sortingAfter($this->maxSorting($table, $pid, '' === $ptable ? null : $ptable));
+    }
+
+    /**
+     * The highest sorting value among the siblings, or null when there are none.
+     *
+     * Only the lookup — the rule stays in nextSorting(). A command that already has
+     * a Doctrine connection overrides this, which keeps it testable with a mock.
+     */
+    protected function maxSorting(string $table, int $pid, ?string $ptable): ?int
+    {
+        $sql    = 'SELECT MAX(sorting) AS max_sorting FROM ' . $table . ' WHERE pid=?';
+        $params = [$pid];
+
+        if (null !== $ptable) {
+            $sql     .= ' AND ptable=?';
+            $params[] = $ptable;
+        }
+
+        $row = Database::getInstance()->prepare($sql)->execute(...$params)->fetchAssoc();
+        $max = \is_array($row) ? ($row['max_sorting'] ?? null) : null;
+
+        return null === $max ? null : (int) $max;
+    }
+
+    protected function sortingAfter(?int $max): int
+    {
+        return ($max ?? 0) + self::SORTING_STEP;
+    }
+
     protected function preparedFields(string $table, array $own, array $set, ?int $excludeId = null): array
     {
         return $this->convertFields($table, array_merge($own, $set), $excludeId);
@@ -627,19 +676,16 @@ abstract class AbstractWriteCommand extends Command
             $def  = $GLOBALS['TL_DCA'][$table]['fields'][$name] ?? [];
             $rgxp = $def['eval']['rgxp'] ?? null;
 
-            // An inputUnit field: the rgxp belongs to the value half, never to
-            // the serialized pair. See InputUnitValidationTest.
-            $halves = $this->inputUnitHalves($def, $value);
-            if (null !== $halves) {
-                $value = $halves['value'];
-            }
-
-            if (!\is_string($rgxp) || '' === $rgxp || !\is_scalar($value) || '' === (string) $value) {
+            if (!\is_string($rgxp) || '' === $rgxp || !\is_scalar($value)) {
                 continue;
             }
 
-            if (!$this->passesRgxp($rgxp, (string) $value)) {
-                $offenders[] = \sprintf('%s=%s (expected: %s)', $name, (string) $value, $rgxp);
+            // The widget decides which parts the rgxp applies to — never a
+            // serialized whole or a comma list. See RgxpPartsTest.
+            foreach ($this->rgxpParts($def, (string) $value) as $part) {
+                if ('' !== $part && !$this->passesRgxp($rgxp, $part)) {
+                    $offenders[] = \sprintf('%s=%s (expected: %s)', $name, $part, $rgxp);
+                }
             }
         }
 
@@ -653,6 +699,59 @@ abstract class AbstractWriteCommand extends Command
             $table,
             implode('; ', $offenders),
         ));
+    }
+
+    /**
+     * The parts of a value that `eval.rgxp` applies to, as Contao's widget sees them.
+     *
+     * | widget | parts |
+     * |---|---|
+     * | `inputUnit` | the value (the unit goes against options) |
+     * | `imageSize` | width `[0]` and height `[1]` (`[2]` is a size ID or mode) |
+     * | `timePeriod` | the value (the unit goes against options) |
+     * | `text` with `eval.multiple` | every entry, comma list or serialized |
+     * | anything else | the value as a whole |
+     *
+     * Until v0.13.0 only `inputUnit` was split; an image size and the multi-entry
+     * text fields could not be written in any form. See RgxpPartsTest.
+     *
+     * @param array<string, mixed> $def
+     *
+     * @return list<string>
+     */
+    private function rgxpParts(array $def, string $value): array
+    {
+        $type = $def['inputType'] ?? null;
+
+        if ('inputUnit' === $type) {
+            return [$this->inputUnitHalves($def, $value)['value'] ?? $value];
+        }
+
+        $unserialized = @unserialize($value, ['allowed_classes' => false]);
+        $isArray      = \is_array($unserialized);
+
+        if ('imageSize' === $type) {
+            return $isArray
+                ? [self::scalarPart($unserialized[0] ?? ''), self::scalarPart($unserialized[1] ?? '')]
+                : [$value];
+        }
+
+        if ('timePeriod' === $type) {
+            return $isArray ? [self::scalarPart($unserialized['value'] ?? '')] : [$value];
+        }
+
+        if ('text' === $type && ($def['eval']['multiple'] ?? false)) {
+            $entries = $isArray ? array_values($unserialized) : explode(',', $value);
+
+            return array_map(static fn ($entry): string => trim(self::scalarPart($entry)), $entries);
+        }
+
+        return [$value];
+    }
+
+    private static function scalarPart(mixed $part): string
+    {
+        return \is_scalar($part) ? (string) $part : '';
     }
 
     /**

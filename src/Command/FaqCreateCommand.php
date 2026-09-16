@@ -36,6 +36,8 @@ class FaqCreateCommand extends AbstractWriteCommand
 
         $fields = $this->preparedFields('tl_faq', [
             'pid'       => (int) $pid,
+            // Behind the last question of the category. Was 0 until v0.13.0.
+            'sorting'   => $this->nextSorting('tl_faq', (int) $pid),
             'question'  => $question,
             'answer'    => $this->input->getOption('answer'),
             'published' => '0',

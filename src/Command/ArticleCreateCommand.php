@@ -37,6 +37,8 @@ class ArticleCreateCommand extends AbstractWriteCommand
 
         $fields = $this->preparedFields('tl_article', [
             'pid'       => (int) $pid,
+            // Behind the last article of the page. Was 0 until v0.13.0.
+            'sorting'   => $this->nextSorting('tl_article', (int) $pid),
             'title'     => $title,
             'alias'     => $this->resolveAlias('tl_article', '', $title),
             'inColumn'  => $this->input->getOption('inColumn'),

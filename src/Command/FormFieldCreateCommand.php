@@ -39,8 +39,6 @@ use Symfony\Component\Console\Input\InputOption;
 #[AsCommand(name: 'contao:form-field:create', description: 'Create a form field')]
 class FormFieldCreateCommand extends AbstractWriteCommand
 {
-    private const SORTING_STEP = 128;
-
     public function __construct(
         private readonly ContaoFramework $framework,
         private readonly Connection $connection,
@@ -101,7 +99,7 @@ class FormFieldCreateCommand extends AbstractWriteCommand
         $fields = $this->preparedFields('tl_form_field', [
             'pid'     => (int) $pid,
             'type'    => $type,
-            'sorting' => $this->nextSorting((int) $pid),
+            'sorting' => $this->nextSorting('tl_form_field', (int) $pid),
         ], $fields);
 
         $field          = new FormFieldModel();
@@ -124,13 +122,14 @@ class FormFieldCreateCommand extends AbstractWriteCommand
         return Command::SUCCESS;
     }
 
-    private function nextSorting(int $pid): int
+    /**
+     * The lookup through the injected connection; the rule itself lives in
+     * AbstractWriteCommand::nextSorting() since v0.14.0.
+     */
+    protected function maxSorting(string $table, int $pid, ?string $ptable): ?int
     {
-        $max = $this->connection->fetchOne(
-            'SELECT MAX(sorting) FROM tl_form_field WHERE pid = ?',
-            [$pid],
-        );
+        $max = $this->connection->fetchOne('SELECT MAX(sorting) FROM ' . $table . ' WHERE pid = ?', [$pid]);
 
-        return (int) $max + self::SORTING_STEP;
+        return null === $max || false === $max ? null : (int) $max;
     }
 }

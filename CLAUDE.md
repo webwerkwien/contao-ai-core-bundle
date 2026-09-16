@@ -108,6 +108,36 @@ All six answer with `{"status":"error"}` and exit 1, and nothing is written.
 > is a Contao-6-only silent failure. An empty value (`--set published=`) is
 > accepted and means 0, because that is what an unchecked checkbox submits.
 
+### `eval.rgxp` applies to the parts the widget checks (v0.14.0)
+
+`refuseInvalidValues()` never holds a rule against a serialized whole or a comma list.
+`rgxpParts()` hands it what Contao's widget would validate:
+
+| widget | rgxp applies to |
+|---|---|
+| `inputUnit` | the value — the unit goes against `options` |
+| `imageSize` | width `[0]` and height `[1]` — `[2]` is a size ID or mode |
+| `timePeriod` | the value — the unit goes against `options` |
+| `text` with `eval.multiple` | every entry, comma list or serialized |
+
+> 🔴 Up to v0.13.0 only `inputUnit` was split. No image size could be set on an element
+> (a bare `6` is refused as unstructured, the serialized triple failed `natural`), and
+> `playerSize`, `mooClasses`, `contextLength` and the mandatory `tl_form_field.size` could
+> not be written in any form. See `RgxpPartsTest`.
+
+### New records go behind their last sibling (v0.14.0)
+
+A create in a table with `pid` and `sorting` passes `'sorting' => $this->nextSorting($table,
+$pid[, $ptable])` to `preparedFields()`: `MAX(sorting)` of the siblings plus 128, Contao's
+step. Siblings are the same `pid`, for tl_content also the same `ptable`. As the command's
+own value it loses to a `--set sorting=` of the caller. `maxSorting()` is the lookup alone
+and may be overridden by a command that has a Doctrine connection.
+
+> 🔴 Up to v0.13.0 pages, articles, content elements and FAQs were created with
+> `sorting = 0` — the order on a page was the database's tie-break. Form fields and image
+> size items did it right with private copies. `SortingOnCreateTest` now lists all six;
+> **a new create command for a sorted table belongs in that list.**
+
 ### `inputUnit` fields: each half has its own rule (v0.11.0)
 
 `tl_content.headline`, `tl_layout.width` and the other `inputUnit` fields store a

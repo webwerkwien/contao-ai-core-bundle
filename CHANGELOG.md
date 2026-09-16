@@ -4,6 +4,35 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.14.0 - 2026-09-16
+
+All found in the ConpAI 1.0 acceptance test on 2026-09-16 and verified live on c5
+(Contao 5.7.13).
+
+### Fixed
+
+- **No image size could be set on an element.** `content create --type image --set
+  size=a:3:{…"6"}` was refused with *expected: natural*: the rule was held against the
+  serialized triple. A bare `6` is refused as unstructured since v0.12.0 — so there was no
+  form that passed. `refuseInvalidValues()` now applies `eval.rgxp` to the parts Contao's
+  widget validates: `imageSize` width and height (`[2]` is a size ID or mode),
+  `timePeriod` its value, `inputUnit` its value (as since v0.11.0). The refusal names the
+  part: `size=breit`.
+
+- **Multi-entry text fields with an `rgxp` could not be written in any form** — since
+  v0.2.28. `--set playerSize=640,360` failed on the comma list, the serialized form on the
+  array. Affected in stock 5.7.13: `tl_content.playerSize`, `tl_content.mooClasses`,
+  `tl_module.contextLength` and `tl_form_field.size`, which is mandatory — so textarea and
+  select form fields could not be created. Every entry is now checked on its own.
+
+- **Pages, articles, content elements and FAQs were created with `sorting = 0`.** Four
+  content elements in one article all had 0; their order on the page was the database's
+  tie-break. Form fields and image size items computed a value, each with a private copy.
+  The rule now lives once in `AbstractWriteCommand::nextSorting()`: `MAX(sorting)` of the
+  siblings plus 128, Contao's step; siblings share the `pid`, for tl_content also the
+  `ptable`. A `--set sorting=` of the caller still wins. `SortingOnCreateTest` checks all
+  six create commands of sorted tables.
+
 ## v0.13.0 - 2026-09-16
 
 All found in the ConpAI 1.0 acceptance test on 2026-09-16 and verified live on c5

@@ -38,6 +38,8 @@ class PageCreateCommand extends AbstractWriteCommand
 
         $fields = $this->preparedFields('tl_page', [
             'pid'      => (int) $this->input->getOption('pid'),
+            // Behind the last sibling, roots included (pid 0). Was 0 until v0.13.0.
+            'sorting'  => $this->nextSorting('tl_page', (int) $this->input->getOption('pid')),
             'title'    => $title,
             'type'     => $this->input->getOption('type'),
             'language' => $this->input->getOption('language'),
