@@ -66,7 +66,7 @@ class NewsArchiveCloner implements EntityClonerInterface
         // Atomic cascade: archive + all children commit together or not at all.
         return $this->connection->transactional(function () use ($source, $sourceId, $filteredMods, $ignoredMods, $operator, $authorId): array {
             $newArchiveId = $this->cloneArchiveRow($source, $filteredMods);
-            $this->versionManager->createVersion('tl_news_archive', $newArchiveId, $operator);
+            $this->versionManager->createInitialVersion('tl_news_archive', $newArchiveId, $operator);
 
             $count    = 0;
             $contents = 0;
@@ -74,7 +74,7 @@ class NewsArchiveCloner implements EntityClonerInterface
             if (null !== $children) {
                 foreach ($children as $child) {
                     $newChildId = $this->cloneNewsRow($child, $newArchiveId, $authorId);
-                    $this->versionManager->createVersion('tl_news', $newChildId, $operator);
+                    $this->versionManager->createInitialVersion('tl_news', $newChildId, $operator);
                     ++$count;
 
                     // 🔴 H-5: Inhaltselemente unter dem Kind wurden nie mitkopiert.

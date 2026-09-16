@@ -35,7 +35,10 @@ abstract class AbstractModelReadCommand extends AbstractReadCommand
             return $this->outputError($this->entityName() . " not found: $id");
         }
 
-        $row = $this->convertFileTreeFieldsToUuid($class::getTable(), $record->row());
+        $row = $this->convertStructuredFieldsForRead(
+            $class::getTable(),
+            $this->convertFileTreeFieldsToUuid($class::getTable(), $record->row()),
+        );
 
         $this->outputRecord($this->postProcessRow($row));
         return Command::SUCCESS;

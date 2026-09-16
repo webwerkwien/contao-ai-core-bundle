@@ -163,7 +163,7 @@ class NewsletterRecipientCreateCommand extends AbstractWriteCommand
         }
 
         $recipient->save();
-        $this->createVersion('tl_newsletter_recipients', (int) $recipient->id);
+        $this->createVersion('tl_newsletter_recipients', (int) $recipient->id, created: true);
 
         $this->outputSuccess([
             'id'     => (int) $recipient->id,

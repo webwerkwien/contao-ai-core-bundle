@@ -77,7 +77,7 @@ class FaqCategoryCreateCommand extends AbstractWriteCommand
         }
 
         $category->save();
-        $this->createVersion('tl_faq_category', (int) $category->id);
+        $this->createVersion('tl_faq_category', (int) $category->id, created: true);
 
         $this->outputSuccess(['id' => (int) $category->id, 'title' => $title]);
 

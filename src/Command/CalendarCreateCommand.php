@@ -73,7 +73,7 @@ class CalendarCreateCommand extends AbstractWriteCommand
         }
 
         $calendar->save();
-        $this->createVersion('tl_calendar', (int) $calendar->id);
+        $this->createVersion('tl_calendar', (int) $calendar->id, created: true);
 
         $this->outputSuccess(['id' => (int) $calendar->id, 'title' => $title]);
 

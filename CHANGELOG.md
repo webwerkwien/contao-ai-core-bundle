@@ -4,6 +4,53 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.16.0 - 2026-09-16
+
+The collected findings of the ConpAI 1.0 acceptance test, fixed before its repetition run.
+All verified live on c5 (Contao 5.7.13).
+
+### Changed
+
+- **Structured fields are read as arrays and written as JSON.** Every model read and
+  `record list` now answer fields Contao stores as a serialized array — wizards, image
+  sizes, `inputUnit` fields, multi-value fields without `eval.csv`, file metadata — as JSON
+  arrays or objects. Before, only `content read` unpacked `headline`; `layout read`
+  answered `width` as `a:2:{s:5:"value";…}`. Writing accepts the same shape as JSON, so
+  what was read can be written back unchanged. **This changes what callers receive** —
+  hence before 1.0.
+
+### Added
+
+- **`contao:dca:options <table> <field> [--set field=value]`** — the values a field
+  offers, from its own options callback. Page types come from the `PageRegistry` too
+  (`consho_product` was missing from the CLI's built-in list), templates per element type.
+- **`contao:dca:palette <table> --set type=root [--set enableCsp=1]`** — the fields of the
+  palette that record gets, from Contao's `getPalette()`, and its mandatory fields. For a
+  root page `title` and `language` instead of the 13 mandatory fields of all page types.
+- **`contao:layout:module --layout --module --col [--remove]`** — add or remove a module in
+  a layout, checking that the module belongs to the layout's theme and, for a classic
+  layout, that the column exists (as Contao's `ModuleWizard` derives them).
+- `Service\Dca\RecordDataContainer`, `OptionsResolver`, `StructuredFields`.
+
+### Fixed
+
+- **`customTpl` accepted templates that do not exist.** `--set
+  customTpl=content_element/text/gibtesnicht` was stored and the element silently rendered
+  its default. Checked against the templates Contao offers for the record's type now.
+- **`version restore` could restore another record's data.** A database hands out the ID
+  of a deleted record again — on c5 routinely — and its versions stay under that ID. The
+  first version of a created record is now marked (`description = created`); `version
+  restore` refuses older versions, `version list` flags them `before_creation`, and a
+  create answers `earlierVersions`. Verified with a real case: a new image size got ID 7,
+  under which lay version 1 of an image size deleted on 2026-08-31.
+- **`version restore` refused 12 of the 22 tables the bundle writes versions for** —
+  modules, forms, form fields, themes, image sizes, archives, calendars, member and user
+  groups, newsletters. The allow-list still held the ten tables of the security audit of
+  2026-04-23. `VersionAllowListTest` keeps it in step with the code now.
+- **Option lists with numeric keys answered labels instead of values.** `[6 => 'ConpAI
+  Hero']` was read as a list and returned `ConpAI Hero`. A list is recognised by
+  `array_is_list()` now.
+
 ## v0.15.1 - 2026-09-16
 
 No change in behaviour for a caller.

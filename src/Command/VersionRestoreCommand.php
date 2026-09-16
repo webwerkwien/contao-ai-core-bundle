@@ -80,6 +80,19 @@ class VersionRestoreCommand extends Command
 
         $this->framework->initialize();
 
+        // A version from before this record was created belongs to an earlier record
+        // that had the same ID — restoring it would write that record's data onto
+        // this one. Measured on c5 on 2026-09-16 (RecordIdReuseTest).
+        if ($this->versionManager->belongsToEarlierRecord($table, $id, $version)) {
+            $output->writeln(json_encode([
+                'status'  => 'error',
+                'message' => "Version {$version} of {$table}:{$id} belongs to an earlier record that had this ID — "
+                    . 'the current record was created after it. Nothing was restored. `version list` marks these with before_creation.',
+            ], JSON_UNESCAPED_UNICODE));
+
+            return Command::FAILURE;
+        }
+
         $data = $this->versionManager->loadVersionData($table, $id, $version);
         if ($data === false) {
             $output->writeln(json_encode(['status' => 'error', 'message' => "Version {$version} not found or corrupt for {$table}:{$id}"], JSON_UNESCAPED_UNICODE));

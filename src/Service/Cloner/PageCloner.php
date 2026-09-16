@@ -213,14 +213,14 @@ class PageCloner implements EntityClonerInterface
         }
 
         $newPageId = $this->clonePageRow($source, $modifications, $parentNewId);
-        $this->versionManager->createVersion('tl_page', $newPageId, $operator);
+        $this->versionManager->createInitialVersion('tl_page', $newPageId, $operator);
 
         // Articles + Content
         $articles = ArticleModel::findBy('pid', (int) $source->id);
         if (null !== $articles) {
             foreach ($articles as $sourceArticle) {
                 $newArticleId = $this->cloneArticleRow($sourceArticle, $newPageId, $authorId);
-                $this->versionManager->createVersion('tl_article', $newArticleId, $operator);
+                $this->versionManager->createInitialVersion('tl_article', $newArticleId, $operator);
                 ++$stats['articles'];
 
                 // Direkte Children unter Article (ptable=tl_article)
@@ -231,7 +231,7 @@ class PageCloner implements EntityClonerInterface
                 if (null !== $directContents) {
                     foreach ($directContents as $sourceContent) {
                         $newContentId = $this->cloneContentRow($sourceContent, $newArticleId);
-                        $this->versionManager->createVersion('tl_content', $newContentId, $operator);
+                        $this->versionManager->createInitialVersion('tl_content', $newContentId, $operator);
                         ++$stats['contents'];
                         // Verschachtelte Content-Children (ptable=tl_content) —
                         // seit H-5 in ClonesContentSubtree, geteilt mit den

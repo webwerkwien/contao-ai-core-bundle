@@ -59,14 +59,14 @@ class FaqCategoryCloner implements EntityClonerInterface
 
         return $this->connection->transactional(function () use ($source, $sourceId, $filteredMods, $ignoredMods, $operator, $authorId): array {
             $newId = $this->cloneCategoryRow($source, $filteredMods);
-            $this->versionManager->createVersion('tl_faq_category', $newId, $operator);
+            $this->versionManager->createInitialVersion('tl_faq_category', $newId, $operator);
 
             $count = 0;
             $children = FaqModel::findBy('pid', $sourceId);
             if (null !== $children) {
                 foreach ($children as $child) {
                     $newChildId = $this->cloneFaqRow($child, $newId, $authorId);
-                    $this->versionManager->createVersion('tl_faq', $newChildId, $operator);
+                    $this->versionManager->createInitialVersion('tl_faq', $newChildId, $operator);
                     ++$count;
                 }
             }

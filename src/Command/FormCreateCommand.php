@@ -106,7 +106,7 @@ class FormCreateCommand extends AbstractWriteCommand
         }
 
         $form->save();
-        $this->createVersion('tl_form', (int) $form->id);
+        $this->createVersion('tl_form', (int) $form->id, created: true);
 
         $this->outputSuccess([
             'id'    => (int) $form->id,

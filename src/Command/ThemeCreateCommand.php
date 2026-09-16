@@ -71,7 +71,7 @@ class ThemeCreateCommand extends AbstractWriteCommand
         }
 
         $theme->save();
-        $this->createVersion('tl_theme', (int) $theme->id);
+        $this->createVersion('tl_theme', (int) $theme->id, created: true);
 
         $this->outputSuccess(['id' => (int) $theme->id, 'name' => $name]);
 

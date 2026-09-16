@@ -70,7 +70,7 @@ class ImageSizeItemCreateCommand extends AbstractWriteCommand
         }
 
         $item->save();
-        $this->createVersion('tl_image_size_item', (int) $item->id);
+        $this->createVersion('tl_image_size_item', (int) $item->id, created: true);
 
         $this->outputSuccess([
             'id'      => (int) $item->id,

@@ -9,6 +9,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 #[AsCommand(name: 'contao:version:list', description: 'List version history for a record')]
 class VersionListCommand extends Command
@@ -47,16 +48,27 @@ class VersionListCommand extends Command
         $this->framework->initialize();
 
         $rows = $this->connection->fetchAllAssociative(
-            'SELECT id, version, tstamp, username, active FROM tl_version WHERE fromTable = ? AND pid = ? ORDER BY version DESC',
+            'SELECT id, version, tstamp, username, active, description FROM tl_version WHERE fromTable = ? AND pid = ? ORDER BY version DESC',
             [$table, $id]
         );
 
-        $versions = array_map(static function (array $r): array {
+        // The current record begins at its newest `created` version (v0.16.0). Older
+        // versions belong to an earlier record that had this ID; `version restore`
+        // refuses them. Without a marker nothing is known and nothing is flagged.
+        $creation = null;
+        foreach ($rows as $r) {
+            if (VersionManager::CREATED === ($r['description'] ?? null)) {
+                $creation = max($creation ?? 0, (int) $r['version']);
+            }
+        }
+
+        $versions = array_map(static function (array $r) use ($creation): array {
             return [
-                'version'  => (int) $r['version'],
-                'tstamp'   => (int) $r['tstamp'],
-                'username' => $r['username'],
-                'active'   => (bool) $r['active'],
+                'version'         => (int) $r['version'],
+                'tstamp'          => (int) $r['tstamp'],
+                'username'        => $r['username'],
+                'active'          => (bool) $r['active'],
+                'before_creation' => null !== $creation && (int) $r['version'] < $creation,
             ];
         }, $rows);
 

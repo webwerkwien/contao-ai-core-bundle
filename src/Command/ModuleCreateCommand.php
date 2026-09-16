@@ -101,7 +101,7 @@ class ModuleCreateCommand extends AbstractWriteCommand
         }
 
         $module->save();
-        $this->createVersion('tl_module', (int) $module->id);
+        $this->createVersion('tl_module', (int) $module->id, created: true);
 
         $this->outputSuccess([
             'id'   => (int) $module->id,

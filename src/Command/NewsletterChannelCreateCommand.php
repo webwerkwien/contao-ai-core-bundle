@@ -90,7 +90,7 @@ class NewsletterChannelCreateCommand extends AbstractWriteCommand
         }
 
         $channel->save();
-        $this->createVersion('tl_newsletter_channel', (int) $channel->id);
+        $this->createVersion('tl_newsletter_channel', (int) $channel->id, created: true);
 
         $this->outputSuccess(['id' => (int) $channel->id, 'title' => $title]);
 

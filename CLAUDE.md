@@ -344,6 +344,66 @@ tl_files: `isUnprotected()`, refuse when public only through a parent, `unprotec
 (`AbstractReadCommand::convertFileTreeFieldsToUuid()`), not only `fileTree` fields —
 `tl_files.uuid` and `tl_files.pid` have no widget, and their raw bytes left as `null`.
 
+## Calling Contao's callbacks from the console (v0.16.0)
+
+**`Service\Dca\RecordDataContainer::create($table, $id, $record)`** is how this bundle calls
+a callback that expects a DataContainer. It overrides `getCurrentRecord()` and
+`getActiveRecord()` to answer with the given record: both ask the permission voters and
+fail without a back-end user, and `getActiveRecord()`, the palette code and many listeners
+go through them. Setting `objActiveRecord` by reflection is **not enough** — measured,
+Contao's `TemplateOptionsListener` still got nothing. Signatures identical in 5.3/5.7/6.0.
+A factory, not a named `DC_Table` subclass under `src/`, which autowiring would try to
+register.
+
+Used by:
+
+| | what | why |
+|---|---|---|
+| `OptionsResolver`, `contao:dca:options` | a field's `options_callback` | page types from the `PageRegistry` (`#[AsPage]`), templates per element type |
+| `contao:dca:palette` | `DataContainer::getPalette()` | mandatory fields of one kind of record (selectors, sub-palettes, `onpalette_callback`) |
+
+A callback that needs more (a request, a user) throws and is reported as unresolvable; the
+image size list returns `[]` on the console — "not known", not "none".
+
+**`options_callback` is still not enforced on write in general** (see above) — with one
+exception, `customTpl`: `TemplateOptionsListener` needs only the element type.
+`refuseUnknownTemplates()` checks it when the list can be resolved and refuses nothing
+when it cannot.
+
+## Structured fields: read as arrays, written as JSON (v0.16.0)
+
+`Service\Dca\StructuredFields::storesArray()` is the one definition of "Contao stores this
+as a serialized array": the structured input types (`STRUCTURED_INPUT_TYPES`) and
+`eval.multiple` without `eval.csv`; `fileTree` excluded. Three users:
+
+- `refuseUnstructuredValues()` (write, v0.12.0) — types only
+- `convertJsonStructuredFields()` (write) — a JSON array/object becomes the serialized form,
+  leaves as strings; runs first in `convertFields()`; `inputUnit` keeps its own JSON path
+- `convertStructuredFieldsForRead()` (read) — every model read and `record list`
+
+**Contract since v0.16.0: a caller reads arrays and can write them back unchanged.**
+`ContentReadCommand::postProcessRow()` still unpacks `headline`, now a no-op.
+
+## Versions and reused IDs (v0.16.0)
+
+Create commands call `createVersion($table, $id, created: true)`, cloners
+`createInitialVersion()`: the first version's `description` is `VersionManager::CREATED`.
+Everything older under that ID belongs to a deleted record whose ID the database handed
+out again — on c5 routinely. `belongsToEarlierRecord()` drives the refusal in `version
+restore` and `before_creation` in `version list`; a create answers `earlierVersions`.
+`tl_undo` could not tell: it is purged after the undo period.
+
+**`VersionManager::ALLOWED_TABLES` must contain every table the code versions** —
+`VersionAllowListTest` scans `src/` and fails otherwise. It held the ten tables of the
+April audit while 22 were versioned.
+
+## Layout modules (v0.16.0)
+
+`contao:layout:module --layout --module --col [--remove]` validates module, theme and
+column. Columns of a classic layout come from `LayoutModuleCommand::legacyColumns()`,
+copied from Contao's `ModuleWizard`. **Quote column names in SQL here: `rows` is a reserved
+word in MySQL 8** — the first live run failed with a syntax error no unit test could see.
+
 ## Things that go wrong here
 
 Both of the following are already pinned by tests. Extend those tests when you

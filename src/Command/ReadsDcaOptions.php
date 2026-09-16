@@ -69,6 +69,11 @@ trait ReadsDcaOptions
     private function flattenOptions(array $options): array
     {
         $values = [];
+        // List form only when the keys are exactly 0..n-1. An integer key alone
+        // is not enough: image sizes come as `[6 => 'ConpAI Hero']`, where 6 is
+        // the value and the text the label. Until v0.16.0 that answered the label
+        // (measured 2026-09-16, OptionsResolverTest).
+        $isList = array_is_list($options);
 
         foreach ($options as $key => $value) {
             if (\is_array($value)) {
@@ -78,7 +83,7 @@ trait ReadsDcaOptions
             }
 
             // List form: the value is the value. Associative: the key is.
-            $values[] = \is_int($key) ? (string) $value : (string) $key;
+            $values[] = $isList ? (string) $value : (string) $key;
         }
 
         return array_values(array_unique($values));

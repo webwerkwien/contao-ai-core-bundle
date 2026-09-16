@@ -110,7 +110,7 @@ class FormFieldCreateCommand extends AbstractWriteCommand
         }
 
         $field->save();
-        $this->createVersion('tl_form_field', (int) $field->id);
+        $this->createVersion('tl_form_field', (int) $field->id, created: true);
 
         $this->outputSuccess([
             'id'      => (int) $field->id,

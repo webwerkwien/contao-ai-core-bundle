@@ -14,6 +14,8 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Contracts\Service\Attribute\Required;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\OptionsResolver;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\StructuredFields;
 use Webwerkwien\ContaoAiCoreBundle\Service\Sorting;
 use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
@@ -141,9 +143,26 @@ abstract class AbstractWriteCommand extends Command
      * invalidated here too. CacheInvalidationAfterCreateTest keeps "save first"
      * true for every *CreateCommand.
      */
-    protected function createVersion(string $table, int $id): void
+    /** @var array<string, int> versions found under a created record's ID, per `table.id` */
+    private array $earlierVersions = [];
+
+    /**
+     * @param bool $created true right after creating the record: its first version is
+     *                      marked, so versions of an earlier record with the same ID can
+     *                      be told apart (v0.16.0, RecordIdReuseTest)
+     */
+    protected function createVersion(string $table, int $id, bool $created = false): void
     {
-        $this->versionManager->createVersion($table, $id, $this->resolveOperator());
+        if ($created) {
+            $earlier = $this->versionManager->createInitialVersion($table, $id, $this->resolveOperator());
+
+            if ($earlier > 0) {
+                $this->earlierVersions[$table . '.' . $id] = $earlier;
+            }
+        } else {
+            $this->versionManager->createVersion($table, $id, $this->resolveOperator());
+        }
+
         $this->cacheTags?->recordChanged($table, $id);
     }
 
@@ -260,6 +279,8 @@ abstract class AbstractWriteCommand extends Command
         // the companion "<field>_unit" key is not a column and is consumed here.
         // The checks below split the pair again (inputUnitHalves()).
         $fields = $this->convertInputUnitFields($table, $fields);
+        // Fields read as arrays can be written back as JSON (v0.16.0).
+        $fields = $this->convertJsonStructuredFields($table, $fields);
 
         $this->refuseUnknownFields($table, $fields);
         // Both on the raw input, before the conversions below turn UUIDs binary
@@ -275,6 +296,11 @@ abstract class AbstractWriteCommand extends Command
         // are still readable as the caller typed them.
         $this->refuseInvalidOptions($table, $fields);
         $this->refuseTakenUniqueValues($table, $fields, $excludeId);
+        // A custom template has to exist. Needs the element type, so the stored
+        // record is merged in on an update. See CustomTemplateRefusalTest.
+        if (\array_key_exists('customTpl', $fields)) {
+            $this->refuseUnknownTemplates($table, $fields, $this->storedRow($table, $excludeId));
+        }
 
         $fields = $this->convertFileTreeFields($table, $fields);
         $fields = $this->convertOptionFields($table, $fields);
@@ -697,6 +723,70 @@ abstract class AbstractWriteCommand extends Command
             $table,
             implode('; ', $offenders),
         ));
+    }
+
+    private ?OptionsResolver $optionsResolver = null;
+
+    #[Required]
+    public function setOptionsResolver(OptionsResolver $optionsResolver): void
+    {
+        $this->optionsResolver = $optionsResolver;
+    }
+
+    /**
+     * Refuse a `customTpl` that is not among the templates Contao offers for the record.
+     *
+     * 🟡 **Measured on 2026-09-16 on c5:** `--set customTpl=content_element/text/
+     * gibtesnicht` was stored with `ok`; the element then silently renders its default.
+     *
+     * `options_callback` fields are not enforced in general (see refuseInvalidOptions()).
+     * `customTpl` is the exception because Contao's `TemplateOptionsListener` needs only
+     * the element type, which the record carries. An empty value clears the template.
+     * When the options cannot be resolved, nothing is refused — the list is not guessed.
+     *
+     * @param array<string, mixed> $fields
+     * @param array<string, mixed> $record the stored row on an update, empty on a create
+     *
+     * @throws \InvalidArgumentException naming the valid templates
+     */
+    protected function refuseUnknownTemplates(string $table, array $fields, array $record): void
+    {
+        $value = $fields['customTpl'] ?? '';
+
+        if (null === $this->optionsResolver || !\is_string($value) || '' === $value) {
+            return;
+        }
+
+        $allowed = $this->optionsResolver->values($table, 'customTpl', array_merge($record, $fields), (int) ($record['id'] ?? 0));
+
+        if (null === $allowed || \in_array($value, $allowed, true)) {
+            return;
+        }
+
+        $variants = array_values(array_filter($allowed, static fn (string $t): bool => '' !== $t));
+
+        throw new \InvalidArgumentException(\sprintf(
+            'Not a template Contao offers for this record: customTpl=%s. Nothing was written. Available: %s',
+            $value,
+            // '' is Contao's default template — say so instead of "none".
+            [] === $variants ? 'only the default template (customTpl=)' : implode(', ', $variants) . ', or the default (customTpl=)',
+        ));
+    }
+
+    /**
+     * The stored row of a record being updated, or an empty array for a create.
+     *
+     * @return array<string, mixed>
+     */
+    private function storedRow(string $table, ?int $id): array
+    {
+        if (null === $id) {
+            return [];
+        }
+
+        $row = Database::getInstance()->prepare('SELECT * FROM ' . $table . ' WHERE id=?')->execute($id)->fetchAssoc();
+
+        return \is_array($row) ? $row : [];
     }
 
     /**
@@ -1162,11 +1252,64 @@ abstract class AbstractWriteCommand extends Command
      * optional bundles; `inputUnit`, `cud` and `chmod` have their own
      * conversion and are listed as a net under it.
      */
-    private const STRUCTURED_INPUT_TYPES = [
-        'moduleWizard', 'sectionWizard', 'rowWizard', 'tableWizard', 'optionWizard',
-        'metaWizard', 'listWizard', 'keyValueWizard', 'imageSize', 'timePeriod',
-        'rootPageDependentSelect', 'inputUnit', 'cud', 'chmod',
-    ];
+    private const STRUCTURED_INPUT_TYPES = StructuredFields::INPUT_TYPES;
+
+    /**
+     * Turn a JSON array or object into Contao's serialized form, for a field that
+     * stores one (v0.16.0).
+     *
+     * Reads answer these fields as arrays since the same version, so what was read can
+     * be written back: `--set 'modules=[{"mod":"66","col":"header","enable":"1"}]'`.
+     * Values are stored as strings, as the back end's widgets submit them. A value
+     * that is not valid JSON, or already serialized, is left alone — the structure
+     * check refuses what nothing could convert. `inputUnit` has its own JSON form in
+     * convertInputUnitFields(). See StructuredFieldRoundTripTest.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @return array<string, mixed>
+     */
+    protected function convertJsonStructuredFields(string $table, array $fields): array
+    {
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+        $dca = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
+
+        foreach ($fields as $key => $value) {
+            $def = $dca[$key] ?? null;
+
+            if (!\is_string($value) || !\is_array($def) || 'inputUnit' === ($def['inputType'] ?? null) || !StructuredFields::storesArray($def)) {
+                continue;
+            }
+
+            $trimmed = ltrim($value);
+            if ('' === $trimmed || ('[' !== $trimmed[0] && '{' !== $trimmed[0])) {
+                continue;
+            }
+
+            $decoded = json_decode($value, true);
+            if (\is_array($decoded)) {
+                $fields[$key] = serialize(self::stringLeaves($decoded));
+            }
+        }
+
+        return $fields;
+    }
+
+    /**
+     * @param array<array-key, mixed> $data
+     *
+     * @return array<array-key, mixed>
+     */
+    private static function stringLeaves(array $data): array
+    {
+        foreach ($data as $k => $v) {
+            $data[$k] = \is_array($v) ? self::stringLeaves($v) : (\is_scalar($v) ? (string) $v : $v);
+        }
+
+        return $data;
+    }
 
     /**
      * Refuse a value that is not an array for a field whose widget stores one.
@@ -1743,6 +1886,13 @@ abstract class AbstractWriteCommand extends Command
 
     protected function outputSuccess(array $data): void
     {
+        // The new record's ID was used before, and that record's versions are still
+        // there. Said here because `version restore` refuses them and a caller should
+        // not have to find out that way.
+        if ([] !== $this->earlierVersions) {
+            $data['earlierVersions'] = $this->earlierVersions;
+        }
+
         $this->logSuccess($data);
         $this->output->writeln(json_encode(['status' => 'ok'] + $this->withCacheReport($data), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
     }

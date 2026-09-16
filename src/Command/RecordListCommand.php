@@ -152,7 +152,10 @@ class RecordListCommand extends AbstractReadCommand
         // This command reads with plain DBAL and so never passed through that
         // fix; it is also the only read command that accepts an arbitrary
         // table, which makes it the likeliest to meet an unfamiliar one.
-        $rows = array_map(fn (array $row): array => $this->convertFileTreeFieldsToUuid($table, $row), $rows);
+        $rows = array_map(
+            fn (array $row): array => $this->convertStructuredFieldsForRead($table, $this->convertFileTreeFieldsToUuid($table, $row)),
+            $rows,
+        );
 
         $this->outputRecord([
             'table'   => $table,

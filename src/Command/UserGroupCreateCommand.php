@@ -82,7 +82,7 @@ class UserGroupCreateCommand extends AbstractWriteCommand
         }
 
         $group->save();
-        $this->createVersion('tl_user_group', (int) $group->id);
+        $this->createVersion('tl_user_group', (int) $group->id, created: true);
 
         $this->outputSuccess([
             'id'   => (int) $group->id,

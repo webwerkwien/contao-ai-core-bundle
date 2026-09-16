@@ -51,7 +51,7 @@ class FaqCreateCommand extends AbstractWriteCommand
             $faq->$key = $value;
         }
         $faq->save();
-        $this->createVersion('tl_faq', (int) $faq->id);
+        $this->createVersion('tl_faq', (int) $faq->id, created: true);
 
         $this->outputSuccess(['id' => (int) $faq->id, 'question' => $question]);
         return Command::SUCCESS;

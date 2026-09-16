@@ -79,7 +79,7 @@ class NewsArchiveCreateCommand extends AbstractWriteCommand
         }
 
         $archive->save();
-        $this->createVersion('tl_news_archive', (int) $archive->id);
+        $this->createVersion('tl_news_archive', (int) $archive->id, created: true);
 
         $this->outputSuccess(['id' => (int) $archive->id, 'title' => $title]);
 

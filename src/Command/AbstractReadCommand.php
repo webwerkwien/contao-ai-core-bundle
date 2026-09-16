@@ -8,6 +8,7 @@ use Contao\Validator;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\StructuredFields;
 
 abstract class AbstractReadCommand extends Command
 {
@@ -101,6 +102,42 @@ abstract class AbstractReadCommand extends Command
 
             if (Validator::isBinaryUuid($value)) {
                 $row[$key] = StringUtil::binToUuid($value);
+            }
+        }
+
+        return $row;
+    }
+
+    /**
+     * Unpack every field Contao stores as a serialized array (v0.16.0).
+     *
+     * Until then only `content read` unpacked `headline`, by hand; `layout read`,
+     * `module read`, `record list` and the rest answered the raw PHP serialization, and
+     * a caller had to parse it. Now every read answers arrays for these fields, and
+     * writing accepts them as JSON. See StructuredFieldRoundTripTest.
+     *
+     * A value that does not unserialize to an array is left as it is.
+     *
+     * @param array<string, mixed> $row
+     *
+     * @return array<string, mixed>
+     */
+    public function convertStructuredFieldsForRead(string $table, array $row): array
+    {
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+        $dca = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
+
+        foreach ($row as $key => $value) {
+            if (!\is_string($value) || '' === $value || !\is_array($dca[$key] ?? null) || !StructuredFields::storesArray($dca[$key])) {
+                continue;
+            }
+
+            $unserialized = @unserialize($value, ['allowed_classes' => false]);
+
+            if (\is_array($unserialized)) {
+                $row[$key] = $unserialized;
             }
         }
 

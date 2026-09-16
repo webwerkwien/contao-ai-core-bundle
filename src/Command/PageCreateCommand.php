@@ -74,7 +74,7 @@ class PageCreateCommand extends AbstractWriteCommand
                 $page->$key = $value;
             }
             $page->save();
-            $this->createVersion('tl_page', (int) $page->id);
+            $this->createVersion('tl_page', (int) $page->id, created: true);
 
             if (null !== $this->pageUrlGuard) {
                 $this->pageUrlGuard->assertRootUnique((int) $page->id);

@@ -76,7 +76,7 @@ class LayoutCreateCommand extends AbstractWriteCommand
         }
 
         $layout->save();
-        $this->createVersion('tl_layout', (int) $layout->id);
+        $this->createVersion('tl_layout', (int) $layout->id, created: true);
 
         $this->outputSuccess([
             'id'       => (int) $layout->id,

@@ -68,7 +68,7 @@ class ImageSizeCreateCommand extends AbstractWriteCommand
         }
 
         $size->save();
-        $this->createVersion('tl_image_size', (int) $size->id);
+        $this->createVersion('tl_image_size', (int) $size->id, created: true);
 
         $this->outputSuccess(['id' => (int) $size->id, 'name' => $name, 'pid' => (int) $pid]);
 

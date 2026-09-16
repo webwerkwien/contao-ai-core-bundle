@@ -57,7 +57,7 @@ trait ClonesContentSubtree
 
         foreach ($children as $source) {
             $newId = $this->cloneContentRow($source, $newParentId);
-            $this->versionManager->createVersion('tl_content', $newId, $operator);
+            $this->versionManager->createInitialVersion('tl_content', $newId, $operator);
             ++$count;
 
             $count += $this->cloneContentSubtree((int) $source->id, $newId, 'tl_content', $operator);

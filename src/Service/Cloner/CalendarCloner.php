@@ -55,7 +55,7 @@ class CalendarCloner implements EntityClonerInterface
 
         return $this->connection->transactional(function () use ($source, $sourceId, $filteredMods, $ignoredMods, $operator, $authorId): array {
             $newId = $this->cloneCalendarRow($source, $filteredMods);
-            $this->versionManager->createVersion('tl_calendar', $newId, $operator);
+            $this->versionManager->createInitialVersion('tl_calendar', $newId, $operator);
 
             $count    = 0;
             $contents = 0;
@@ -63,7 +63,7 @@ class CalendarCloner implements EntityClonerInterface
             if (null !== $children) {
                 foreach ($children as $child) {
                     $newChildId = $this->cloneEventRow($child, $newId, $authorId);
-                    $this->versionManager->createVersion('tl_calendar_events', $newChildId, $operator);
+                    $this->versionManager->createInitialVersion('tl_calendar_events', $newChildId, $operator);
                     ++$count;
 
                     // 🔴 H-5: Inhaltselemente unter dem Kind wurden nie mitkopiert.
