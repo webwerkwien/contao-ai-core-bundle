@@ -4,6 +4,51 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.19.0 - 2026-09-16
+
+Findings of an independent review of `contao:file:delete`, each reproduced on the Contao 6.0.0
+test installation before it was fixed.
+
+### Fixed
+
+- **A path with `//` or `./` bypassed the usage check.** `files/a//b.png` reached the file, but
+  the `tl_files` lookup was by that literal string: no record, so no UUID search, a used file
+  deleted without `--force`, and its record left behind while the answer said `records: 1`.
+  The path is now canonicalised before anything is looked up.
+- **A symbolic link inside files/ emptied its target.** `files/rv/link` (→ `real`) deleted the
+  content of `real/`, kept the link and answered that nothing had changed. A link is now
+  removed as a link; a path running through a linked folder is refused.
+- **A folder name matched longer names** in text fields: `files/media` counted
+  `files/media2/a.jpg` as a use. Paths now match as whole paths, case-sensitively.
+- **`records`** counted a record that did not exist; it is now the number of `tl_files` rows
+  actually removed.
+- **Two `tl_log` entries per deletion**; now one, the bundle's own with the operator.
+
+Found by a second review of this change before release, and fixed in it:
+
+- A dot entry directly below files/ (`files/.htaccess`, `files/.hidden`) was deleted, and then
+  the answer was an `InvalidArgumentException` from the DBAFS manager, which refuses to sync
+  such a path. A filesync does record dot *folders*, so their records are now removed with
+  `Dbafs::deleteResource()` instead.
+- A path at the end of a sentence (`… files/docs/agb.pdf.`) did not count as a use; text that
+  is not valid UTF-8 hid every path in it.
+- A failure after something was deleted — the DBAFS sync, or a partial deletion — answers with
+  an error that says what went, and is logged like a deletion.
+- Deleting a public folder that is a link also removes its symlink in the web dir.
+
+### Changed
+
+- **The database is updated through `contao.filesystem.dbafs_manager->sync()`**, as the
+  back end of 5.7 and 6.0 does, instead of `Dbafs::deleteResource()` — and also when the
+  resource could not be deleted completely, so whatever did go leaves `tl_files`. The script
+  cache is purged for css/js, as `DC_Folder::purgeCache()` does.
+- **The usage search runs one query per table and field for all resources** instead of one per
+  resource, so large folders no longer multiply the full-table scans.
+- **New in the answer:** `type: link`, and `skippedTables` when a table's DCA could not be
+  loaded — a clean result then says what it did not cover.
+
+Verified on c5 (Contao 5.7.13) and Contao 6.0.0.
+
 ## v0.18.0 - 2026-09-16
 
 ### Added

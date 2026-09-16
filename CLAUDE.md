@@ -342,23 +342,50 @@ Where it happens, and where it differs from the back end:
 - **Not covered:** file writes (`tl_files`), and anything written around this
   bundle (raw SQL). For those, `cache clear` is still the way.
 
-## Deleting files: as the back end, but not while used (v0.18.0)
+## Deleting files: as the back end, but not while used (v0.18.0, v0.19.0)
 
-`contao:file:delete --path files/… [--force]` follows `DC_Folder::delete()` (identical in 5.7.13
-and 6.0.0): `Files::rrdir()` plus the web-dir symlink for a folder, `Files::delete()` for a file,
-**then** `Dbafs::deleteResource()`, then the files log channel (`tl_log`: *File or folder "…" has
-been deleted*). If the resource still exists after the file-system step, the database is left
-alone.
+`contao:file:delete --path files/… [--force]` follows `DC_Folder::delete()` of 5.7.13 and 6.0.0:
+`Files::rrdir()` plus the web-dir symlink for a folder, `Files::delete()` for a file, the script
+cache for css/js (`purgeCache()`), **then** `contao.filesystem.dbafs_manager->sync($path)`, which
+compares `tl_files` with what is really left on disk (5.3's back end still calls
+`Dbafs::deleteResource()`; the manager exists there as well). The sync also runs when the
+resource could not be deleted completely — whatever did go leaves `tl_files` — and the answer is
+then an error that says so. Every run that deleted something is logged, also when it answers
+with an error (partial deletion, failed sync); one `tl_log` entry, the bundle's own, with the
+operator. A dot entry directly below files/ (`files/.htaccess`, `files/.hidden`) cannot go through
+the manager ("Dot path … is not allowed"), but a filesync records dot *folders* — its records are
+removed with `Dbafs::deleteResource()` once nothing is left on disk.
 
-**Before that, `Service\Files\FileUsageFinder`** — the check Contao does not make. It searches
-every `tl_` table with a loadable DCA, except `tl_files`, `tl_version`, `tl_undo`, `tl_log`:
-`fileTree` columns for the binary UUID (equality, or containment for serialized lists), and
-`text`/`textarea`/`inputUnit` columns for the UUID as text (insert tags) and for the path. A hit
+**The path is canonicalised first** (`FileDeleteCommand::canonicalPath()`): `//`, `./` and
+backslashes go, `..`, files/ itself and anything outside files/ are refused. **A symbolic link is
+removed as a link** (`type: link`), never through to its target. A path that runs *through* a
+linked folder is refused (`files/link/a.png`).
+
+> 🔴 Up to v0.18.0 neither held — both reproduced on 6.0.0 (review, 2026-09-16).
+> `files/rv/b//a.txt` found no `tl_files` record by that string: the UUID was never searched for,
+> a used file went without `--force`, and its record stayed behind while the answer said
+> `records: 1`. `files/rv/link` (→ `real`) emptied `real/`, kept the link, and answered that
+> nothing had changed.
+
+**Before deleting, `Service\Files\FileUsageFinder`** — the check Contao does not make. It searches
+every `tl_` table with a DCA, except `tl_files`, `tl_version`, `tl_undo`, `tl_log`: `fileTree`
+columns for the binary UUID (equality, or containment for serialized lists), and
+`text`/`textarea`/`inputUnit` columns for the UUID as text (insert tags) and for the path. The
+database preselects with `LOCATE`, one query per table and field for all resources (in chunks of
+100); PHP then decides per resource — case-sensitively, and a path only as a whole path
+(`FileUsageFinder::textNamesPath()`: `files/media` is not used by `files/media2/a.jpg`, `files/a.png`
+not by `files/a.png.bak` — but a full stop ending a sentence after the path still counts). A hit
 refuses the delete with `usages` (at most 50) unless `--force`; with `--force` the answer still
-carries them. Not searched: templates and CSS on disk, values outside a DCA.
+carries them. **`skippedTables`** appears when a table's DCA failed to load — without it, a clean
+result would silently cover less than it claims. Not searched: templates and CSS on disk, values
+outside a DCA.
+
+**`records`** is the number of `tl_files` rows that are gone afterwards (counted before and after),
+0 for a file the DBAFS never knew.
 
 `undoable: false` is part of the answer on purpose: there is no `tl_undo` and no version for a
-file. `WritePathTest` excuses the command — the record work is Contao's `Dbafs`.
+file. `WritePathTest` excuses the command — the record work is Contao's DBAFS. Like every file
+command, it works on `files/`; a custom `contao.upload_path` is not supported.
 
 > 🔴 Up to v0.17.0 there was no way to delete a file through the bundle (Nr. 46 of the ConpAI 1.0
 > acceptance test). Verified live on c5 (a file used by four image elements refused, free files
