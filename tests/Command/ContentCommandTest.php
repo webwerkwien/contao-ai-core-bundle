@@ -203,11 +203,52 @@ class ContentCommandTest extends TestCase
         unset($GLOBALS['TL_DCA']['tl_content']);
     }
 
-    public function testHeadlineInvalidUnitFallsBackToDefault(): void
+    /**
+     * A unit the caller names and the DCA does not list is refused, not replaced.
+     *
+     * Until v0.10.0 `headline_unit=h9` was silently swapped for the default and
+     * answered `{"status":"ok"}` — measured on c5 on 2026-09-16. The caller
+     * asked for one thing and got another without a word, which is the one
+     * outcome this bundle refuses everywhere else ("refused rather than
+     * coerced", see `refuseInvalidBooleans()`).
+     */
+    public function testHeadlineInvalidCompanionUnitIsRefused(): void
     {
         $this->seedHeadlineDca();
-        $out = $this->unitConv()->expose('tl_content', ['headline' => 'Titel', 'headline_unit' => 'h9']);
-        $this->assertSame(serialize(['value' => 'Titel', 'unit' => 'h2']), $out['headline']);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('headline_unit=h9');
+
+        try {
+            $this->unitConv()->expose('tl_content', ['headline' => 'Titel', 'headline_unit' => 'h9']);
+        } finally {
+            unset($GLOBALS['TL_DCA']['tl_content']);
+        }
+    }
+
+    public function testHeadlineInvalidJsonUnitIsRefused(): void
+    {
+        $this->seedHeadlineDca();
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('headline_unit=h9');
+
+        try {
+            $this->unitConv()->expose('tl_content', ['headline' => '{"unit":"h9","value":"Titel"}']);
+        } finally {
+            unset($GLOBALS['TL_DCA']['tl_content']);
+        }
+    }
+
+    /**
+     * A stored unit the DCA no longer lists is not the caller's doing: the write
+     * goes through and takes the default, as before. Refusing here would make a
+     * record unwritable because of data Contao or an older extension left.
+     */
+    public function testAnInvalidStoredUnitStillFallsBackOnUpdate(): void
+    {
+        $this->seedHeadlineDca();
+        $record = (object) ['headline' => serialize(['value' => 'Alt', 'unit' => 'h9'])];
+        $out = $this->unitConv()->expose('tl_content', ['headline' => 'Neu'], 'h2', $record);
+        $this->assertSame(serialize(['value' => 'Neu', 'unit' => 'h2']), $out['headline']);
         unset($GLOBALS['TL_DCA']['tl_content']);
     }
 

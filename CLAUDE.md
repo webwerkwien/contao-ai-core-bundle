@@ -99,6 +99,32 @@ All five answer with `{"status":"error"}` and exit 1, and nothing is written.
 > is a Contao-6-only silent failure. An empty value (`--set published=`) is
 > accepted and means 0, because that is what an unchecked checkbox submits.
 
+### `inputUnit` fields: each half has its own rule (v0.11.0)
+
+`tl_content.headline`, `tl_layout.width` and the other `inputUnit` fields store a
+pair, `serialize(['value' => …, 'unit' => …])`. The caller gives the value with
+`--set headline=…` and the unit with `--set headline_unit=h1` (or both as JSON,
+`{"unit":"h1","value":"…"}`). Without a unit, an update keeps the stored one and a
+create takes the command's default.
+
+| half | checked against |
+|---|---|
+| value | `eval.rgxp` — `width=abc` is refused, `width=90` passes |
+| unit | the field's `options` — for `inputUnit` they list **units**, not values |
+
+**A unit the caller names and the DCA does not list is refused**, with
+`headline_unit=h9` in the message. A stored or default unit that is not listed
+still falls back to the default, so old data cannot make a record unwritable.
+
+> 🔴 **v0.2.28 to v0.10.0 could not write these fields at all.** The conversion
+> into the pair ran before the checks, so `refuseInvalidValues()` held the whole
+> serialized string against `rgxp` (since v0.2.28: `width=90 --set width_unit=vw`
+> failed with *expected: digit*), and `refuseInvalidOptions()` held it against
+> the unit list (since v0.9.0: **no headline could be set on any content
+> element**). And up to v0.10.0 an unknown unit was silently swapped for the
+> default and answered `ok`. Found in the ConpAI 1.0 acceptance test on
+> 2026-09-16; see `InputUnitValidationTest`.
+
 ## What `contao:dca:schema` answers about options
 
 Three fields, and they answer different questions:

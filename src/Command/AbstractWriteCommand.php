@@ -611,7 +611,15 @@ abstract class AbstractWriteCommand extends Command
         $offenders = [];
 
         foreach ($fields as $name => $value) {
-            $rgxp = $GLOBALS['TL_DCA'][$table]['fields'][$name]['eval']['rgxp'] ?? null;
+            $def  = $GLOBALS['TL_DCA'][$table]['fields'][$name] ?? [];
+            $rgxp = $def['eval']['rgxp'] ?? null;
+
+            // An inputUnit field: the rgxp belongs to the value half, never to
+            // the serialized pair. See InputUnitValidationTest.
+            $halves = $this->inputUnitHalves($def, $value);
+            if (null !== $halves) {
+                $value = $halves['value'];
+            }
 
             if (!\is_string($rgxp) || '' === $rgxp || !\is_scalar($value) || '' === (string) $value) {
                 continue;
@@ -632,6 +640,35 @@ abstract class AbstractWriteCommand extends Command
             $table,
             implode('; ', $offenders),
         ));
+    }
+
+    /**
+     * The two halves of an `inputUnit` value, or null for any other field.
+     *
+     * By the time the checks run, `convertInputUnitFields()` has already turned
+     * the input into `serialize(['value' => …, 'unit' => …])`. A value that is
+     * not (yet) serialized is the value half on its own, with no unit to check.
+     *
+     * @param array<string, mixed> $def
+     *
+     * @return array{value: string, unit: string}|null
+     */
+    private function inputUnitHalves(array $def, mixed $value): ?array
+    {
+        if ('inputUnit' !== ($def['inputType'] ?? null) || !\is_scalar($value)) {
+            return null;
+        }
+
+        $pair = @unserialize((string) $value, ['allowed_classes' => false]);
+
+        if (\is_array($pair) && \array_key_exists('value', $pair)) {
+            return [
+                'value' => \is_scalar($pair['value']) ? (string) $pair['value'] : '',
+                'unit'  => \is_scalar($pair['unit'] ?? null) ? (string) $pair['unit'] : '',
+            ];
+        }
+
+        return ['value' => (string) $value, 'unit' => ''];
     }
 
     /**
@@ -758,6 +795,19 @@ abstract class AbstractWriteCommand extends Command
 
             // No declared list — nothing to hold the value against.
             if (null === $allowed || [] === $allowed) {
+                continue;
+            }
+
+            // An inputUnit field: the options list the units, so only the unit
+            // half is held against them. The value half is free text or a
+            // number and belongs to the rgxp check. See InputUnitValidationTest.
+            if ('inputUnit' === ($def['inputType'] ?? null)) {
+                $unit = $this->inputUnitHalves($def, $value)['unit'] ?? '';
+
+                if ('' !== $unit && !\in_array($unit, $allowed, true)) {
+                    $offenders[] = \sprintf('%s unit=%s (allowed: %s)', $name, $unit, implode(', ', \array_slice($allowed, 0, 12)));
+                }
+
                 continue;
             }
 
@@ -1322,8 +1372,9 @@ abstract class AbstractWriteCommand extends Command
      *   2. a JSON object value {"unit":"h1","value":"..."} given as the field
      *   3. the unit of the record's current value (update path, via $record)
      *   4. $defaultUnit
-     * The unit is validated against the field's DCA options; an invalid unit
-     * falls back to the default. Companion "<field>_unit" keys are consumed so
+     * A unit the caller gives (1 or 2) that the field's DCA options do not list
+     * is refused (since v0.11.0). A stored or default unit that is not listed
+     * falls back to the default, as before. Companion "<field>_unit" keys are consumed so
      * they never reach the model as unknown columns.
      *
      * @param array<string, mixed> $fields
@@ -1363,6 +1414,22 @@ abstract class AbstractWriteCommand extends Command
             $unitKey = $key . '_unit';
             if (\array_key_exists($unitKey, $fields) && \is_string($fields[$unitKey]) && '' !== $fields[$unitKey]) {
                 $unit = $fields[$unitKey];
+            }
+
+            // A unit the caller named — companion key or JSON — is refused when
+            // the DCA does not list it. Until v0.10.0 it was silently replaced
+            // by the default and answered "ok" (measured on c5, 2026-09-16).
+            // Only the caller's own unit: a stored or default unit that is not
+            // listed still falls back below, so old data cannot make a record
+            // unwritable.
+            if (null !== $unit && '' !== $unit && !empty($options) && !\in_array($unit, $options, true)) {
+                throw new \InvalidArgumentException(\sprintf(
+                    'Not an allowed unit for %s: %s=%s (allowed: %s). Nothing was written.',
+                    $table,
+                    $unitKey,
+                    $unit,
+                    implode(', ', array_map('strval', $options)),
+                ));
             }
 
             // (3) preserve the record's existing unit on update

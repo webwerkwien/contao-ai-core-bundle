@@ -4,6 +4,48 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.11.0 - 2026-09-16
+
+### Fixed
+
+- **`inputUnit` fields could not be written — no headline on any content element.**
+  `content create --type headline --set headline=…` and `content update <id> --set
+  headline=…` exited 1 with *"Not an allowed value for tl_content: headline=a:2:{…}
+  (allowed: h1, h2, h3, h4, h5, h6)"*, with or without a unit. `layout update <id>
+  --set width=90 --set width_unit=vw` exited 1 with *"Rejected by the DCA rule for
+  tl_layout: width=a:2:{…} (expected: digit)"*. Both examples are in the CLI's own
+  documentation.
+
+  The cause was an order, not a rule. `convertFields()` runs every `refuse*` check
+  on the caller's raw input, on purpose — but `ContentCreateCommand` and
+  `AbstractModelUpdateCommand` turned `inputUnit` fields into their serialized
+  `{value, unit}` pair **before** it. `refuseInvalidValues()` then held the whole
+  pair against `eval.rgxp`, and `refuseInvalidOptions()` held it against `options`,
+  which for an `inputUnit` field list the **units**.
+
+  The checks now split the pair the way Contao's `InputUnit` widget does: the value
+  against `rgxp`, the unit against `options`. A refusal names the half at fault
+  (`width=abc`, `headline unit=h9`) instead of the serialized string.
+
+  Regressions: the `rgxp` half since v0.2.28 (2026-09-01), the `options` half since
+  v0.9.0 (2026-09-11). No test combined an `inputUnit` field with either check —
+  `InputUnitValidationTest` does now, and reproduced both messages before the fix.
+  Found in the ConpAI 1.0 acceptance test on 2026-09-16 and verified live on c5
+  (Contao 5.7.13).
+
+### Changed
+
+- **A unit the caller names and the DCA does not list is refused, not replaced.**
+  Until v0.10.0, `--set headline_unit=h9` (or `{"unit":"h9",…}`) was silently
+  swapped for the default and answered `{"status":"ok"}` — the caller asked for one
+  thing and got another without a word. It now exits 1 with *"Not an allowed unit
+  for tl_content: headline_unit=h9 (allowed: h1, …, h6). Nothing was written."*
+
+  A stored or default unit that is not listed still falls back to the default, as
+  before: data Contao or an older extension left must not make a record unwritable.
+
+  A minor version because a write that used to succeed now fails.
+
 ## v0.10.0 - 2026-09-13
 
 ### Fixed
