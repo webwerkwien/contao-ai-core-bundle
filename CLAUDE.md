@@ -143,7 +143,9 @@ asks the permission voters and fails without a back-end user. `generateAlias()` 
 > ⚠️ **`generateAlias()` detaches the model it looks up.** `findWithDetails()` →
 > `loadDetails()` removes that instance from the registry and forbids saving it. Holding
 > the same `PageModel` and calling `save()` afterwards fails with *"The model instance has
-> been detached"*. Write the result through the connection.
+> been detached"*. Load a fresh instance with `PageModel::findByPk()` — once detached, the
+> registry no longer holds it — and save through that. v0.15.0 wrote through the
+> connection instead; it worked but left the model layer, and was replaced in v0.15.1.
 
 **Cloning a root** accepts `language`, `urlPrefix`, `urlSuffix`, `fallback` and `dns` as
 modifications, so a site can be cloned into another language in one step. A root cloned

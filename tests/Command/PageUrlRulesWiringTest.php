@@ -61,6 +61,23 @@ class PageUrlRulesWiringTest extends TestCase
         $this->assertStringContainsString('->generateAlias(', $source);
     }
 
+    /**
+     * The generated alias is saved through the model layer (v0.15.1).
+     *
+     * `generateAlias()` detaches the instance it looks up, so the held `$clone` cannot
+     * be saved again. v0.15.0 wrote the alias through the connection instead — it
+     * worked, but left the model layer every other write of this bundle goes through.
+     * Michael questioned it on 2026-09-16. A fresh instance from `findByPk()` is
+     * registered and can be saved.
+     */
+    public function testTheClonedAliasIsSavedThroughAFreshModel(): void
+    {
+        $source = $this->source('Service/Cloner/PageCloner.php');
+
+        $this->assertStringNotContainsString("connection->update('tl_page'", $source);
+        $this->assertMatchesRegularExpression('/PageModel::findByPk\(\$newId\)/', $source);
+    }
+
     public function testTheClonerAcceptsRootFieldsForARoot(): void
     {
         $source = $this->source('Service/Cloner/PageCloner.php');

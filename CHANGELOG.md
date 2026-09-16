@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.15.1 - 2026-09-16
+
+No change in behaviour for a caller.
+
+### Changed
+
+- **The page cloner saves a generated alias through the model layer again.** Contao's
+  `generateAlias()` detaches the `PageModel` it looks up, so the cloned instance could
+  not be saved a second time. v0.15.0 wrote the alias through the Doctrine connection.
+  That worked, but it was the one write in this bundle that went around the model layer
+  — the shortcut the project's rules warn against, questioned in review the same day.
+  The alias is now saved through a fresh instance from `PageModel::findByPk()`, which the
+  registry no longer holds once detached.
+
+  Verified on c5 (Contao 5.7.13): a root cloned as Italian got `conpai-eu-it` and its
+  subpages `startseite-kopie` and so on; each cloned record has exactly one version, and
+  that snapshot contains the alias.
+
 ## v0.15.0 - 2026-09-16
 
 Found in phase 4 (second language) of the ConpAI 1.0 acceptance test on 2026-09-16 and

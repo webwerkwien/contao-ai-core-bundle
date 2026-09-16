@@ -312,12 +312,22 @@ class PageCloner implements EntityClonerInterface
         $clone->save();
         $newId = (int) $clone->id;
 
-        // Written through the connection, not `$clone->save()`: generateAlias() calls
-        // PageModel::findWithDetails(), whose loadDetails() detaches this very
-        // instance from the registry and forbids saving it ("The model instance has
-        // been detached"). Measured on c5 on 2026-09-16. The version snapshot is
-        // taken after this method returns, so it carries the alias.
-        $this->connection->update('tl_page', ['alias' => $this->pageUrlGuard->generateAlias($newId)], ['id' => $newId]);
+        // generateAlias() calls PageModel::findWithDetails(), whose loadDetails()
+        // detaches this very instance from the registry and forbids saving it ("The
+        // model instance has been detached" — measured on c5 on 2026-09-16). So the
+        // alias is saved through a fresh instance: once detached, findByPk() loads
+        // the record anew and registers it. v0.15.0 wrote it through the connection,
+        // which worked but left the model layer; Michael questioned it (v0.15.1).
+        // The version snapshot is taken after this method returns and carries it.
+        $alias = $this->pageUrlGuard->generateAlias($newId);
+        $fresh = PageModel::findByPk($newId);
+
+        if (null === $fresh) {
+            throw new \RuntimeException(\sprintf('Cloned page %d vanished before its alias could be saved.', $newId));
+        }
+
+        $fresh->alias = $alias;
+        $fresh->save();
 
         return $newId;
     }
