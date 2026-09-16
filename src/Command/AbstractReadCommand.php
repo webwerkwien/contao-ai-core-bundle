@@ -73,6 +73,14 @@ abstract class AbstractReadCommand extends Command
         $dca = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
 
         foreach ($row as $key => $value) {
+            // A binary(16) column holds a UUID whatever its widget — tl_files.uuid
+            // and tl_files.pid have none at all. Without this they left as raw
+            // bytes, which JSON turned into null (v0.13.0, measured on c5).
+            if (\is_string($value) && 16 === \strlen($value) && self::isBinary16Column($dca[$key]['sql'] ?? null)) {
+                $row[$key] = StringUtil::binToUuid($value);
+                continue;
+            }
+
             if (($dca[$key]['inputType'] ?? null) !== 'fileTree' || !\is_string($value) || '' === $value) {
                 continue;
             }
@@ -97,6 +105,21 @@ abstract class AbstractReadCommand extends Command
         }
 
         return $row;
+    }
+
+    /**
+     * Whether a DCA `sql` declaration is a 16-byte binary column — the shape
+     * Contao gives every UUID column, in either declaration form.
+     */
+    private static function isBinary16Column(mixed $sql): bool
+    {
+        if (\is_string($sql)) {
+            return 1 === preg_match('/^\s*binary\s*\(\s*16\s*\)/i', $sql);
+        }
+
+        return \is_array($sql)
+            && 'binary' === strtolower((string) ($sql['type'] ?? ''))
+            && 16 === (int) ($sql['length'] ?? 0);
     }
 
     protected function outputError(string $message, int $code = 1): int

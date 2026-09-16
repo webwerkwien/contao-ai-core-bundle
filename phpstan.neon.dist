@@ -67,14 +67,6 @@ parameters:
         # command options properly. That would be real work, not a docblock pass.
         - identifier: missingType.iterableValue
 
-        # `$parent?->uuid ?? ''` — PHPStan is right that `??` alone would do,
-        # since reading a property on null yields null there. The nullsafe
-        # operator says out loud that `findByPath()` can miss; dropping it would
-        # trade a visible intent for a silent warning.
-        -
-            identifier: nullsafe.neverNull
-            path: src/Command/FolderCreateCommand.php
-
         # Contao resolves `$tstamp` through `Model::__get()`, driven by the DCA.
         -
             identifier: property.notFound

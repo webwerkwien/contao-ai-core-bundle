@@ -4,6 +4,64 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.13.0 - 2026-09-16
+
+All found in the ConpAI 1.0 acceptance test on 2026-09-16 and verified live on c5
+(Contao 5.7.13).
+
+### Fixed
+
+- **`contao:folder:create` created folders without a UUID.** It built `new FilesModel()`
+  by hand and never set one; for a folder directly under files/ it wrote `''` as pid,
+  which a `binary(16)` column stores as zeros. A file written into such a folder by
+  `contao:file:write` — which uses `Dbafs::addResource()` correctly — found a parent
+  without a UUID and was linked to nothing. `contao:filesync` answered "No changes".
+  File pickers, `fileTree` fields and image elements break at such a folder.
+
+  New folders now go through `Dbafs::addResource()`. An existing record without a UUID
+  is **repaired in place**: UUID assigned, pid corrected (NULL directly under files/),
+  direct children re-attached, child folders repaired the same way. Deleting and
+  re-adding would make `addResource()` duplicate every child, and a child's UUID may be
+  referenced already. The answer lists the changed paths in `repaired`.
+
+  Measured before the release: web.werk.wien and wienerwandern.at have no folder without
+  a UUID and no orphaned file.
+
+- **`contao:file:write` checked none of the installation's upload rules.** Any
+  extension was written, the size limit was a hard-coded 10 MB instead of `maxFileSize`,
+  image dimensions were not applied and SVGs were not sanitised. New trait
+  `UploadPolicy` applies the rules of `Contao\FileUpload::uploadTo()` in its order:
+  `maxFileSize`, `imageWidth`/`imageHeight` (refused when
+  `contao.image.reject_large_uploads`, else resized after the write — `"resized": true`),
+  `FileUpload::sanitizeSvg()`, `uploadTypes`. PHP's `upload_max_filesize` is not applied:
+  it governs HTTP uploads, not a file that came over SCP.
+
+- **Binary UUID columns without a `fileTree` widget came out as raw bytes** — which JSON
+  turned into `null`. `record list tl_files --fields uuid,pid` showed a present reference
+  as a missing one. Every `binary(16)` column is now returned as a UUID string, in both
+  SQL declaration forms.
+
+### Added
+
+- **`contao:folder:publish --path files/… [--unpublish]`**, the back end's five steps
+  from the `protected` field of tl_files: `Folder::isUnprotected()`; refuse when the
+  folder is public only through a parent (the back end disables the checkbox for the
+  same reason, contao/contao#712); `unprotect()` / `protect()`;
+  `Automator::generateSymlinks()`; the log line *Folder "…" has been published* /
+  *protected* on the files channel. There was no way to publish a folder before:
+  `--public` was removed from folder create on 2026-04-19 because it wrote to a column
+  that does not exist.
+
+### Changed
+
+- **`contao:file:process --allowed-types` narrows `uploadTypes` and may not widen it.**
+  It used to replace the system list, so `--allowed-types php` passed. A type the
+  installation does not allow is refused by name.
+
+A minor version because writes that used to succeed — `file write` of a `.php`, a file
+between 10 MB and `maxFileSize` excepted — are refused now, and because of the new
+command.
+
 ## v0.12.0 - 2026-09-16
 
 ### Fixed

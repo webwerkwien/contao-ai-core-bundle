@@ -17,10 +17,16 @@ class FileProcessCommandTest extends TestCase
     {
         $this->tmpDir = sys_get_temp_dir() . '/fp_test_' . uniqid();
         mkdir($this->tmpDir . '/files', 0775, true);
+
+        // Every installation has an uploadTypes list. Since v0.13.0 --allowed-types
+        // narrows it instead of replacing it, so the tests below need one to narrow
+        // (see UploadPolicyTest). Without it every type would count as widening.
+        $GLOBALS['TL_CONFIG']['uploadTypes'] = 'jpg,jpeg,gif,png,webp,svg,pdf';
     }
 
     protected function tearDown(): void
     {
+        unset($GLOBALS['TL_CONFIG']['uploadTypes']);
         array_map('unlink', glob($this->tmpDir . '/files/*'));
         rmdir($this->tmpDir . '/files');
         rmdir($this->tmpDir);

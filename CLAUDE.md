@@ -250,6 +250,37 @@ Where it happens, and where it differs from the back end:
 - **Not covered:** file writes (`tl_files`), and anything written around this
   bundle (raw SQL). For those, `cache clear` is still the way.
 
+## Files: the installation's rules, and the DBAFS (v0.13.0)
+
+**What goes into files/ is what the installation allows to be uploaded.** `UploadPolicy`
+(trait, used by `FileWriteCommand` and `FileProcessCommand`) applies the rules of
+`Contao\FileUpload::uploadTo()`, in its order: `maxFileSize`, image dimensions
+(`imageWidth`/`imageHeight`, refused when `contao.image.reject_large_uploads`, else resized
+after the write), `FileUpload::sanitizeSvg()`, `uploadTypes`. The one difference: PHP's
+`upload_max_filesize` is not applied — it governs HTTP uploads, not a file that came over
+SCP. `--allowed-types` on file process narrows `uploadTypes` and may not widen it.
+
+> 🔴 Up to v0.12.0 `contao:file:write` checked none of it — any extension, a hard-coded
+> 10 MB, no SVG sanitising — and `--allowed-types` replaced the system list. Measured on
+> c5 on 2026-09-16, see `UploadPolicyTest`. `contao:file:write` reads bytes; the CLI's
+> `file upload` sends binaries through it.
+
+**A folder record comes from `Dbafs::addResource()`, never from `new FilesModel()`.**
+`FolderCreateCommand` built one by hand until v0.12.0 and never set a UUID; a file written
+into such a folder hung under no parent. An existing record without a UUID is now repaired
+in place (`repairFolder()`): delete-and-re-add would make `addResource()` duplicate every
+child, and a child's UUID may be referenced already. `contao:filesync` does **not** repair
+it — it answered "No changes". See `FolderCreateDbafsTest`.
+
+**`contao:folder:publish`** does the back end's five steps from the `protected` field of
+tl_files: `isUnprotected()`, refuse when public only through a parent, `unprotect()` /
+`protect()`, `Automator::generateSymlinks()`, the files-channel log line. Note that
+`new Folder()` creates a missing directory — check before constructing it.
+
+**Reading:** every `binary(16)` column comes out as a UUID string
+(`AbstractReadCommand::convertFileTreeFieldsToUuid()`), not only `fileTree` fields —
+`tl_files.uuid` and `tl_files.pid` have no widget, and their raw bytes left as `null`.
+
 ## Things that go wrong here
 
 Both of the following are already pinned by tests. Extend those tests when you

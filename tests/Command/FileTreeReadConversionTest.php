@@ -51,6 +51,58 @@ class FileTreeReadConversionTest extends TestCase
         parent::tearDown();
     }
 
+    // --- binary(16) columns without a fileTree widget (v0.13.0) ---
+    //
+    // 🔴 Measured on 2026-09-16 on c5: `record list tl_files --fields uuid,pid`
+    // printed a folder's uuid and a file's pid as `null`. They were not null in the
+    // database — the raw 16 bytes could not be encoded as JSON. `tl_files.uuid` and
+    // `tl_files.pid` are `binary(16)` with no `inputType`, so the fileTree rule
+    // above never touched them, and a present reference looked like a missing one.
+
+    public function testAStringSqlBinary16ColumnIsConverted(): void
+    {
+        $this->seedDca(['uuid' => ['sql' => 'binary(16) NULL'], 'pid' => ['sql' => 'binary(16) NULL']]);
+
+        $row = $this->command()->convertFileTreeFieldsToUuid('tl_page', [
+            'uuid' => StringUtil::uuidToBin(self::UUID),
+            'pid'  => StringUtil::uuidToBin('b10615e1-b1c0-11f1-b9e4-525400338fcc'),
+        ]);
+
+        $this->assertSame(self::UUID, $row['uuid']);
+        $this->assertSame('b10615e1-b1c0-11f1-b9e4-525400338fcc', $row['pid']);
+    }
+
+    public function testAnArraySqlBinary16ColumnIsConverted(): void
+    {
+        $this->seedDca(['uuid' => ['sql' => ['type' => 'binary', 'length' => 16, 'fixed' => true, 'notnull' => false]]]);
+
+        $row = $this->command()->convertFileTreeFieldsToUuid('tl_page', ['uuid' => StringUtil::uuidToBin(self::UUID)]);
+
+        $this->assertSame(self::UUID, $row['uuid']);
+    }
+
+    public function testANullBinaryColumnStaysNull(): void
+    {
+        // A top-level folder has pid NULL — that must not turn into a string.
+        $this->seedDca(['pid' => ['sql' => 'binary(16) NULL']]);
+
+        $row = $this->command()->convertFileTreeFieldsToUuid('tl_page', ['pid' => null]);
+
+        $this->assertNull($row['pid']);
+    }
+
+    public function testOtherBinaryLengthsAreLeftAlone(): void
+    {
+        // Only a 16-byte column holds a UUID; a blob is somebody else's data.
+        $this->seedDca(['data' => ['sql' => 'blob NULL'], 'token' => ['sql' => 'binary(32) NULL']]);
+        $raw = random_bytes(16);
+
+        $row = $this->command()->convertFileTreeFieldsToUuid('tl_page', ['data' => $raw, 'token' => $raw]);
+
+        $this->assertSame($raw, $row['data']);
+        $this->assertSame($raw, $row['token']);
+    }
+
     public function testASingleBinaryUuidBecomesItsStringForm(): void
     {
         $this->seedDca(['navigationImage' => ['inputType' => 'fileTree']]);

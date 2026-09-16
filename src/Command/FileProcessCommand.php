@@ -38,6 +38,8 @@ use Symfony\Component\Console\Input\InputOption;
 #[AsCommand(name: 'contao:file:process', description: 'Validate and optionally resize a file already on the server')]
 class FileProcessCommand extends AbstractWriteCommand
 {
+    use UploadPolicy;
+
     private const GD_IMAGE_TYPES = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 
     public function __construct(
@@ -86,13 +88,16 @@ class FileProcessCommand extends AbstractWriteCommand
 
         $ext = strtolower(pathinfo($absPath, PATHINFO_EXTENSION));
 
-        $allowedTypesOpt = $this->input->getOption('allowed-types');
-        if ($allowedTypesOpt !== '') {
-            $allowed = array_map('trim', explode(',', $allowedTypesOpt));
-        } else {
-            $this->framework->initialize();
-            $contaoTypes = $GLOBALS['TL_CONFIG']['uploadTypes'] ?? 'jpg,jpeg,png,gif,pdf,svg';
-            $allowed     = array_map('trim', explode(',', $contaoTypes));
+        // --allowed-types narrows the installation's uploadTypes, it never widens
+        // it. Until v0.13.0 it replaced the list, so `--allowed-types php` passed.
+        $this->framework->initialize();
+        try {
+            $allowed = $this->narrowAllowedTypes(
+                (string) $this->input->getOption('allowed-types'),
+                (string) ($GLOBALS['TL_CONFIG']['uploadTypes'] ?? ''),
+            );
+        } catch (\InvalidArgumentException $e) {
+            return $this->outputError($e->getMessage());
         }
 
         if (!in_array($ext, $allowed, true)) {

@@ -39,10 +39,13 @@ use Symfony\Component\Console\Input\InputOption;
     repeatable: true,
     answerShape: ['status', 'path'],
 )]
-#[AsCommand(name: 'contao:file:write', description: 'Write a text file to files/ and create a tl_version snapshot')]
+#[AsCommand(name: 'contao:file:write', description: 'Write a file to files/ — held to uploadTypes and maxFileSize; an existing file is versioned first')]
 class FileWriteCommand extends AbstractWriteCommand
 {
-    private const MAX_SOURCE_BYTES = 10485760; // 10 MB
+    // Since v0.13.0 the limits are the installation's own (uploadTypes,
+    // maxFileSize, image dimensions, SVG sanitising) instead of a hard-coded
+    // 10 MB and no type check at all. See UploadPolicyTest.
+    use UploadPolicy;
 
     public function __construct(
         private readonly ContaoFramework $framework,
@@ -96,16 +99,19 @@ class FileWriteCommand extends AbstractWriteCommand
             return $this->outputError("Source file not found");
         }
 
-        if (filesize($realSource) > self::MAX_SOURCE_BYTES) {
-            return $this->outputError('Source file exceeds maximum allowed size of 10 MB');
+        $this->framework->initialize();
+
+        // Before reading: an SVG is sanitised in place, as Contao does with the
+        // uploaded temp file.
+        $violation = $this->refuseDisallowedUpload($path, $realSource);
+        if (null !== $violation) {
+            return $this->outputError($violation);
         }
 
         $content = file_get_contents($realSource);
         if ($content === false) {
             return $this->outputError('Cannot read source file');
         }
-
-        $this->framework->initialize();
 
         $absPath = rtrim($this->projectDir, '/') . '/' . $path;
 
@@ -136,7 +142,10 @@ class FileWriteCommand extends AbstractWriteCommand
             return $this->outputError('Cannot write file');
         }
 
-        $bytes = strlen($content);
+        // Before the hash is taken below: a resized image has other bytes.
+        $resized = $this->resizeAfterUpload($path);
+        clearstatcache(true, $absPath);
+        $bytes = (int) filesize($absPath);
 
         if ($filesModel !== null) {
             // ⚠️ Den Hash nicht selbst rechnen. Bis v0.6.1 stand hier
@@ -181,6 +190,7 @@ class FileWriteCommand extends AbstractWriteCommand
         $this->outputSuccess([
             'path'    => $path,
             'bytes'   => $bytes,
+            'resized' => $resized,
             'version' => $version,
             'uuid'    => $uuid,
         ]);

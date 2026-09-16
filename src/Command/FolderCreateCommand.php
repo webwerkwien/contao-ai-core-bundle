@@ -4,6 +4,8 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\CoreBundle\Monolog\ContaoContext;
+use Contao\Database;
+use Contao\Dbafs;
 use Contao\FilesModel;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -65,29 +67,124 @@ class FolderCreateCommand extends AbstractWriteCommand
 
         $this->framework->initialize();
 
-        $file = FilesModel::findByPath($path);
-        if ($file === null) {
-            $file         = new FilesModel();
-            $file->pid    = $this->resolveParentUuid(dirname($path));
-            $file->tstamp = time();
-            $file->type   = 'folder';
-            $file->path   = $path;
-            $file->name   = basename($path);
-            $file->hash   = '';
-        }
-        $file->tstamp = time();
-        $file->save();
+        // A new folder goes through the DBAFS, as file write and the back end do:
+        // UUID, parent entries, contents. Until v0.12.0 this built a FilesModel by
+        // hand and never set a UUID — see FolderCreateDbafsTest.
+        $model    = FilesModel::findByPath($path);
+        $repaired = [];
 
-        $this->outputSuccess(['path' => $path, 'created' => !$existed]);
+        if (null === $model) {
+            Dbafs::addResource($path);
+        } else {
+            $this->repairFolder($model, $repaired);
+        }
+
+        $this->outputSuccess(['path' => $path, 'created' => !$existed, 'repaired' => $repaired]);
         return Command::SUCCESS;
     }
 
-    private function resolveParentUuid(string $parentPath): string
+    /**
+     * Give an existing folder record what the DBAFS owes it, and its children the
+     * link to it.
+     *
+     * Deleting and re-adding is not an option: `Dbafs::addResource()` would then
+     * create a second record for every child, and a child's UUID may already be
+     * referenced by content elements. So the record is repaired in place:
+     *
+     *  1. a UUID, if it has none (`Database::getUuid()`, as the DBAFS does)
+     *  2. the right pid — NULL directly under files/, else the parent's UUID
+     *     (a parent without one is repaired first)
+     *  3. direct children whose pid is missing or wrong are re-attached, and a
+     *     child folder without a UUID is repaired the same way
+     *
+     * @param list<string> $repaired paths that were changed, collected for the answer
+     */
+    private function repairFolder(FilesModel $folder, array &$repaired): void
     {
-        if ($parentPath === '.' || $parentPath === '') {
-            return '';
+        $changed = false;
+
+        if (self::isMissingUuid($folder->uuid)) {
+            $folder->uuid = Database::getInstance()->getUuid();
+            $changed      = true;
         }
+
+        $expectedPid = $this->expectedPid((string) $folder->path, $repaired);
+        if (!self::sameUuid($folder->pid, $expectedPid)) {
+            $folder->pid = $expectedPid;
+            $changed     = true;
+        }
+
+        if ($changed) {
+            $folder->tstamp = time();
+            $folder->save();
+            $repaired[] = (string) $folder->path;
+        }
+
+        $children = FilesModel::findBy(['path LIKE ?'], [$folder->path . '/%']);
+        if (null === $children) {
+            return;
+        }
+
+        foreach ($children as $child) {
+            if (\dirname((string) $child->path) !== $folder->path) {
+                continue; // grandchildren are their own folder's business
+            }
+
+            if ('folder' === $child->type && self::isMissingUuid($child->uuid)) {
+                $this->repairFolder($child, $repaired);
+                continue;
+            }
+
+            if (!self::sameUuid($child->pid, $folder->uuid)) {
+                $child->pid    = $folder->uuid;
+                $child->tstamp = time();
+                $child->save();
+                $repaired[] = (string) $child->path;
+            }
+        }
+    }
+
+    /**
+     * NULL directly under files/, the parent folder's UUID below it.
+     *
+     * @param list<string> $repaired
+     */
+    private function expectedPid(string $path, array &$repaired): ?string
+    {
+        $parentPath = \dirname($path);
+
+        if ('files' === $parentPath || '.' === $parentPath || '' === $parentPath) {
+            return null;
+        }
+
         $parent = FilesModel::findByPath($parentPath);
-        return $parent?->uuid ?? '';
+        if (null === $parent) {
+            return null;
+        }
+
+        if (self::isMissingUuid($parent->uuid)) {
+            $this->repairFolder($parent, $repaired);
+        }
+
+        return $parent->uuid;
+    }
+
+    /**
+     * Whether a stored UUID is absent: NULL, empty, all zeros, or not 16 bytes.
+     */
+    private static function isMissingUuid(mixed $value): bool
+    {
+        return !\is_string($value) || 16 !== \strlen($value) || str_repeat("\0", 16) === $value;
+    }
+
+    private static function sameUuid(mixed $stored, ?string $expected): bool
+    {
+        // Directly under files/ the pid is NULL — not '' and not sixteen zeros,
+        // which is what the hand-built record used to leave.
+        if (null === $expected) {
+            return null === $stored;
+        }
+
+        return \is_string($stored) && $stored === $expected;
     }
 }
