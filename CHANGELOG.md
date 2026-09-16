@@ -4,6 +4,48 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.12.0 - 2026-09-16
+
+### Fixed
+
+- **Most create commands wrote `inputUnit` fields as a bare string.** `module
+  create --type html --set headline=Vorher` answered `{"status":"ok"}` and stored
+  `Vorher` in `tl_module.headline` — a column Contao reads as `{value, unit}`. Only
+  `content create` and `layout create` called `convertInputUnitFields()`; every
+  other create command wrote the raw value. The same shape `convertFields()` was
+  introduced for in v0.2.18: a conversion each command has to remember is one some
+  command forgets.
+
+  The conversion now runs first in `convertFields()`, for every write. The default
+  unit comes from the field's **SQL default**, where Contao keeps it and what the
+  back end writes on create (`tl_module.headline`: `h2`); without one, the first
+  option (`tl_layout.width`: `px`, as before). Both SQL forms are read — the string
+  and the `['default' => …]` array. A value that already is a pair is left alone,
+  so the commands that convert earlier are unaffected.
+
+### Changed
+
+- **A value that is not a serialized array is refused for a field whose widget
+  stores one.** `layout update 25 --set modules=66` answered `{"status":"ok"}`,
+  stored the string `66`, and the layout lost its module list — a page on it
+  rendered nothing, with no error anywhere. The back end cannot produce that: a
+  `moduleWizard` only ever submits an array.
+
+  New check `refuseUnstructuredValues()`, for the 14 input types that store a
+  serialized array: `moduleWizard`, `sectionWizard`, `rowWizard`, `tableWizard`,
+  `optionWizard`, `metaWizard`, `listWizard`, `keyValueWizard`, `imageSize`,
+  `timePeriod`, `rootPageDependentSelect`, and as a net under their own
+  conversion `inputUnit`, `cud` and `chmod` (counted in the DCA files of a stock
+  5.7.13 with all optional bundles). It runs after the conversions, so a short form
+  that becomes an array (`options="red|green"`) still passes. `eval.multiple` is
+  not covered: with `eval.csv` such a field stores a comma-separated string.
+
+  A minor version because a write that used to answer `ok` now fails.
+
+  Both found in the ConpAI 1.0 acceptance test on 2026-09-16 and verified live on
+  c5 (Contao 5.7.13): `modules=66` refused with the layout intact, module headlines
+  stored as pairs with `h2` by default, an explicit unit kept on update.
+
 ## v0.11.0 - 2026-09-16
 
 ### Fixed

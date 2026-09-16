@@ -251,6 +251,14 @@ abstract class AbstractWriteCommand extends Command
      */
     protected function convertFields(string $table, array $fields, ?int $excludeId = null): array
     {
+        // First, and for every command: an inputUnit field becomes its
+        // {value, unit} pair here. Until v0.11.0 only content create and layout
+        // create did this, and every other create wrote the raw string — see
+        // InputUnitCentralConversionTest. Before refuseUnknownFields() because
+        // the companion "<field>_unit" key is not a column and is consumed here.
+        // The checks below split the pair again (inputUnitHalves()).
+        $fields = $this->convertInputUnitFields($table, $fields);
+
         $this->refuseUnknownFields($table, $fields);
         // Both on the raw input, before the conversions below turn UUIDs binary
         // and lists into serialized strings — a rule about what the caller
@@ -269,6 +277,11 @@ abstract class AbstractWriteCommand extends Command
         $fields = $this->convertFileTreeFields($table, $fields);
         $fields = $this->convertOptionFields($table, $fields);
         $fields = $this->convertMultipleFields($table, $fields);
+
+        // After the conversions, not before: `optionWizard` has a short form
+        // that only becomes an array above. What is still not one now, no
+        // conversion could make one — that is the silent case.
+        $this->refuseUnstructuredValues($table, $fields);
 
         // Last on purpose: the three above leave empty values alone, and this
         // one turns them into something that is no longer the empty string.
@@ -1047,6 +1060,73 @@ abstract class AbstractWriteCommand extends Command
     }
 
     /**
+     * Input types whose widget stores a serialized array, independent of
+     * `eval.multiple`. Counted in the DCA files of a stock 5.7.13 with all
+     * optional bundles; `inputUnit`, `cud` and `chmod` have their own
+     * conversion and are listed as a net under it.
+     */
+    private const STRUCTURED_INPUT_TYPES = [
+        'moduleWizard', 'sectionWizard', 'rowWizard', 'tableWizard', 'optionWizard',
+        'metaWizard', 'listWizard', 'keyValueWizard', 'imageSize', 'timePeriod',
+        'rootPageDependentSelect', 'inputUnit', 'cud', 'chmod',
+    ];
+
+    /**
+     * Refuse a value that is not an array for a field whose widget stores one.
+     *
+     * 🔴 **Measured on 2026-09-16 on c5 (5.7.13, v0.11.0):** `layout update 25
+     * --set modules=66` answered `{"status":"ok"}` and stored the string `66`.
+     * The layout lost its module list and a page on it rendered nothing — with
+     * no error anywhere. The back end cannot produce that: a `moduleWizard`
+     * only ever submits an array.
+     *
+     * Runs after the conversions, so a short form that becomes an array
+     * (`options="red|green"`) passes, and only what nothing could convert is
+     * refused. `eval.multiple` is not covered on purpose: with `eval.csv` such
+     * a field stores a comma-separated string. See StructuredValueRefusalTest.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @throws \InvalidArgumentException naming every field whose value is not an array
+     */
+    protected function refuseUnstructuredValues(string $table, array $fields): void
+    {
+        if ([] === $fields) {
+            return;
+        }
+
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+
+        $offenders = [];
+
+        foreach ($fields as $name => $value) {
+            $type = $GLOBALS['TL_DCA'][$table]['fields'][$name]['inputType'] ?? null;
+
+            if (!\in_array($type, self::STRUCTURED_INPUT_TYPES, true) || !\is_string($value) || '' === $value) {
+                continue;
+            }
+
+            if (!\is_array(@unserialize($value, ['allowed_classes' => false]))) {
+                $offenders[] = \sprintf('%s (%s)', $name, $type);
+            }
+        }
+
+        if ([] === $offenders) {
+            return;
+        }
+
+        throw new \InvalidArgumentException(\sprintf(
+            'Not a structured value for %s: %s. Nothing was written. These widgets store '
+            . 'a serialized PHP array — pass Contao\'s own form, e.g. modules='
+            . 'a:1:{i:0;a:3:{s:3:"mod";s:2:"66";s:3:"col";s:6:"header";s:6:"enable";s:1:"1";}}.',
+            $table,
+            implode(', ', $offenders),
+        ));
+    }
+
+    /**
      * `optionWizard` fields: a list of `{value, label}` pairs.
      *
      * `tl_form_field.options` holds
@@ -1371,7 +1451,10 @@ abstract class AbstractWriteCommand extends Command
      *   1. a companion "<field>_unit" key in the --set payload
      *   2. a JSON object value {"unit":"h1","value":"..."} given as the field
      *   3. the unit of the record's current value (update path, via $record)
-     *   4. $defaultUnit
+     *   4. $defaultUnit, or — when a command passes none, as convertFields() does
+     *      for every write since v0.12.0 — the unit in the field's SQL default,
+     *      else the first option
+     * A value that already is a {value, unit} pair is left alone.
      * A unit the caller gives (1 or 2) that the field's DCA options do not list
      * is refused (since v0.11.0). A stored or default unit that is not listed
      * falls back to the default, as before. Companion "<field>_unit" keys are consumed so
@@ -1380,7 +1463,38 @@ abstract class AbstractWriteCommand extends Command
      * @param array<string, mixed> $fields
      * @return array<string, mixed>
      */
-    protected function convertInputUnitFields(string $table, array $fields, string $defaultUnit = 'h2', ?object $record = null): array
+    /**
+     * The unit an `inputUnit` field's SQL default declares, or '' if none.
+     *
+     * Contao keeps it there — `tl_module.headline` declares
+     * `default 'a:2:{s:5:"value";s:0:"";s:4:"unit";s:2:"h2";}'` — and writes it
+     * when the back end creates a record. Both forms are read: the SQL string of
+     * Contao 5 and the `['default' => …]` array. '' lets the caller fall through
+     * to the field's first option.
+     *
+     * @param array<string, mixed> $def
+     */
+    private function sqlDefaultUnit(array $def): string
+    {
+        $sql     = $def['sql'] ?? null;
+        $default = null;
+
+        if (\is_array($sql) && \is_string($sql['default'] ?? null)) {
+            $default = $sql['default'];
+        } elseif (\is_string($sql) && preg_match("/\\bdefault\\s+'((?:[^'\\\\]|\\\\.|'')*)'/i", $sql, $m)) {
+            $default = stripslashes(str_replace("''", "'", $m[1]));
+        }
+
+        if (null === $default || '' === $default) {
+            return '';
+        }
+
+        $pair = @unserialize($default, ['allowed_classes' => false]);
+
+        return \is_array($pair) && \is_string($pair['unit'] ?? null) ? $pair['unit'] : '';
+    }
+
+    protected function convertInputUnitFields(string $table, array $fields, ?string $defaultUnit = null, ?object $record = null): array
     {
         if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
             Controller::loadDataContainer($table);
@@ -1395,9 +1509,18 @@ abstract class AbstractWriteCommand extends Command
                 continue;
             }
 
+            // Already a pair — converted by the command before convertFields(),
+            // or given in Contao's own form. Wrapping it again would store the
+            // serialized string as the value. See InputUnitCentralConversionTest.
+            $pair = @unserialize($value, ['allowed_classes' => false]);
+            if (\is_array($pair) && \array_key_exists('value', $pair)) {
+                continue;
+            }
+
             $options = $dca[$key]['options'] ?? [];
             $val     = $value;
             $unit    = null;
+            $fieldDefault = $defaultUnit ?? $this->sqlDefaultUnit($dca[$key]);
 
             // (2) the value itself is a {"unit","value"} JSON object.
             // NOTE: json_decode() + is_array() instead of json_validate(), which
@@ -1445,12 +1568,12 @@ abstract class AbstractWriteCommand extends Command
 
             // (4) fall back to the default
             if (null === $unit || '' === $unit) {
-                $unit = $defaultUnit;
+                $unit = $fieldDefault;
             }
 
             // validate against the DCA options; invalid → default (or first option)
             if (!empty($options) && !\in_array($unit, $options, true)) {
-                $unit = \in_array($defaultUnit, $options, true) ? $defaultUnit : (string) $options[0];
+                $unit = \in_array($fieldDefault, $options, true) ? $fieldDefault : (string) $options[0];
             }
 
             $fields[$key] = serialize(['value' => $val, 'unit' => $unit]);

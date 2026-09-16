@@ -87,8 +87,17 @@ a rule Contao has in the DCA and loses when a write goes around `DC_Table`:
 | `refuseInvalidBooleans()` | anything but `1`, `0` or empty for a `sql.type => boolean` column |
 | `refuseInvalidOptions()` | a value not in the field's declared `options` list |
 | `refuseTakenUniqueValues()` | a duplicate in a `eval.unique` field |
+| `refuseUnstructuredValues()` | **from v0.12.0** — a value that is not a serialized array for a field whose widget stores one (`moduleWizard`, `sectionWizard`, `rowWizard`, `imageSize`, … — 14 input types). Runs **after** the conversions, so a short form that becomes an array (`options="red\|green"`) passes |
 
-All five answer with `{"status":"error"}` and exit 1, and nothing is written.
+All six answer with `{"status":"error"}` and exit 1, and nothing is written.
+
+> 🔴 **Why the sixth exists.** Up to v0.11.0 `layout update 25 --set modules=66`
+> answered `ok` and stored the string `66` — the layout lost its module list and
+> rendered nothing, with no error anywhere. Measured on c5 on 2026-09-16. For a
+> wizard field pass Contao's own form:
+> `modules=a:1:{i:0;a:3:{s:3:"mod";s:2:"66";s:3:"col";s:6:"header";s:6:"enable";s:1:"1";}}`.
+> `eval.multiple` is not covered on purpose — with `eval.csv` such a field stores a
+> comma-separated string.
 
 > ⚠️ **Booleans take `1` or `0` — not `true`, `yes` or `on`.** From v0.7.0 those
 > are refused with a message naming the field. This is stricter than it looks
@@ -105,7 +114,13 @@ All five answer with `{"status":"error"}` and exit 1, and nothing is written.
 pair, `serialize(['value' => …, 'unit' => …])`. The caller gives the value with
 `--set headline=…` and the unit with `--set headline_unit=h1` (or both as JSON,
 `{"unit":"h1","value":"…"}`). Without a unit, an update keeps the stored one and a
-create takes the command's default.
+create takes the unit in the field's **SQL default** (`tl_module.headline`: `h2`),
+or the first option when the default has none (`tl_layout.width`: `px`).
+
+**Every write command converts, from v0.12.0.** The conversion runs first in
+`convertFields()`. Until v0.11.0 only `content create` and `layout create` did it —
+`module create --set headline=…` stored the bare string and answered `ok`. A value
+that already is a `{value, unit}` pair is left alone.
 
 | half | checked against |
 |---|---|
