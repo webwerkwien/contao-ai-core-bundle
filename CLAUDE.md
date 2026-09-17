@@ -442,6 +442,34 @@ tl_files: `isUnprotected()`, refuse when public only through a parent, `unprotec
 (`AbstractReadCommand::convertFileTreeFieldsToUuid()`), not only `fileTree` fields —
 `tl_files.uuid` and `tl_files.pid` have no widget, and their raw bytes left as `null`.
 
+## Deleting templates, clearing the cache — as the back end does (v0.21.0)
+
+**`contao:template:delete --path templates/….html.twig`** mirrors the Template Studio of 5.7
+(`DeleteOperation`, `AbstractDeleteVariantOperation`): delete the file, then
+`TemplateCacheRefresher`, then — for `templates/content_element/<type>/<name>.html.twig` and
+`templates/frontend_module/…`, the name deeper too (`…/text/a/b`, as `canExecute()` allows) —
+`customTpl` of every `tl_content`/`tl_module` record naming the variant back to `''`, so it
+renders the default template. Contao updates those rows through the connection without a
+version or `tstamp`; the bundle sets both per record. Answer: `deleted`, `undoable: false`,
+`migratedUsages: {table, field, ids}` when any, `templateCacheRefreshed`/`cacheWarning`.
+**If resetting a record fails, the file is already gone:** the answer is `status: error`
+with a message naming the table and the IDs not reset, and the attempt is logged with
+`notReset`. Templates that extend or include the deleted one are not checked — neither
+does the Studio. The path is canonicalised, a symlink or a path through a linked folder is
+refused (lessons of `file:delete`). Contao 5.3 has no Template Studio — the rules are
+rebuilt here, not called. Nr. 51 of the ConpAI 1.0 acceptance test: cleaning up c5 needed
+`ssh rm`.
+
+**`contao:cache:clear`** runs Symfony's `cache:clear` in the same process and then logs
+*"Purged the internal cache"* in `monolog.logger.contao.cron` — what
+`Automator::purgeInternalCache()` writes when the back end purges — with the operator and
+`source = CLI`. Writing after the clear works because Symfony's `cache:clear` keeps the
+running container's directory for in-process callers (`.legacy`), from which Contao's table
+handler resolves its connection lazily. If writing fails, the answer says `logged: false`.
+The entry says "internal cache" as Contao does, although this is a full `cache:clear` with
+container rebuild. Nr. 50: the audit of phase 5 found every step in `tl_log` except
+`cache clear`.
+
 ## Writing templates: refresh as the Template Studio does (v0.20.0)
 
 `contao:template:write` calls `Service\Template\TemplateCacheRefresher` after writing:

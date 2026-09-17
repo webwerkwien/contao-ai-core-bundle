@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.21.0 - 2026-09-17
+
+From the clean-up and the audit after phase 5 of the ConpAI 1.0 acceptance test.
+
+### Added
+
+- **`contao:template:delete --path templates/….html.twig`** — delete a Twig template as
+  Contao's Template Studio does: the file, compiled templates and hierarchy, and for a
+  content-element or front-end-module variant every `customTpl` naming it back to the
+  default (`migratedUsages`, one version per record). Until now removing a template needed
+  a shell (Nr. 51). If resetting a record fails after the file is gone, the error names
+  the IDs not reset and the attempt is logged.
+- **`contao:cache:clear`** — Symfony's `cache:clear`, then *"Purged the internal cache"* in
+  `tl_log` as the back end logs it (cron action, `source = CLI`, operator). A plain
+  `cache:clear` left no trace (Nr. 50, #62).
+
 ## v0.20.0 - 2026-09-17
 
 Found in phase 5 of the ConpAI 1.0 acceptance test (the second build, `consho.eu`), each
