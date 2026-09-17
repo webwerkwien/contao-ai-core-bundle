@@ -78,4 +78,27 @@ class LayoutModuleCommandTest extends TestCase
         [, $nothing] = LayoutModuleCommand::applyChange($modules, 99, null, true);
         $this->assertFalse($nothing);
     }
+
+    /**
+     * Nr. 68: a theme's content element sits in a layout as `content-<id>` (Contao 5.7).
+     */
+    public function testAThemeContentElementIsRecognisedAndStoredInContaosForm(): void
+    {
+        $this->assertSame(317, LayoutModuleCommand::themeElementId('content-317'));
+        $this->assertNull(LayoutModuleCommand::themeElementId('317'));
+        $this->assertNull(LayoutModuleCommand::themeElementId('content-0'));
+        $this->assertNull(LayoutModuleCommand::themeElementId('content-3x'));
+
+        $modules = [['mod' => '0', 'col' => 'main', 'enable' => '1']];
+
+        [$after, $changed] = LayoutModuleCommand::applyChange($modules, 'content-317', 'header', false);
+        $this->assertTrue($changed);
+        $this->assertSame(['mod' => 'content-317', 'col' => 'header', 'enable' => '1'], $after[1]);
+
+        [, $kept] = LayoutModuleCommand::applyChange($after, 317, null, true);
+        $this->assertFalse($kept, 'module 317 is not the content element 317');
+
+        [$removed] = LayoutModuleCommand::applyChange($after, 'content-317', null, true);
+        $this->assertSame($modules, $removed);
+    }
 }

@@ -4,6 +4,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\Controller;
 use Contao\CoreBundle\Framework\ContaoFramework;
+use Contao\CoreBundle\Monolog\ContaoContext;
 use Contao\StringUtil;
 use Contao\System;
 use Doctrine\DBAL\Connection;
@@ -320,7 +321,7 @@ class UndoRestoreCommand extends AbstractWriteCommand
         }
 
         try {
-            System::getContainer()->get('monolog.logger.contao.general')->info('Undone ' . $query);
+            System::getContainer()->get('monolog.logger.contao.general')->info('Undone ' . $query, $this->logContext(ContaoContext::GENERAL));
         } catch (\Throwable) {
             // No container in a bare test harness; the audit entry still happens.
         }

@@ -130,14 +130,4 @@ class FolderPublishCommand extends AbstractWriteCommand
         $this->outputSuccess(['path' => $path, 'public' => $publish, 'changed' => $changed]);
         return Command::SUCCESS;
     }
-
-    /**
-     * @return array{contao?: ContaoContext}
-     */
-    private function logContext(string $action): array
-    {
-        return null === $this->systemLog
-            ? []
-            : ['contao' => $this->systemLog->context((string) $this->getName(), $this->resolveOperator(), $action)];
-    }
 }

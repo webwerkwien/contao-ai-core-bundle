@@ -4,6 +4,33 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.24.0 - 2026-09-17
+
+From building conpai.eu in the CMS on web.werk.wien (ConpAI 1.0 acceptance test).
+
+### Added
+
+- **`contao:layout:module --module content-<id>`** puts a theme's content element into a
+  layout column, the way Contao 5.7 does (Themes → Content elements). The element must belong
+  to the layout's theme. Until now the command took only module IDs, and the header and
+  footer of conpai.eu had to be written into `modules` by hand (Nr. 68).
+
+### Changed
+
+- **A `fileTree` value that is not a file UUID is refused.** A multiple field takes a JSON
+  list of UUIDs — the form reads answer it with — as well as the comma form, and an empty
+  list `[]` clears it. Until now
+  `layout update --set 'external=["<uuid>"]'` stored the JSON text and answered ok, and the
+  layout linked no stylesheet; a comma list silently dropped a part that was not a UUID
+  (Nr. 69).
+
+### Fixed
+
+- **`contao:settings:update` logged its Contao line as `FE` / `N/A`**, and so did the
+  *"Undone …"* line of `contao:undo:restore` and the downscale line of an upload. They now
+  carry the operator and the command, like `folder:publish` since v0.22.0. A test scans
+  `src/` for lines on Contao's channels without that context (Nr. 66).
+
 ## v0.23.0 - 2026-09-17
 
 ### Added

@@ -3,6 +3,7 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\Config;
+use Contao\CoreBundle\Monolog\ContaoContext;
 use Contao\File;
 use Contao\FileUpload;
 use Contao\StringUtil;
@@ -126,7 +127,7 @@ trait UploadPolicy
 
         $file->resizeTo($target[0], $target[1]);
 
-        System::getContainer()->get('monolog.logger.contao.files')->info('File "' . $targetPath . '" was scaled down to the maximum dimensions');
+        System::getContainer()->get('monolog.logger.contao.files')->info('File "' . $targetPath . '" was scaled down to the maximum dimensions', $this->logContext(ContaoContext::FILES));
 
         return true;
     }

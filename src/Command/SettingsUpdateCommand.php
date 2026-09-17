@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 use Contao\Config;
 use Contao\Controller;
 use Contao\CoreBundle\Framework\ContaoFramework;
+use Contao\CoreBundle\Monolog\ContaoContext;
 use Contao\StringUtil;
 use Contao\System;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -236,11 +237,12 @@ class SettingsUpdateCommand extends AbstractWriteCommand
             return;
         }
 
-        $dca = $GLOBALS['TL_DCA']['tl_settings']['fields'] ?? [];
+        $dca     = $GLOBALS['TL_DCA']['tl_settings']['fields'] ?? [];
+        $context = $this->logContext(ContaoContext::CONFIGURATION);
 
         foreach ($changed as $field => $values) {
             if ('password' === ($dca[$field]['inputType'] ?? null)) {
-                $logger->info('The global configuration variable "' . $field . '" has been changed');
+                $logger->info('The global configuration variable "' . $field . '" has been changed', $context);
                 continue;
             }
 
@@ -249,7 +251,7 @@ class SettingsUpdateCommand extends AbstractWriteCommand
                 $field,
                 $values['from'],
                 $values['to'],
-            ));
+            ), $context);
         }
     }
 }

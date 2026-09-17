@@ -238,16 +238,6 @@ class FileMoveCommand extends AbstractWriteCommand
     }
 
     /**
-     * @return array{contao?: ContaoContext}
-     */
-    private function logContext(string $action): array
-    {
-        return null === $this->systemLog
-            ? []
-            : ['contao' => $this->systemLog->context((string) $this->getName(), $this->resolveOperator(), $action)];
-    }
-
-    /**
      * The tl_files records of the resource and everything below it.
      *
      * @return list<array{path: string, uuid: string|null}>

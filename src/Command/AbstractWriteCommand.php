@@ -58,6 +58,22 @@ abstract class AbstractWriteCommand extends Command
     }
 
     /**
+     * The context for a line this command writes to one of Contao's own channels.
+     *
+     * Without it, a line written on the console is labelled FE / N/A: Contao's
+     * processor fills the columns from the request, and there is none (Nr. 59,
+     * Nr. 66). Empty without a SystemLog, as in the hand-built command tests.
+     *
+     * @return array{contao?: \Contao\CoreBundle\Monolog\ContaoContext}
+     */
+    protected function logContext(string $action): array
+    {
+        return null === $this->systemLog
+            ? []
+            : ['contao' => $this->systemLog->context((string) $this->getName(), $this->resolveOperator(), $action)];
+    }
+
+    /**
      * Where a record is actually written. Nullable for the same reason as
      * $systemLog: the command tests construct commands by hand, without a
      * container. See RecordWriterInterface for why the write path sits behind
@@ -319,6 +335,9 @@ abstract class AbstractWriteCommand extends Command
         // serialized further down, so this is the last point at which the parts
         // are still readable as the caller typed them.
         $this->refuseInvalidOptions($table, $fields);
+        // Also on the raw input: convertFileTreeFields() drops what is not a
+        // UUID, so a half-wrong list would pass afterwards (Nr. 69).
+        $this->refuseInvalidFileTreeValues($table, $fields);
         $this->refuseTakenUniqueValues($table, $fields, $excludeId);
         // A custom template has to exist. Needs the element type, so the stored
         // record is merged in on an update. See CustomTemplateRefusalTest.
@@ -1705,6 +1724,14 @@ abstract class AbstractWriteCommand extends Command
                 continue;
             }
             $multiple = (bool) ($dca[$key]['eval']['multiple'] ?? false);
+
+            // An empty JSON list clears the field, as '' does. Left raw, the text
+            // "[]" would be stored and answered ok (review before v0.24.0).
+            if ($multiple && [] === json_decode(trim($value), true)) {
+                $fields[$key] = '';
+                continue;
+            }
+
             $fields[$key] = $this->uuidStringsToBin($value, $multiple);
         }
 
@@ -1725,7 +1752,7 @@ abstract class AbstractWriteCommand extends Command
         }
 
         $bins = [];
-        foreach (explode(',', $value) as $part) {
+        foreach (self::fileTreeParts($value) as $part) {
             $part = trim($part);
             if ($part !== '' && preg_match($pattern, $part)) {
                 $bins[] = StringUtil::uuidToBin($part);
@@ -1735,6 +1762,97 @@ abstract class AbstractWriteCommand extends Command
         // Nothing looked like a UUID → leave the raw value untouched rather
         // than clobbering the field with an empty serialized array.
         return $bins === [] ? $value : serialize($bins);
+    }
+
+    /**
+     * The parts of a multiple fileTree value: a JSON list, as reads answer it
+     * since v0.2.15, or the comma form.
+     *
+     * @return list<string>
+     */
+    private static function fileTreeParts(string $value): array
+    {
+        $trimmed = trim($value);
+
+        if (str_starts_with($trimmed, '[')) {
+            $decoded = json_decode($trimmed, true);
+
+            if (\is_array($decoded) && array_is_list($decoded)) {
+                return array_map(static fn (mixed $v): string => \is_scalar($v) ? trim((string) $v) : '', $decoded);
+            }
+        }
+
+        return array_map('trim', explode(',', $value));
+    }
+
+    /**
+     * Refuse a fileTree value that would not resolve to a file.
+     *
+     * 🔴 **Measured on 2026-09-17 on web.werk.wien (Contao 5.7.13, v0.23.0),
+     * Nr. 69:** `layout update 2 --set 'external=["7cb2d18f-…"]'` answered
+     * `{"status":"ok"}` and stored the JSON text. The layout never linked its
+     * stylesheet. The JSON list was what `layout read` answered for the field,
+     * so the read value could not be written back, and nothing said so.
+     *
+     * Checked on the raw input, like the other refusals: the conversion drops
+     * a part that is not a UUID, so afterwards a half-wrong list looks valid.
+     * Accepted: a UUID (single), a list of UUIDs as JSON or comma form, the
+     * binary or serialized form already stored. See FileTreeValueRefusalTest.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @throws \InvalidArgumentException naming every field and the parts that are not UUIDs
+     */
+    protected function refuseInvalidFileTreeValues(string $table, array $fields): void
+    {
+        if ([] === $fields) {
+            return;
+        }
+
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+
+        $pattern   = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
+        $offenders = [];
+
+        foreach ($fields as $name => $value) {
+            $def = $GLOBALS['TL_DCA'][$table]['fields'][$name] ?? null;
+
+            if (!\is_array($def) || 'fileTree' !== ($def['inputType'] ?? null) || !\is_string($value) || '' === trim($value)) {
+                continue;
+            }
+
+            if (!($def['eval']['multiple'] ?? false)) {
+                if (!preg_match($pattern, trim($value)) && !Validator::isBinaryUuid($value)) {
+                    $offenders[] = \sprintf('%s ("%s")', $name, $value);
+                }
+
+                continue;
+            }
+
+            if (\is_array(@unserialize($value, ['allowed_classes' => false]))) {
+                continue;
+            }
+
+            $bad = array_filter(self::fileTreeParts($value), static fn (string $p): bool => !preg_match($pattern, $p));
+
+            if ([] !== $bad) {
+                $offenders[] = \sprintf('%s ("%s")', $name, implode('", "', $bad));
+            }
+        }
+
+        if ([] === $offenders) {
+            return;
+        }
+
+        throw new \InvalidArgumentException(\sprintf(
+            'Not a file UUID for %s: %s. Nothing was written. fileTree fields take UUIDs — '
+            . 'one, or for a list a JSON array ["<uuid>", …] or "<uuid>,<uuid>". '
+            . 'contao:file:read answers a file\'s UUID.',
+            $table,
+            implode(', ', $offenders),
+        ));
     }
 
     /**

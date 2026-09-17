@@ -32,7 +32,7 @@ class LayoutModuleCommand extends AbstractWriteCommand
         parent::configure();
         $this
             ->addOption('layout', null, InputOption::VALUE_REQUIRED, 'Layout ID (tl_layout)')
-            ->addOption('module', null, InputOption::VALUE_REQUIRED, 'Module ID (tl_module), 0 for the articles')
+            ->addOption('module', null, InputOption::VALUE_REQUIRED, 'Module ID (tl_module), 0 for the articles, or content-<id> for a content element of the theme')
             ->addOption('col', null, InputOption::VALUE_REQUIRED, 'Column: main, header, left, right, footer or a custom section id')
             ->addOption('remove', null, InputOption::VALUE_NONE, 'Remove the module (from --col, or from every column without it)');
     }
@@ -44,8 +44,10 @@ class LayoutModuleCommand extends AbstractWriteCommand
         $col      = $this->input->getOption('col');
         $remove   = (bool) $this->input->getOption('remove');
 
-        if ($layoutId < 1 || null === $moduleId || '' === $moduleId || !ctype_digit((string) $moduleId)) {
-            return $this->outputError('--layout and --module (a number, 0 for the articles) are required');
+        $elementId = self::themeElementId((string) $moduleId);
+
+        if ($layoutId < 1 || null === $moduleId || '' === $moduleId || (!ctype_digit((string) $moduleId) && null === $elementId)) {
+            return $this->outputError('--layout and --module (a number, 0 for the articles, or content-<id> for a content element of the theme) are required');
         }
         if (!$remove && (null === $col || '' === $col)) {
             return $this->outputError('--col is required when adding a module');
@@ -60,9 +62,23 @@ class LayoutModuleCommand extends AbstractWriteCommand
             return $this->outputError("Layout not found: {$layoutId}");
         }
 
-        $moduleId = (int) $moduleId;
+        if (null !== $elementId) {
+            $moduleId = 'content-' . $elementId;
 
-        if (!$remove && 0 !== $moduleId) {
+            if (!$remove) {
+                $element = $this->connection->fetchAssociative('SELECT pid, ptable FROM tl_content WHERE id = ?', [$elementId]);
+                if (false === $element || 'tl_theme' !== $element['ptable']) {
+                    return $this->outputError("Content element {$elementId} is not a content element of a theme. Layouts take the theme's own elements (Contao 5.7+), see Themes → Content elements.");
+                }
+                if ((int) $element['pid'] !== (int) $layout['pid']) {
+                    return $this->outputError("Content element {$elementId} belongs to theme {$element['pid']}, layout {$layoutId} to theme {$layout['pid']}. Contao offers only the elements of the layout's own theme.");
+                }
+            }
+        } else {
+            $moduleId = (int) $moduleId;
+        }
+
+        if (!$remove && \is_int($moduleId) && 0 !== $moduleId) {
             $themeId = $this->connection->fetchOne('SELECT pid FROM tl_module WHERE id = ?', [$moduleId]);
             if (false === $themeId) {
                 return $this->outputError("Module not found: {$moduleId}");
@@ -143,11 +159,20 @@ class LayoutModuleCommand extends AbstractWriteCommand
     }
 
     /**
+     * The id of `content-<id>`, the form a layout stores a theme's content element in
+     * since Contao 5.7 (ModuleWizard, PageRegular). Null for anything else (Nr. 68).
+     */
+    public static function themeElementId(string $module): ?int
+    {
+        return preg_match('/^content-([1-9]\d*)$/', $module, $m) ? (int) $m[1] : null;
+    }
+
+    /**
      * @param list<array<string, mixed>> $modules
      *
      * @return array{0: list<array<string, mixed>>, 1: bool} the new list and whether it changed
      */
-    public static function applyChange(array $modules, int $moduleId, ?string $col, bool $remove): array
+    public static function applyChange(array $modules, int|string $moduleId, ?string $col, bool $remove): array
     {
         $matches = static fn (array $entry): bool => (string) ($entry['mod'] ?? '') === (string) $moduleId
             && (null === $col || ($entry['col'] ?? null) === $col);

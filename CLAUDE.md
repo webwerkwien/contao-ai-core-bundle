@@ -595,6 +595,26 @@ column. Columns of a classic layout come from `LayoutModuleCommand::legacyColumn
 copied from Contao's `ModuleWizard`. **Quote column names in SQL here: `rows` is a reserved
 word in MySQL 8** — the first live run failed with a syntax error no unit test could see.
 
+Since v0.24.0 `--module content-<id>` puts a **theme's content element** into a column —
+Contao 5.7 stores it in `modules` as `mod: "content-<id>"` (`ModuleWizard`, `PageRegular`).
+The element must be a `tl_content` row with `ptable = tl_theme` and the layout's theme as
+`pid`; removing does not look the element up, so a deleted one can still be taken out (Nr. 68).
+
+## fileTree values on write (v0.24.0)
+
+`convertFields()` refuses a `fileTree` value that resolves to no file
+(`refuseInvalidFileTreeValues()`, on the raw input): single — a UUID, or the 16-byte binary;
+multiple — a JSON list or comma list of UUIDs, or Contao's serialized form. A multiple field
+takes the JSON list reads answer it with, so a read value can be written back. Until v0.24.0
+`external=["<uuid>"]` stored the JSON text and answered ok, and a comma list dropped a part
+that was not a UUID without a word (Nr. 69, `FileTreeValueRefusalTest`).
+
+## Lines on Contao's log channels
+
+A line written to `monolog.logger.contao.*` takes `$this->logContext(ContaoContext::…)`.
+Without it Contao's processor labels a console line FE / N/A (Nr. 59, Nr. 66).
+`ContaoChannelContextTest` scans `src/` for such lines.
+
 ## Things that go wrong here
 
 Both of the following are already pinned by tests. Extend those tests when you
