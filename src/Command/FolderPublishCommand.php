@@ -2,14 +2,16 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
-use Contao\Automator;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\CoreBundle\Monolog\ContaoContext;
 use Contao\Folder;
 use Contao\System;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\ArgvInput;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\NullOutput;
+use Symfony\Component\Filesystem\Path;
 
 /**
  * Make a folder public, or protect it again — the back end's five steps.
@@ -26,7 +28,8 @@ use Symfony\Component\Console\Input\InputOption;
  *     end disables the checkbox (contao/contao#712); here that is an error, so a
  *     caller learns why nothing changed
  *  3. `Folder::unprotect()` / `Folder::protect()`
- *  4. `Automator::generateSymlinks()` — the web dir follows only after this
+ *  4. the symlinks, as `Automator::generateSymlinks()` makes them (its command, with the
+ *     operator in the log context) — the web dir follows only after this
  *  5. the files channel: `Folder "…" has been published` / `… protected`
  */
 #[AsCommand(name: 'contao:folder:publish', description: 'Make a folder public, or protect it again with --unpublish')]
@@ -102,16 +105,39 @@ class FolderPublishCommand extends AbstractWriteCommand
         }
 
         if ($changed) {
-            (new Automator())->generateSymlinks();
+            // Automator::generateSymlinks(), with the same command and messages — but its
+            // log lines carry no context, and on the console Contao fills in FE / N/A
+            // (live on web.werk.wien, 2026-09-17, Nr. 59). In the back end the processor
+            // takes the editor from the session; here the operator is passed along.
+            $container = System::getContainer();
+            $webDir    = Path::makeRelative($container->getParameter('contao.web_dir'), $container->getParameter('kernel.project_dir'));
+            $status    = $container->get('contao.command.symlinks')->run(new ArgvInput(['', $webDir]), new NullOutput());
 
-            System::getContainer()->get('monolog.logger.contao.files')->info(
+            if ($status > 0) {
+                $container->get('monolog.logger.contao.error')->error('The symlinks could not be regenerated', $this->logContext(ContaoContext::ERROR));
+            } else {
+                $container->get('monolog.logger.contao.cron')->info('Regenerated the symlinks', $this->logContext(ContaoContext::CRON));
+            }
+
+            $container->get('monolog.logger.contao.files')->info(
                 $publish
                     ? 'Folder "' . $path . '" has been published'
-                    : 'Folder "' . $path . '" has been protected'
+                    : 'Folder "' . $path . '" has been protected',
+                $this->logContext(ContaoContext::FILES),
             );
         }
 
         $this->outputSuccess(['path' => $path, 'public' => $publish, 'changed' => $changed]);
         return Command::SUCCESS;
+    }
+
+    /**
+     * @return array{contao?: ContaoContext}
+     */
+    private function logContext(string $action): array
+    {
+        return null === $this->systemLog
+            ? []
+            : ['contao' => $this->systemLog->context((string) $this->getName(), $this->resolveOperator(), $action)];
     }
 }

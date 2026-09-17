@@ -449,6 +449,25 @@ tl_files: `isUnprotected()`, refuse when public only through a parent, `unprotec
 (`AbstractReadCommand::convertFileTreeFieldsToUuid()`), not only `fileTree` fields —
 `tl_files.uuid` and `tl_files.pid` have no widget, and their raw bytes left as `null`.
 
+## Cloning and creating pages — as the back end does (v0.22.0)
+
+- **`record:clone` keeps each content element's visibility.** Pages and articles come out
+  unpublished; a hidden element stays hidden, a visible one shows once its page and
+  article are published — what Contao's "copy with subpages" does (`tl_content.invisible`
+  has no `doNotCopy`, checked on c5 2026-09-17). Up to v0.21.1 every cloned element was
+  forced invisible.
+- **Only a root stores `tl_page.language`.** `contao:page:create --language` applies to
+  `--type root`; any other page stores `''` and takes its root's language at runtime, as
+  one created in the back end. An explicit `--set language=` is written as given, like any
+  column (writes are checked per column, not per palette). A cloned subpage stores none; a
+  cloned root keeps its own
+  or the one from `--modifications`. (Contao's own copy empties it on the root too —
+  `doNotCopy` — but a clone into another language sets it in the same call.)
+- **Lines Contao's channels write for a command carry the CLI context.**
+  `contao:folder:publish` logs *Regenerated the symlinks* and *Folder … has been
+  published* as `CLI` with the operator; before, the console left them `FE` / `N/A`.
+  `SystemLog::context()` gives the context for such a line.
+
 ## Deleting templates, clearing the cache — as the back end does (v0.21.0)
 
 **`contao:template:delete --path templates/….html.twig`** mirrors the Template Studio of 5.7

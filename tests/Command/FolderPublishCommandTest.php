@@ -22,7 +22,8 @@ use Webwerkwien\ContaoAiCoreBundle\Command\FolderPublishCommand;
  * 2. A parent is public and this folder has no `.public` of its own → nothing can be
  *    changed here; the back end disables the checkbox (see contao/contao#712)
  * 3. publish: `Folder::unprotect()` touches `.public`; protect: `Folder::protect()`
- * 4. `Automator::generateSymlinks()` — the web dir only follows after this
+ * 4. `Automator::generateSymlinks()` — the web dir only follows after this (the command
+ *    runs the same `contao.command.symlinks` itself, to log with the operator, Nr. 59)
  * 5. `monolog.logger.contao.files`: *Folder "…" has been published* / *protected*
  *
  * The command does the same five steps. Step 2 is answered with an error instead of
@@ -30,6 +31,28 @@ use Webwerkwien\ContaoAiCoreBundle\Command\FolderPublishCommand;
  */
 class FolderPublishCommandTest extends TestCase
 {
+    /**
+     * Both lines Contao's channels write for a publish carry the CLI context (Nr. 59).
+     * `Automator::generateSymlinks()` logs without one, so it is replaced by the same
+     * `contao.command.symlinks` call with a context of our own.
+     */
+    public function testTheContaoLinesAreAttributedToTheOperator(): void
+    {
+        // Code only: the comments explain what replaced generateSymlinks() and name it.
+        $source = '';
+        foreach (token_get_all((string) file_get_contents(__DIR__ . '/../../src/Command/FolderPublishCommand.php')) as $token) {
+            if (\is_array($token) && \in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
+                continue;
+            }
+            $source .= \is_array($token) ? $token[1] : $token;
+        }
+
+        $this->assertStringNotContainsString('generateSymlinks()', $source, 'Automator::generateSymlinks() logs as FE / N/A on the console');
+        $this->assertStringContainsString("'contao.command.symlinks'", $source);
+        // The published/protected line and the symlink line — success or error — each need it.
+        $this->assertSame(3, substr_count($source, '$this->logContext('), 'every line written to a Contao channel needs the CLI context');
+    }
+
     private function tester(ContaoFramework $framework): CommandTester
     {
         return new CommandTester(new FolderPublishCommand($framework, sys_get_temp_dir()));
@@ -78,7 +101,7 @@ class FolderPublishCommandTest extends TestCase
     {
         $source = (string) file_get_contents(__DIR__ . '/../../src/Command/FolderPublishCommand.php');
 
-        foreach (['isUnprotected()', '->unprotect()', '->protect()', 'generateSymlinks()', 'monolog.logger.contao.files', 'has been published', 'has been protected'] as $needle) {
+        foreach (['isUnprotected()', '->unprotect()', '->protect()', "'contao.command.symlinks'", 'Regenerated the symlinks', 'monolog.logger.contao.files', 'has been published', 'has been protected'] as $needle) {
             $this->assertStringContainsString($needle, $source, "missing the back end's step: {$needle}");
         }
     }

@@ -9,6 +9,7 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Contracts\Service\Attribute\Required;
+use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageLanguage;
 use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageUrlGuard;
 
 #[AsCommand(name: 'contao:page:create', description: 'Create a Contao page')]
@@ -52,7 +53,8 @@ class PageCreateCommand extends AbstractWriteCommand
             'sorting'  => $this->nextSorting('tl_page', (int) $this->input->getOption('pid')),
             'title'    => $title,
             'type'     => $this->input->getOption('type'),
-            'language' => $this->input->getOption('language'),
+            // Only a root stores a language, as in the back end (v0.22.0, Nr. 62).
+            'language' => PageLanguage::forType((string) $this->input->getOption('type'), (string) $this->input->getOption('language')),
             // A given alias is taken as is. A missing one is Contao's, generated after
             // the write below — PageUrlListener::generateAlias() needs the saved page.
             // Without the guard (unit tests) the old slug remains.

@@ -79,10 +79,11 @@ trait ClonesContentSubtree
         $clone->tstamp = time();
         $clone->pid    = $newPid;
 
-        // Clones stay invisible until an operator has looked at them — the same
-        // rule the page cloner has applied since it was written.
-        $clone->invisible = '1';
-
+        // Visibility comes with the source row, as in a back-end copy: `invisible` has
+        // no `doNotCopy`. What keeps a clone offline is its unpublished page, article,
+        // news item or event. Until v0.21.1 every element was forced invisible, and a
+        // cloned site stayed empty after it was published (ConpAI 1.0, Nr. 61, checked
+        // against Contao's "copy with subpages" on c5, 2026-09-17).
         $clone->save();
 
         return (int) $clone->id;

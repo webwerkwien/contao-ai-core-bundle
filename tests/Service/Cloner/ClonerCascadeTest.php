@@ -73,6 +73,24 @@ class ClonerCascadeTest extends TestCase
     }
 
     /**
+     * A cloned content element keeps the visibility of its source, as a back-end copy does.
+     *
+     * Until v0.21.1 every clone was forced to `invisible = '1'`. Checked on c5 on 2026-09-17
+     * (ConpAI 1.0, Nr. 61): Contao's "copy with subpages" left the article unpublished and
+     * the elements as they were — visible stayed visible, hidden stayed hidden.
+     * `tl_content.invisible` has no `doNotCopy`; `DC_Table::copy()` resets only those.
+     * Live, a cloned English site showed an empty page after page and article were published.
+     */
+    public function testAClonedContentElementKeepsItsVisibility(): void
+    {
+        self::assertStringNotContainsString(
+            '->invisible',
+            $this->sourceOf('ClonesContentSubtree.php'),
+            'ClonesContentSubtree overrides the visibility the source row carries',
+        );
+    }
+
+    /**
      * @return iterable<string, array{class-string, string, string}>
      */
     public static function contentCascading(): iterable

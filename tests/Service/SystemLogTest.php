@@ -57,6 +57,25 @@ class SystemLogTest extends TestCase
         $this->assertSame(ContaoContext::FILES, $captured->getAction());
     }
 
+    /**
+     * The same attribution for a line Contao's own channels write on the bundle's behalf.
+     *
+     * `folder:publish` logs *Folder "…" has been published* to `contao.files` and
+     * *Regenerated the symlinks* to `contao.cron`, as the back end does. Without a context
+     * both reached tl_log as source FE, username N/A — live on web.werk.wien on 2026-09-17
+     * (ConpAI 1.0, Nr. 59), next to the command's own CLI line.
+     */
+    public function testGivesTheContextForAnotherChannel(): void
+    {
+        $context = (new SystemLog($this->createMock(LoggerInterface::class), new RequestStack(), $this->scopeMatcher(false)))
+            ->context('contao:folder:publish', 'webwerkwien', ContaoContext::FILES);
+
+        $this->assertSame('CLI', $context->getSource());
+        $this->assertSame('webwerkwien', $context->getUsername());
+        $this->assertSame('contao:folder:publish', $context->getFunc());
+        $this->assertSame(ContaoContext::FILES, $context->getAction());
+    }
+
     public function testDefaultsToTheGeneralAction(): void
     {
         $captured = null;

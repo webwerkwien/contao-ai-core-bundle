@@ -9,6 +9,7 @@ use Contao\PageModel;
 use Contao\StringUtil;
 use Contao\UserModel;
 use Doctrine\DBAL\Connection;
+use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageLanguage;
 use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageUrlGuard;
 use Webwerkwien\ContaoAiCoreBundle\Service\Sorting;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
@@ -43,9 +44,10 @@ class PageCloner implements EntityClonerInterface
      *
      * The line this list draws: **an override is accepted when it controls
      * whether and where the clone becomes visible.** That is the core of
-     * cloning — copy it, but do not surface it yet. The cloned content elements
-     * are already forced to `invisible = '1'` for the same reason; the page
-     * itself had no counterpart, and saying otherwise was discarded in silence.
+     * cloning — copy it, but do not surface it yet. The cloned articles are
+     * unpublished for the same reason (content elements keep their own visibility
+     * since v0.22.0, as in a back-end copy); the page itself had no counterpart,
+     * and saying otherwise was discarded in silence.
      *
      * `published` covers "not live". `hide` covers the case after that: a clone
      * that will be published but must stay out of the navigation — a test
@@ -288,6 +290,9 @@ class PageCloner implements EntityClonerInterface
         if (null !== $parentNewId) {
             $clone->pid = $parentNewId;
         }
+        // A subpage stores no language, as in the back end; a root keeps the source's
+        // unless a modification below sets it (v0.22.0, Nr. 62).
+        $clone->language = PageLanguage::forType((string) $clone->type, (string) $clone->language);
         foreach ($modifications as $key => $value) {
             $clone->$key = (string) $value;
         }

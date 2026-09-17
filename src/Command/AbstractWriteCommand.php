@@ -1741,9 +1741,11 @@ abstract class AbstractWriteCommand extends Command
      * Serialize Contao "inputUnit" fields (e.g. tl_content.headline,
      * tl_news.headline) into their canonical {value, unit} storage form.
      *
-     * Contao stores these as serialize(['value' => ..., 'unit' => ...]) — note
-     * the key order (value first), matching the backend and the column's SQL
-     * default (a:2:{s:5:"value";...;s:4:"unit";...}). The unit is resolved in
+     * Contao stores these as a serialized {value, unit} pair. This writes value
+     * first, as the column's SQL default does (a:2:{s:5:"value";...;s:4:"unit";...}).
+     * Records saved in the back end may hold unit first — 139 of 144 headlines on
+     * web.werk.wien (2026-09-17, Nr. 56) — and Contao reads both by key, so the
+     * order carries no meaning. The unit is resolved in
      * this order:
      *   1. a companion "<field>_unit" key in the --set payload
      *   2. a JSON object value {"unit":"h1","value":"..."} given as the field

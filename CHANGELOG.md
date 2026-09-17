@@ -4,6 +4,34 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.22.0 - 2026-09-17
+
+From phases 3 and 4 of the live run of the ConpAI 1.0 acceptance test on web.werk.wien,
+each compared with Contao's back end on c5 before it was changed.
+
+### Changed
+
+- **A cloned content element keeps its visibility**, as in a back-end copy. Until now
+  `record:clone` forced every element to `invisible`; a cloned site stayed empty after its
+  page and article were published. Contao's "copy with subpages" leaves the article
+  unpublished and each element as it was (`tl_content.invisible` has no `doNotCopy`) —
+  checked on c5. Applies to page, news archive and calendar clones (Nr. 61).
+- **Only a root page stores a language.** `contao:page:create` wrote its `--language`
+  default into every page and `record:clone` carried it along, so the English subpages of a
+  cloned site read `de`. A page created in the back end stores none; Contao takes it from
+  the root at runtime. Now `language` is written for `root` only, and a cloned subpage
+  stores none (Nr. 62).
+
+### Fixed
+
+- **`contao:folder:publish` logged two lines as `FE` / `N/A`.** *"Regenerated the
+  symlinks"* and *"Folder … has been published"* went through Contao's channels without a
+  context, which the console cannot fill. Both now carry `CLI` and the operator, like the
+  command's own line; the symlinks are generated with the same `contao.command.symlinks`
+  call as `Automator::generateSymlinks()` (Nr. 59).
+- The docblock of `convertInputUnitFields()` claimed the value-first key order matched the
+  back end; records saved there often hold unit first. Contao reads both (Nr. 56).
+
 ## v0.21.1 - 2026-09-17
 
 Found in phase 1 of the live run of the ConpAI 1.0 acceptance test on web.werk.wien.

@@ -58,6 +58,16 @@ class SystemLog
         string $username,
         string $action = ContaoContext::GENERAL,
     ): void {
+        $this->logger->info($text, ['contao' => $this->context($func, $username, $action)]);
+    }
+
+    /**
+     * The context alone, for a line written to another of Contao's channels on the
+     * bundle's behalf — `contao.files`, `contao.cron` — so it is attributed like this
+     * one instead of FE / N/A (ConpAI 1.0, Nr. 59).
+     */
+    public function context(string $func, string $username, string $action = ContaoContext::GENERAL): ContaoContext
+    {
         // Hand the column back to Contao only for a real back-end request.
         // contao-ai-backend-bundle runs these very commands in-process while an
         // editor is in the back end, and those are BE writes - ContaoTableProcessor
@@ -71,11 +81,11 @@ class SystemLog
         $isEditor = null !== $request && $this->scopeMatcher->isBackendRequest($request);
         $source   = $isEditor ? null : self::SOURCE;
 
-        $this->logger->info($text, ['contao' => new ContaoContext(
+        return new ContaoContext(
             func: '' !== $func ? $func : 'contao-ai-core-bundle',
             action: $action,
             username: '' !== $username ? $username : 'cli-agent',
             source: $source,
-        )]);
+        );
     }
 }
