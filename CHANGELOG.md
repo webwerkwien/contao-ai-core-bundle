@@ -4,6 +4,37 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.20.0 - 2026-09-17
+
+Found in phase 5 of the ConpAI 1.0 acceptance test (the second build, `consho.eu`), each
+reproduced on c5 and compared with Contao's back end before it was fixed.
+
+### Fixed
+
+- **A template written with `contao:template:write` was not usable until `cache clear`.**
+  In production Contao caches the template hierarchy and Twig does not auto-reload: a new
+  variant was refused as `customTpl`, an edited override kept rendering the old version.
+  The command now refreshes both, as the Template Studio does after saving, and answers
+  `templateCacheRefreshed: true`. When something could not be refreshed from the console it
+  answers `false` with `cacheWarning` saying what: on Contao 5.3 the template list lives in
+  `cache.system`, whose APCu layer the web server may keep; Twig before 3.15 cannot drop
+  compiled templates.
+
+### Added
+
+- **`routeConflicts` in the answer of page create and update:** pages on the same domain
+  whose URL may collide, `[{id, title, alias, path}]` — the hint Contao's back end shows
+  under the alias field. A hint, not a refusal: the back end saves a second `index` under
+  the same root too (checked in the back end). Until now the bundle saved it silently. A
+  bulk `page update --ids` reports them per record: `routeConflicts: {"<id>": [...]}`. The
+  check never fails a write.
+- `Service\Template\TemplateCacheRefresher`, `PageUrlGuard::routeConflicts()`.
+
+Verified on c5 (Contao 5.7.13); the Contao APIs used exist in 5.3 and 6.0 (`removeCache()`
+needs Twig 3.15). **The two Contao 5.3 cases of `cacheWarning` (APCu in `cache.system`, Twig
+before 3.15) are checked against the 5.3.51 sources and by unit tests only** — there is no
+running 5.3 installation to test against yet.
+
 ## v0.19.0 - 2026-09-16
 
 Findings of an independent review of `contao:file:delete`, each reproduced on the Contao 6.0.0

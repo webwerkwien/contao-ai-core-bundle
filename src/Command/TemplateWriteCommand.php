@@ -12,6 +12,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Contracts\Service\Attribute\Required;
 use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
+use Webwerkwien\ContaoAiCoreBundle\Service\Template\TemplateCacheRefresher;
 
 /**
  * Write a Twig template to the correct path under templates/.
@@ -47,7 +48,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
     traceWhen: 'on-success',
     irreversible: 'overwrites the template file on disk — the previous content is not kept',
     repeatable: true,
-    answerShape: ['status', 'template'],
+    answerShape: ['status', 'path', 'mode', 'bytes', 'templateCacheRefreshed', 'cacheWarning'],
 )]
 #[AsCommand(name: 'contao:template:write', description: 'Write a Twig template to the correct path under templates/')]
 class TemplateWriteCommand extends Command
@@ -58,6 +59,13 @@ class TemplateWriteCommand extends Command
 
     private LoggerInterface $logger;
     private ?SystemLog $systemLog = null;
+    private ?TemplateCacheRefresher $templateCacheRefresher = null;
+
+    #[Required]
+    public function setTemplateCacheRefresher(TemplateCacheRefresher $templateCacheRefresher): void
+    {
+        $this->templateCacheRefresher = $templateCacheRefresher;
+    }
 
     public function __construct(private readonly string $projectDir)
     {
@@ -161,6 +169,28 @@ class TemplateWriteCommand extends Command
             return self::FAILURE;
         }
 
+        // As the Template Studio after saving: without this a new variant is refused as
+        // customTpl and an edited override renders the old version (Nr. 47, 2026-09-17).
+        $cacheRefreshed = false;
+        $cacheWarning   = null;
+
+        if (null !== $this->templateCacheRefresher) {
+            try {
+                $notRefreshed = $this->templateCacheRefresher->refresh();
+
+                // Only true when nothing is left to do; a caller keys on the flag and would
+                // skip cache clear otherwise (review 2026-09-17).
+                $cacheRefreshed = [] === $notRefreshed;
+
+                if ([] !== $notRefreshed) {
+                    $cacheWarning = implode(' ', $notRefreshed);
+                }
+            } catch (\Throwable $e) {
+                $cacheWarning = 'The template was written, but Contao\'s template cache could not be refreshed ('
+                    . $e->getMessage() . '). Run cache clear before using it.';
+            }
+        }
+
         $payload = ['path' => 'templates/' . $relPath, 'mode' => $mode, 'bytes' => strlen($content)];
         $user    = $this->resolveOperatorName($input);
 
@@ -177,12 +207,19 @@ class TemplateWriteCommand extends Command
             ContaoContext::FILES,
         );
 
-        $output->writeln(json_encode([
-            'status' => 'ok',
-            'path'   => 'templates/' . $relPath,
-            'mode'   => $mode,
-            'bytes'  => strlen($content),
-        ], JSON_UNESCAPED_UNICODE));
+        $answer = [
+            'status'                 => 'ok',
+            'path'                   => 'templates/' . $relPath,
+            'mode'                   => $mode,
+            'bytes'                  => strlen($content),
+            'templateCacheRefreshed' => $cacheRefreshed,
+        ];
+
+        if (null !== $cacheWarning) {
+            $answer['cacheWarning'] = $cacheWarning;
+        }
+
+        $output->writeln(json_encode($answer, JSON_UNESCAPED_UNICODE));
 
         return self::SUCCESS;
     }

@@ -104,6 +104,10 @@ class PageCreateCommand extends AbstractWriteCommand
 
         $page = null === $this->pageUrlGuard ? $write() : $this->pageUrlGuard->transactional($write);
 
+        if (null !== $this->pageUrlGuard) {
+            $this->routeConflicts = $this->pageUrlGuard->routeConflicts((int) $page->id);
+        }
+
         $this->outputSuccess(['id' => (int) $page->id, 'title' => $page->title, 'alias' => $page->alias]);
         return Command::SUCCESS;
     }

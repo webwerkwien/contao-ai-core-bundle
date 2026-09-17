@@ -52,7 +52,7 @@ class PageUpdateCommand extends AbstractModelUpdateCommand
 
         $guard = $this->pageUrlGuard;
 
-        return $guard->transactional(function () use ($guard, $id, $fields): ?array {
+        $updated = $guard->transactional(function () use ($guard, $id, $fields): ?array {
             $updated = parent::applyToRecord($id, $fields);
 
             if (null === $updated) {
@@ -70,5 +70,12 @@ class PageUpdateCommand extends AbstractModelUpdateCommand
 
             return $updated;
         });
+
+        // Accepted, like the back end — but said, like the back end (Nr. 48, 2026-09-17).
+        if (null !== $updated && [] !== array_intersect($updated, self::PAGE_URL_FIELDS)) {
+            $this->routeConflicts = $guard->routeConflicts($id);
+        }
+
+        return $updated;
     }
 }

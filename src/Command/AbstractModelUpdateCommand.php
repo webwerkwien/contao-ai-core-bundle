@@ -132,15 +132,26 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
     {
         $this->framework->initialize();
 
-        $succeeded = [];
-        $failed    = [];
+        $succeeded      = [];
+        $failed         = [];
+        $routeConflicts = [];
 
         foreach ($ids as $id) {
+            $this->takeRouteConflicts();
+
             try {
                 $updated = $this->applyToRecord($id, $fields);
             } catch (\Throwable $e) {
                 $failed[] = ['id' => $id, 'message' => $e->getMessage()];
                 continue;
+            }
+
+            // Per record, so a hint cannot be read as belonging to another id of the
+            // bulk (review 2026-09-17: the bulk answer dropped it entirely).
+            $found = $this->takeRouteConflicts();
+
+            if ([] !== $found) {
+                $routeConflicts[(string) $id] = $found;
             }
 
             if (null === $updated) {
@@ -154,14 +165,20 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
             $this->logSuccess(['id' => $id, 'updated' => $updated]);
         }
 
-        $this->output->writeln(json_encode([
+        $answer = [
             'status'    => [] === $failed ? 'ok' : 'partial',
             'total'     => \count($ids),
             'succeeded' => \count($succeeded),
             'failed'    => \count($failed),
             'ids'       => $succeeded,
             'errors'    => $failed,
-        ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
+        ];
+
+        if ([] !== $routeConflicts) {
+            $answer['routeConflicts'] = $routeConflicts;
+        }
+
+        $this->output->writeln(json_encode($answer, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
 
         // A non-zero exit is what lets a shell loop notice. The 2026-08-29 run
         // reported success while doing almost nothing.

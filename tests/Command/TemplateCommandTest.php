@@ -204,4 +204,37 @@ class TemplateCommandTest extends TestCase
         $this->assertSame('error', $out['status']);
         $this->assertStringContainsStringIgnoringCase('name', $out['message']);
     }
+
+    /**
+     * Nr. 47 (2026-09-17): a written variant was refused as customTpl until cache clear.
+     */
+    public function testAWrittenTemplateRefreshesContaosTemplateCache(): void
+    {
+        $source = $this->tmpDir . '/source.html.twig';
+        file_put_contents($source, "{% extends '@Contao/content_element/text.html.twig' %}\n");
+
+        $loader = $this->createMock(\Contao\CoreBundle\Twig\Loader\ContaoFilesystemLoader::class);
+        $loader->expects($this->once())->method('warmUp')->with(true);
+        $loader->method('getInheritanceChains')->willReturn([]);
+        $refresher = new \Webwerkwien\ContaoAiCoreBundle\Service\Template\TemplateCacheRefresher(
+            $loader,
+            $this->createMock(\Twig\Environment::class),
+        );
+
+        $cmd = new TemplateWriteCommand($this->tmpDir);
+        $cmd->setLogger($this->logger());
+        $cmd->setTemplateCacheRefresher($refresher);
+        $tester = new CommandTester($cmd);
+        $tester->execute([
+            '--mode'   => 'variant',
+            '--base'   => 'content_element/text',
+            '--name'   => 'consho_hero',
+            '--source' => $source,
+        ]);
+
+        $out = json_decode($tester->getDisplay(), true);
+        $this->assertSame('ok', $out['status'], $tester->getDisplay());
+        $this->assertTrue($out['templateCacheRefreshed']);
+        $this->assertFileExists($this->tmpDir . '/templates/content_element/text/consho_hero.html.twig');
+    }
 }

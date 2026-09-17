@@ -43,6 +43,36 @@ class PageUrlGuardTest extends TestCase
         return new PageUrlGuard($connection, $this->createMock(ContaoFramework::class));
     }
 
+    /**
+     * Nr. 48 of the ConpAI 1.0 acceptance test, 2026-09-17: a second page with alias
+     * `index` under the same root is accepted by Contao's back end too — it only shows
+     * "the following pages have a similar alias that may conflict". The bundle saved it
+     * silently. Contao's rule (`PageRoutingListener::generateRouteConflicts()`): same
+     * domain, routable, same static URL prefix plus suffix.
+     */
+    public function testRouteConflictsFollowContaosBackEndHint(): void
+    {
+        $current = ['id' => 176, 'title' => 'Imprint', 'alias' => 'index', 'domain' => 'consho.eu', 'url' => '/en/index', 'path' => '/en/index{!parameters}', 'routable' => true];
+
+        $conflicts = PageUrlGuard::selectRouteConflicts($current, [
+            ['id' => 174, 'title' => 'Home', 'alias' => 'index', 'domain' => 'consho.eu', 'url' => '/en/index', 'path' => '/en/index{!parameters}', 'routable' => true],
+            ['id' => 169, 'title' => 'Startseite', 'alias' => 'index', 'domain' => 'consho.eu', 'url' => '/index', 'path' => '/index{!parameters}', 'routable' => true],
+            ['id' => 133, 'title' => 'Startseite', 'alias' => 'index', 'domain' => 'conpai.eu', 'url' => '/en/index', 'path' => '/en/index{!parameters}', 'routable' => true],
+            ['id' => 99, 'title' => 'Ordner', 'alias' => 'index', 'domain' => 'consho.eu', 'url' => '/en/index', 'path' => '/en/index', 'routable' => false],
+        ]);
+
+        $this->assertSame([['id' => 174, 'title' => 'Home', 'alias' => 'index', 'path' => '/en/index{!parameters}']], $conflicts);
+    }
+
+    public function testAnUnroutablePageHasNoRouteConflicts(): void
+    {
+        $current = ['id' => 5, 'title' => 'x', 'alias' => 'index', 'domain' => '', 'url' => '/index', 'path' => '/index', 'routable' => false];
+
+        $this->assertSame([], PageUrlGuard::selectRouteConflicts($current, [
+            ['id' => 6, 'title' => 'y', 'alias' => 'index', 'domain' => '', 'url' => '/index', 'path' => '/index', 'routable' => true],
+        ]));
+    }
+
     public function testASecondRootWithTheSameDomainAndPrefixIsRefused(): void
     {
         $connection = $this->createMock(Connection::class);

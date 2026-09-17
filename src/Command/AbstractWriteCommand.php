@@ -151,6 +151,26 @@ abstract class AbstractWriteCommand extends Command
     private ?string $aliasWarning = null;
 
     /**
+     * Pages whose URL may collide with a written page, reported as Contao's back end does.
+     *
+     * @var list<array{id: int, title: string, alias: string, path: string}>
+     */
+    protected array $routeConflicts = [];
+
+    /**
+     * The route conflicts collected so far, and forget them.
+     *
+     * @return list<array{id: int, title: string, alias: string, path: string}>
+     */
+    protected function takeRouteConflicts(): array
+    {
+        $conflicts            = $this->routeConflicts;
+        $this->routeConflicts = [];
+
+        return $conflicts;
+    }
+
+    /**
      * @param bool $created true right after creating the record: its first version is
      *                      marked, so versions of an earlier record with the same ID can
      *                      be told apart (v0.16.0, RecordIdReuseTest)
@@ -1955,6 +1975,12 @@ abstract class AbstractWriteCommand extends Command
 
         if (null !== $this->aliasWarning) {
             $data['aliasWarning'] = $this->aliasWarning;
+        }
+
+        // A hint, not a refusal — what Contao's back end shows under the alias field
+        // (Nr. 48 of the ConpAI 1.0 acceptance test, 2026-09-17).
+        if ([] !== $this->routeConflicts) {
+            $data['routeConflicts'] = $this->routeConflicts;
         }
 
         $this->logSuccess($data);

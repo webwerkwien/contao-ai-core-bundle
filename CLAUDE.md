@@ -136,6 +136,18 @@ refusal rolls the write back, version and log entry included.
 | no second root with the same `dns` and `urlPrefix` (an empty prefix is a prefix) | Contao's own query from `validateUrlPrefix()`, verbatim — identical in 5.3, 5.7, 6.0 |
 | no second page at the same URL | **Contao's `generateAlias()` is called**, not rebuilt — it compares whole URLs through the router |
 
+**Similar aliases are a hint, not a refusal** (v0.20.0). Contao's back end saves a second
+page with alias `index` under the same root and shows only *"the following pages have a
+similar alias that may conflict"* (`PageRoutingListener::generateRouteConflicts()`). Page
+create and update now report the same as `routeConflicts: [{id, title, alias, path}]` —
+`PageUrlGuard::routeConflicts()` applies Contao's rule (same domain, routable, same static
+URL prefix plus suffix) through `selectRouteConflicts()`, which is testable without Contao.
+Up to v0.19.0 the bundle saved such a page silently (Nr. 48, checked in the back end on
+2026-09-17). A bulk `page update --ids` reports them per record,
+`routeConflicts: {"<id>": [...]}`. The check runs after the write has committed and never
+fails it: anything it throws means no hint, not an error. `generateAlias()` does not catch the `index` case because `RouteProvider` gives
+`index` pages an extra `.root` route that its URL match does not see.
+
 `validateUrlPrefix()` itself cannot be called: it goes through `getCurrentRecord()`, which
 asks the permission voters and fails without a back-end user. `generateAlias()` needs only
 `$dc->id` and reads the stored record — hence check-after-write.
@@ -429,6 +441,36 @@ tl_files: `isUnprotected()`, refuse when public only through a parent, `unprotec
 **Reading:** every `binary(16)` column comes out as a UUID string
 (`AbstractReadCommand::convertFileTreeFieldsToUuid()`), not only `fileTree` fields —
 `tl_files.uuid` and `tl_files.pid` have no widget, and their raw bytes left as `null`.
+
+## Writing templates: refresh as the Template Studio does (v0.20.0)
+
+`contao:template:write` calls `Service\Template\TemplateCacheRefresher` after writing:
+`ContaoFilesystemLoader::warmUp(true)`, then `Environment::removeCache()` for every template
+outside `backend/` — what Contao's Template Studio does after saving
+(`AbstractOperation::refreshTemplateHierarchy()`, `CacheInvalidator::invalidateCache()`). The
+answer carries `templateCacheRefreshed: true`; if the refresh throws, the file is written
+anyway and `cacheWarning` says to run `cache clear`.
+
+When the refresh cannot reach everything from the console, `templateCacheRefreshed` is
+`false` and `cacheWarning` says what (review 2026-09-17):
+- **Contao 5.3** keeps the hierarchy in `cache.system`. With APCu that includes an APCu
+  layer the console never sees (`apc.enable_cli` is off), so the web server may keep the
+  old list. Detected by identity: the loader's `cachePool` is the injected `cache.system`
+  service; 5.7 uses `cache.app`, a filesystem pool.
+- **Twig before 3.15** has no `Environment::removeCache()` (Contao 5.3 allows `^3.10.2`):
+  the hierarchy is refreshed, compiled templates are not.
+- Not detectable from here, same limit as `cache:clear`: with
+  `opcache.validate_timestamps=0` the web server's opcache keeps compiled PHP files until it
+  is reset.
+
+`routeConflicts()` catches `\Exception` only — an `\Error` stays visible, because only the
+pure `selectRouteConflicts()` is unit-tested and the Contao glue is verified live.
+
+> 🟡 Up to v0.19.0 it only wrote the file. In production Contao caches the template
+> hierarchy and Twig does not auto-reload: a new variant was refused as `customTpl` ("not a
+> template Contao offers") and an edited override kept rendering the old version until
+> `cache clear`. Invisible before v0.16.0, when `customTpl` was not checked. Nr. 47 of the
+> ConpAI 1.0 acceptance test, 2026-09-17.
 
 ## Calling Contao's callbacks from the console (v0.16.0)
 

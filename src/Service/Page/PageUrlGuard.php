@@ -5,7 +5,9 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Page;
 use Contao\Controller;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\DataContainer;
+use Contao\CoreBundle\Routing\Page\PageRegistry;
 use Contao\DC_Table;
+use Contao\PageModel;
 use Contao\System;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
@@ -25,7 +27,116 @@ final class PageUrlGuard
     public function __construct(
         private readonly Connection $connection,
         private readonly ContaoFramework $framework,
+        private readonly ?PageRegistry $pageRegistry = null,
     ) {
+    }
+
+    /**
+     * Pages whose URL may collide with this one — the hint Contao's back end shows.
+     *
+     * Not a refusal: the back end saves a second page with alias `index` under the same
+     * root and only shows "the following pages have a similar alias that may conflict"
+     * (`PageRoutingListener::generateRouteConflicts()`). Until v0.20.0 the bundle saved
+     * the same page silently (Nr. 48 of the ConpAI 1.0 acceptance test, 2026-09-17).
+     *
+     * @return list<array{id: int, title: string, alias: string, path: string}>
+     */
+    public function routeConflicts(int $pageId): array
+    {
+        if (null === $this->pageRegistry) {
+            return [];
+        }
+
+        // Runs after the write has committed: a hint must never turn a saved page into
+        // an error answer, which an agent would retry (review 2026-09-17). Exceptions
+        // only — an \Error is a programming mistake and must stay visible, since no unit
+        // test reaches this Contao glue.
+        try {
+            $this->framework->initialize();
+
+            $pages   = $this->framework->getAdapter(PageModel::class);
+            $current = $pages->findWithDetails($pageId);
+
+            if (!$current instanceof PageModel || !$this->pageRegistry->isRoutable($current)) {
+                return [];
+            }
+
+            $similar = $pages->findSimilarByAlias($current);
+
+            if (null === $similar) {
+                return [];
+            }
+
+            $candidates = [];
+
+            foreach ($similar as $page) {
+                $page->loadDetails();
+                $candidates[] = $this->routeFacts($page);
+            }
+
+            return self::selectRouteConflicts($this->routeFacts($current), $candidates);
+        } catch (\Exception) {
+            return [];
+        }
+    }
+
+    /**
+     * Contao's rule, on plain data: same domain, routable, same static URL.
+     *
+     * @param array{id: int, title: string, alias: string, domain: string, url: string, path: string, routable: bool}       $current
+     * @param list<array{id: int, title: string, alias: string, domain: string, url: string, path: string, routable: bool}> $candidates
+     *
+     * @return list<array{id: int, title: string, alias: string, path: string}>
+     */
+    public static function selectRouteConflicts(array $current, array $candidates): array
+    {
+        if (!$current['routable']) {
+            return [];
+        }
+
+        $conflicts = [];
+
+        foreach ($candidates as $page) {
+            if ($page['id'] === $current['id'] || !$page['routable']) {
+                continue;
+            }
+
+            if ($page['domain'] !== $current['domain'] || $page['url'] !== $current['url']) {
+                continue;
+            }
+
+            $conflicts[] = ['id' => $page['id'], 'title' => $page['title'], 'alias' => $page['alias'], 'path' => $page['path']];
+        }
+
+        return $conflicts;
+    }
+
+    /**
+     * @return array{id: int, title: string, alias: string, domain: string, url: string, path: string, routable: bool}
+     */
+    private function routeFacts(PageModel $page): array
+    {
+        \assert(null !== $this->pageRegistry);
+
+        $routable = $this->pageRegistry->isRoutable($page);
+        $url      = '';
+        $path     = '';
+
+        if ($routable) {
+            $route = $this->pageRegistry->getRoute($page);
+            $url   = $route->compile()->getStaticPrefix() . $route->getUrlSuffix();
+            $path  = $route->getPath();
+        }
+
+        return [
+            'id'       => (int) $page->id,
+            'title'    => (string) $page->title,
+            'alias'    => (string) $page->alias,
+            'domain'   => (string) $page->domain,
+            'url'      => $url,
+            'path'     => $path,
+            'routable' => $routable,
+        ];
     }
 
     /**
