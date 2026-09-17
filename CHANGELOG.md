@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.23.0 - 2026-09-17
+
+### Added
+
+- **`contao:file:move --path <file|folder> --to <folder>`** — move as cut and paste in the
+  back end: no overwriting, no folder into itself, `Files::rename()`, then the DBAFS sync,
+  which recognises the move and keeps the UUIDs; a moved folder gets its symlinks
+  regenerated, and the log has *File or folder "…" has been moved to "…"* with the operator.
+  The answer says whether the UUIDs were kept (`uuidsKept`) and lists texts that name the
+  old path (`pathUsages`) — those break, UUID references do not. Until now a file could only
+  be deleted and written anew, which gave it a new UUID and left every image element
+  pointing at nothing (Nr. 64). Verified on Contao 5.3.51, 5.7.13 and 6.0.0.
+
 ## v0.22.0 - 2026-09-17
 
 From phases 3 and 4 of the live run of the ConpAI 1.0 acceptance test on web.werk.wien,

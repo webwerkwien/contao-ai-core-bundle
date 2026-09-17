@@ -50,6 +50,10 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
+    Webwerkwien\ContaoAiCoreBundle\Command\FileMoveCommand:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
     Webwerkwien\ContaoAiCoreBundle\Command\TemplateDeleteCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'

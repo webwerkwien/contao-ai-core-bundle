@@ -445,6 +445,15 @@ tl_files: `isUnprotected()`, refuse when public only through a parent, `unprotec
 `protect()`, `Automator::generateSymlinks()`, the files-channel log line. Note that
 `new Folder()` creates a missing directory — check before constructing it.
 
+**`contao:file:move --path … --to <folder>`** (v0.23.0) is the back end's cut and paste
+(`DC_Folder::cut()`): no circular move, no overwriting, `Files::rename()`, then
+`contao.filesystem.dbafs_manager->sync($source, $destination)` — its move detection keeps
+the UUIDs, on 5.3 as well as 5.7/6.0 (measured) — symlinks for a folder, and the files-channel
+line with the operator. The answer carries `uuidsKept` (tl_files UUIDs before and after) and
+`pathUsages`: `FileUsageFinder` run with the UUIDs left out, so it reports only text fields
+naming the old path — the references a move breaks. Delete-and-write is no substitute: a new
+UUID, and every element pointing at the old one renders nothing (Nr. 64).
+
 **Reading:** every `binary(16)` column comes out as a UUID string
 (`AbstractReadCommand::convertFileTreeFieldsToUuid()`), not only `fileTree` fields —
 `tl_files.uuid` and `tl_files.pid` have no widget, and their raw bytes left as `null`.
