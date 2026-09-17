@@ -40,7 +40,12 @@ class OptionsResolver
     {
         $options = $this->options($table, $field, $activeRecord, $id);
 
-        return null === $options ? null : $this->optionValues(['options' => $options]);
+        // `options()` has loaded the DCA. The eval travels along: an `isAssociative`
+        // list stores its index, whether the options are static or a callback's (Nr. 53).
+        return null === $options ? null : $this->optionValues([
+            'options' => $options,
+            'eval'    => $GLOBALS['TL_DCA'][$table]['fields'][$field]['eval'] ?? [],
+        ]);
     }
 
     /**

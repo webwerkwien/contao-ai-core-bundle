@@ -254,6 +254,13 @@ Three fields, and they answer different questions:
 | `optionsSource` | where they come from: `static`, `callback`, `foreignKey`, or `null` for a field that takes any value |
 | `optionsTarget` | **from v0.8.1** — for a `foreignKey`, the table the values live in: `{"table": "tl_consho_shop", "labelField": "title"}` |
 
+**`options` are values, not labels — also for `eval.isAssociative`** (v0.21.1). A
+list declared `isAssociative` stores its index: Contao's `tl_page.useSSL` declares
+`array('http://', 'https://')` and answers `["0", "1"]`, so `--set useSSL=1` is the way
+to set https. Up to v0.21.0 the labels came back and `useSSL=1` was refused (Nr. 53,
+live on web.werk.wien). As in Contao's widget, the flag applies to the top level only;
+an optgroup decides by its own keys. In 5.7.13 `useSSL` is the only such field.
+
 `optionsTarget` is `null` for everything else, **including a `foreignKey` whose
 label is computed** — Contao's own `tl_member` declares
 `CONCAT(firstname," ",lastname)`, where there is no column to name. In that case

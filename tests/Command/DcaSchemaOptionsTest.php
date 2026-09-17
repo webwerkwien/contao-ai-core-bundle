@@ -90,6 +90,31 @@ class DcaSchemaOptionsTest extends TestCase
     }
 
     /**
+     * `eval.isAssociative` turns a list into index => label, exactly as
+     * `Widget::getAttributesFromDca()` reads it. Contao's `tl_page.useSSL`
+     * declares `array('http://', 'https://')` and stores 0/1; comparing against
+     * the labels refused `--set useSSL=1` live on 2026-09-17 (Nr. 53).
+     */
+    public function testAListDeclaredAssociativeGivesItsIndices(): void
+    {
+        $out = $this->values(['options' => ['http://', 'https://'], 'eval' => ['isAssociative' => true]]);
+
+        $this->assertSame(['0', '1'], $out);
+    }
+
+    /**
+     * Contao applies the flag to the top level only; an optgroup decides by its
+     * own keys. Mirrored, not improved on. A guard against passing the flag
+     * down — it passed before the fix as well.
+     */
+    public function testIsAssociativeDoesNotReachIntoAnOptionGroup(): void
+    {
+        $out = $this->values(['options' => ['Group' => ['a', 'b'], 'x' => 'Label X'], 'eval' => ['isAssociative' => true]]);
+
+        $this->assertSame(['a', 'b', 'x'], $out);
+    }
+
+    /**
      * An optgroup: `array('Group' => array('a', 'b'))`. The group name is a
      * label, not something a caller can set.
      */

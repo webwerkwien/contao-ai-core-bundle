@@ -92,6 +92,18 @@ class OptionsResolverTest extends TestCase
         $this->assertSame(['map_default', 'map_never'], $this->resolver()->values('tl_test', 'sitemap'));
     }
 
+    /**
+     * `eval.isAssociative` has to reach the reading here too, or `dca:options`
+     * answers the labels while `dca:schema` answers the indices (Nr. 53, Fable
+     * review before v0.21.1).
+     */
+    public function testAListDeclaredAssociativeGivesItsIndices(): void
+    {
+        $GLOBALS['TL_DCA']['tl_test']['fields']['useSSL'] = ['options' => ['http://', 'https://'], 'eval' => ['isAssociative' => true]];
+
+        $this->assertSame(['0', '1'], $this->resolver()->values('tl_test', 'useSSL'));
+    }
+
     public function testAFieldWithoutOptionsHasNone(): void
     {
         $GLOBALS['TL_DCA']['tl_test']['fields']['title'] = ['inputType' => 'text'];

@@ -57,6 +57,9 @@ class OptionValueRefusalTest extends TestCase
             'grouped'   => ['options' => ['Group A' => ['a1', 'a2'], 'Group B' => ['b1']]],
             // Numeric list: keys 0..11, values 1..12. The off-by-one trap.
             'span'      => ['options' => [1, 2, 3]],
+            // A list declared associative: the index is the value. Contao's
+            // `tl_page.useSSL`, the only such field in 5.7.13 (Nr. 53).
+            'useSSL'    => ['options' => ['http://', 'https://'], 'eval' => ['isAssociative' => true]],
             // Multi-value: arrives as "a,b" and is serialized further down.
             'tags'      => ['options' => ['red', 'green', 'blue'], 'eval' => ['multiple' => true]],
             // Values live elsewhere — deliberately not enforced.
@@ -93,6 +96,8 @@ class OptionValueRefusalTest extends TestCase
             'associative form'      => [['language' => 'de']],
             'member of an optgroup' => [['grouped' => 'b1']],
             'numeric list value'    => [['span' => '2']],
+            'isAssociative index'   => [['useSSL' => '1']],
+            'isAssociative zero'    => [['useSSL' => '0']],
             'several multi values'  => [['tags' => 'red,blue']],
             'multi with spaces'     => [['tags' => 'red, blue']],
             'already serialized'    => [['tags' => 'a:2:{i:0;s:3:"red";i:1;s:4:"blue";}']],
@@ -129,6 +134,7 @@ class OptionValueRefusalTest extends TestCase
             'a label instead of a key'  => [['language' => 'Deutsch'], 'language=Deutsch'],
             'the optgroup name itself'  => [['grouped' => 'Group A'], 'grouped=Group A'],
             'the index, not the value'  => [['span' => '0'], 'span=0'],
+            'isAssociative label'       => [['useSSL' => 'https://'], 'useSSL=https://'],
             'one bad part of several'   => [['tags' => 'red,purple'], 'tags=purple'],
             'bad part when serialized'  => [['tags' => 'a:1:{i:0;s:6:"purple";}'], 'tags=purple'],
         ];

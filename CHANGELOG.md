@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.21.1 - 2026-09-17
+
+Found in phase 1 of the live run of the ConpAI 1.0 acceptance test on web.werk.wien.
+
+### Fixed
+
+- **A list option declared `eval.isAssociative` was read by its labels.** Contao then
+  stores the index — `tl_page.useSSL` declares `array('http://', 'https://')` and holds
+  0/1 — but `--set useSSL=1` was refused with *"allowed: http://, https://"*, and
+  `contao:dca:schema` and `contao:dca:options` listed the labels as values. All three now
+  answer `0`, `1`, as Contao's widget reads the field (Nr. 53).
+
 ## v0.21.0 - 2026-09-17
 
 From the clean-up and the audit after phase 5 of the ConpAI 1.0 acceptance test.

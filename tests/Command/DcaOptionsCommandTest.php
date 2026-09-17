@@ -42,6 +42,26 @@ class DcaOptionsCommandTest extends TestCase
         $this->assertSame('Product', $out['options']['consho_product']);
     }
 
+    /**
+     * The command derives `values` itself, so it needs `eval.isAssociative` as much as
+     * the resolver does (Nr. 53, Fable review before v0.21.1).
+     */
+    public function testAListDeclaredAssociativeAnswersItsIndices(): void
+    {
+        $GLOBALS['TL_DCA']['tl_test']['fields']['useSSL'] = ['options' => ['http://', 'https://'], 'eval' => ['isAssociative' => true]];
+        $resolver = $this->createMock(OptionsResolver::class);
+        $resolver->method('options')->willReturn(['http://', 'https://']);
+
+        try {
+            $out = $this->execute($resolver, ['table' => 'tl_test', 'field' => 'useSSL']);
+        } finally {
+            unset($GLOBALS['TL_DCA']['tl_test']);
+        }
+
+        $this->assertSame(['0', '1'], $out['values']);
+        $this->assertSame(['http://', 'https://'], $out['options']);
+    }
+
     public function testSetValuesBecomeTheActiveRecord(): void
     {
         $resolver = $this->createMock(OptionsResolver::class);

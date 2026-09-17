@@ -3,7 +3,8 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 /**
- * Reading `eval`-less option lists out of a DCA field definition.
+ * Reading option lists out of a DCA field definition — `options`, plus
+ * `eval.isAssociative`, which decides whether a list's index or its text is the value.
  *
  * Extracted from `DcaSchemaCommand` on 2026-09-11, when the write path needed
  * the same answer. `AbstractReadCommand` and `AbstractWriteCommand` share no
@@ -58,22 +59,29 @@ trait ReadsDcaOptions
             return null;
         }
 
-        return $this->flattenOptions($def['options']);
+        return $this->flattenOptions($def['options'], (bool) ($def['eval']['isAssociative'] ?? false));
     }
 
     /**
+     * `$declaredAssociative` is `eval.isAssociative`, which makes a list read as
+     * index => label. Contao's `tl_page.useSSL` declares `array('http://',
+     * 'https://')` and stores 0/1; without the flag `--set useSSL=1` was refused
+     * against the labels (live on web.werk.wien, 2026-09-17, Nr. 53). As in
+     * `Widget::getAttributesFromDca()` it applies to the top level only — an
+     * optgroup decides by its own keys, so the recursion does not pass it on.
+     *
      * @param array<array-key, mixed> $options
      *
      * @return list<string>
      */
-    private function flattenOptions(array $options): array
+    private function flattenOptions(array $options, bool $declaredAssociative = false): array
     {
         $values = [];
         // List form only when the keys are exactly 0..n-1. An integer key alone
         // is not enough: image sizes come as `[6 => 'ConpAI Hero']`, where 6 is
         // the value and the text the label. Until v0.16.0 that answered the label
         // (measured 2026-09-16, OptionsResolverTest).
-        $isList = array_is_list($options);
+        $isList = !$declaredAssociative && array_is_list($options);
 
         foreach ($options as $key => $value) {
             if (\is_array($value)) {
