@@ -437,6 +437,13 @@ with PHP warnings in the log. And with only one limit set it scales to 0×0: `im
 `imageHeight=0` turned a 600×20 PNG into a file of **0 bytes** (measured on c5; the back end
 does the same). `resizeDimensions()` treats a limit below 1 as unset.
 
+**Overwriting a file updates the folder hashes above it** (v0.26.0): `FileWriteCommand` sets
+the file's hash from `(new File($path))->hash` and then calls `Dbafs::updateFolderHashes()`.
+A folder's hash is built from its children's; before, every parent kept the old one until
+the next `contao:filesync` (measured on 5.3.51, 5.7.13 and 6.0.0). Creating never had the
+gap — `Dbafs::addResource()` updates the folders itself. `DbafsHashIsNotComputedLocallyTest`
+holds both rules: no locally computed hash, and no file hash without the folder update.
+
 **A folder record comes from `Dbafs::addResource()`, never from `new FilesModel()`.**
 `FolderCreateCommand` built one by hand until v0.12.0 and never set a UUID; a file written
 into such a folder hung under no parent. An existing record without a UUID is now repaired
@@ -591,6 +598,32 @@ exception, `customTpl`: `TemplateOptionsListener` needs only the element type.
 `refuseUnknownTemplates()` checks it when the list can be resolved and refuses nothing
 when it cannot.
 
+## Member passwords: `contao:member:create`, `contao:member:password` (v0.26.0)
+
+Until v0.26.0 neither existed. The CLI offered `member create` from the start and called
+`contao:member:create`, which this bundle never had — found in the regression run before 1.0,
+because no test ever called it. `contao:member:update` refuses `password` on purpose.
+
+Both share `MemberPassword` (trait):
+- **Password only on stdin** (`--password-stdin`, required). There is no password option;
+  a command line is readable by every user of the server (audit H3). One line, only `\r\n`
+  stripped; an empty line is refused.
+- **Contao's checks, in its order** (`Widget\Password::validator()`): `minlength` of the field,
+  else `minPasswordLength`; not equal to the username. Hash from the `FrontendUser` hasher
+  (the widget asks for `BackendUser`'s; under `Contao\User: auto` both are the same).
+  On a terminal the input is not hidden — the flag is for piping.
+- **`tl_member.password`'s save callbacks run** with a `RecordDataContainer` — the one field
+  where this write path runs save callbacks, so `setNewPassword` hooks see the change. Create:
+  after the save and the version (the row exists, as in the back end — but it already holds
+  the new hash); a throwing callback is reported with the member's id, which then exists.
+  Password: before the write, and what the callback returns is stored. `CreateCommandConversionTest` lists the create case as its
+  second allowed assignment outside `preparedFields()`.
+- Create: every value through `preparedFields()` (username/email unique, email valid), plus
+  `login=1` and `dateAdded=time()`; `--set` takes `MemberUpdateCommand::ALLOWED_FIELDS`.
+- Answers never carry the password or the hash. Verified on 5.3.51, 5.7.13 and 6.0.0: the
+  stored hash verifies against the piped password (trailing space kept), the old one no
+  longer does, three versions, `tl_log` with source CLI.
+
 ## Structured fields: read as arrays, written as JSON (v0.16.0)
 
 `Service\Dca\StructuredFields::storesArray()` is the one definition of "Contao stores this
@@ -599,7 +632,12 @@ as a serialized array": the structured input types (`STRUCTURED_INPUT_TYPES`) an
 
 - `refuseUnstructuredValues()` (write, v0.12.0) — types only
 - `convertJsonStructuredFields()` (write) — a JSON array/object becomes the serialized form,
-  leaves as strings; runs first in `convertFields()`; `inputUnit` keeps its own JSON path
+  leaves as strings; runs first in `convertFields()`; `inputUnit` keeps its own JSON path.
+  **A value that starts with `[` or `{` but does not parse is refused** (v0.26.0), before
+  any conversion. Until then it was left for `refuseUnstructuredValues()`, which only
+  covers the wizards: a list or table field went through the comma conversion first, and
+  `[Eins,Zwei,Drei]` — what Windows PowerShell leaves of a quoted JSON list — was stored
+  as `['[Eins', 'Zwei', 'Drei]']` with `ok` (agent test with Codex, 2026-09-18)
 - `convertStructuredFieldsForRead()` (read) — every model read and `record list`
 
 **Contract since v0.16.0: a caller reads arrays and can write them back unchanged.**

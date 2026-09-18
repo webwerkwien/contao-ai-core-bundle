@@ -12,7 +12,8 @@ class MemberUpdateCommand extends AbstractWriteCommand
 {
     // 'password' deliberately excluded to prevent credential manipulation.
     // 'disable' and 'login' are intentionally allowed — sysadmin CLI is trusted to manage account state.
-    private const ALLOWED_FIELDS = [
+    // Public since v0.26.0: contao:member:create takes the same --set fields.
+    public const ALLOWED_FIELDS = [
         'firstname', 'lastname', 'email', 'phone', 'mobile',
         'dateOfBirth', 'gender', 'language', 'company', 'street',
         'postal', 'city', 'state', 'country', 'website',

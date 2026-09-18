@@ -141,6 +141,13 @@ class CreateCommandConversionTest extends TestCase
                     continue;
                 }
 
+                // The second: a member password as tl_member.password's save callbacks
+                // return it, run after the save as in the back end (v0.26.0). The value
+                // the caller gave passed preparedFields() — as its hash — first.
+                if ('MemberCreateCommand.php' === $name && 'password' === $field) {
+                    continue;
+                }
+
                 if ('tstamp' !== $field) {
                     $leaks[] = $name . '::$record->' . $field;
                 }

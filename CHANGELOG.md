@@ -4,6 +4,47 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.26.0 - 2026-09-18
+
+Works with every contao-ai-cli version; `member create` and `member password` need
+contao-ai-cli v0.27.0. What changes for a caller: a `--set` value that starts like JSON but
+does not parse is refused (exit 1, nothing written) instead of being stored in a broken
+form, and front end members can be created and their passwords set. From the regression
+run and the agent test before 1.0, on Contao 5.3.51, 5.7.13 and 6.0.0.
+
+### Added
+
+- **`contao:member:create`** — it never existed, although the CLI offered `member create`
+  from the start and called it; every call failed with "Update contao-ai-core-bundle to
+  v1.x+". Found in the regression run: no test had ever called the command.
+- **`contao:member:password <username>`** — Contao has a password command only for back
+  end users, and `contao:member:update` refuses `password` on purpose, so a member's
+  password could not be reset from the console at all.
+- Both take the password **only on stdin** (`--password-stdin`), never as an option —
+  closing audit finding H3, the `--password=` on the command line the CLI was built
+  around. Checked as Contao's password field checks it (minimum length, not the
+  username), hashed with the front end user's hasher, passed through
+  `tl_member.password`'s save callbacks so the `setNewPassword` hook fires, versioned
+  and logged. `member create` sets `login` and `dateAdded` and takes further fields with
+  `--set`, the same list as `member update`. Verified on all three versions: the stored
+  hash verifies against the piped password, the previous one no longer does.
+
+### Fixed
+
+- **A JSON value whose quotes the shell dropped was stored split, and answered `ok`.**
+  Windows PowerShell passes `--set 'listitems=["Eins","Zwei","Drei"]'` to a native program
+  as `listitems=[Eins,Zwei,Drei]`. Invalid JSON was left for the structure check, which
+  only covers the wizards; a list or table field went through the comma conversion first
+  and stored `['[Eins', 'Zwei', 'Drei]']` — the brackets became content. Found by an agent
+  test with Codex, which only had the guide. Now a value that starts with `[` or `{` in a
+  field that stores an array is JSON or refused, with a message naming the shell as the
+  likely cause. Text fields are not checked, whatever they start with.
+- **Overwriting a file left the folder hashes above it stale.** `contao:file:write` stored
+  the file's new hash but not its parents'; `contao:filesync` corrected them later. Now
+  `Dbafs::updateFolderHashes()` runs after the file record is saved. Creating, moving and
+  deleting never had the gap. Measured and verified on all three versions: after an
+  overwrite, `file sync` answers "No changes".
+
 ## v0.25.0 - 2026-09-18
 
 Works with every contao-ai-cli version. What changes for a caller: `contao:dca:palette`

@@ -90,4 +90,27 @@ class DbafsHashIsNotComputedLocallyTest extends TestCase
             );
         }
     }
+
+    /**
+     * Wer den Hash einer Datei setzt, muss auch die Ordner darüber nachziehen.
+     *
+     * Ein Ordner-Hash wird aus denen seiner Kinder gebildet. Bis v0.26.0 setzte
+     * `FileWriteCommand` beim Überschreiben nur den Datei-Hash; jeder Ordner darüber
+     * behielt den alten, bis `contao:filesync` lief — gemessen am 2026-09-18 auf
+     * 5.3.51, 5.7.13 und 6.0.0 im Regressionslauf vor 1.0. Gleiche Grenze wie oben:
+     * Das prüft den Quelltext, der Beweis kam aus dem Live-Lauf (`file sync` meldet
+     * danach „No changes“).
+     */
+    public function testEveryFileThatSetsAHashAlsoUpdatesTheFolderHashes(): void
+    {
+        $src = \dirname(__DIR__, 2) . '/src/Command/';
+
+        foreach (array_unique(array_map(static fn (string $k): string => explode(':', $k)[0], array_keys($this->hashAssignments()))) as $file) {
+            $this->assertStringContainsString(
+                'Dbafs::updateFolderHashes(',
+                (string) file_get_contents($src . $file),
+                $file . ' setzt einen Datei-Hash, zieht die Ordner-Hashes aber nicht nach.',
+            );
+        }
+    }
 }

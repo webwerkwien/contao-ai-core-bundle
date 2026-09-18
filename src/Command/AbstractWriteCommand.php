@@ -1332,9 +1332,10 @@ abstract class AbstractWriteCommand extends Command
      *
      * Reads answer these fields as arrays since the same version, so what was read can
      * be written back: `--set 'modules=[{"mod":"66","col":"header","enable":"1"}]'`.
-     * Values are stored as strings, as the back end's widgets submit them. A value
-     * that is not valid JSON, or already serialized, is left alone — the structure
-     * check refuses what nothing could convert. `inputUnit` has its own JSON form in
+     * Values are stored as strings, as the back end's widgets submit them. An already
+     * serialized value is left alone. A value that starts with `[` or `{` but is not
+     * valid JSON is refused (v0.26.0) — until then it was left alone, and a list field
+     * split it at the commas further down. `inputUnit` has its own JSON form in
      * convertInputUnitFields(). See StructuredFieldRoundTripTest.
      *
      * @param array<string, mixed> $fields
@@ -1347,6 +1348,7 @@ abstract class AbstractWriteCommand extends Command
             Controller::loadDataContainer($table);
         }
         $dca = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
+        $invalid = [];
 
         foreach ($fields as $key => $value) {
             $def = $dca[$key] ?? null;
@@ -1367,7 +1369,30 @@ abstract class AbstractWriteCommand extends Command
                 $fields[$key] = 'pageTree' === ($def['inputType'] ?? null) && array_is_list($decoded)
                     ? serialize(array_map('intval', $decoded))
                     : serialize(self::stringLeaves($decoded));
+
+                continue;
             }
+
+            $invalid[] = \sprintf('%s=%s', $key, mb_strimwidth($value, 0, 60, '…'));
+        }
+
+        // 🔴 Measured on 2026-09-18 (agent test with Codex, Windows PowerShell 5.1):
+        // the shell dropped the double quotes of `--set 'listitems=["Eins","Zwei","Drei"]'`,
+        // so `[Eins,Zwei,Drei]` arrived. Left alone, the comma conversion further down
+        // split it into `['[Eins', 'Zwei', 'Drei]']` and the command answered ok —
+        // the brackets became part of the content. A value that starts like JSON in a
+        // field that stores an array is JSON or a mistake; it is never meant as a comma
+        // list that happens to begin with a bracket. See StructuredFieldRoundTripTest.
+        if ([] !== $invalid) {
+            throw new \InvalidArgumentException(\sprintf(
+                'Not valid JSON for %s: %s. Nothing was written. The value starts like a JSON '
+                . 'list or object but does not parse — typically because the shell dropped the '
+                . 'double quotes (Windows PowerShell 5.1 does that for native programs). Pass valid '
+                . 'JSON, e.g. listitems=["a","b"]; the comma form a,b works only when no item '
+                . 'starts with a bracket.',
+                $table,
+                implode(', ', $invalid),
+            ));
         }
 
         return $fields;

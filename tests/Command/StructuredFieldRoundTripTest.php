@@ -151,9 +151,44 @@ class StructuredFieldRoundTripTest extends TestCase
         $this->assertSame('["not","json-for-me"]', $out['title']);
     }
 
-    public function testInvalidJsonIsLeftForTheStructureCheckToRefuse(): void
+    /**
+     * Until v0.26.0 invalid JSON was left for refuseUnstructuredValues(). That covers the
+     * wizards, but a list or table field went through the comma conversion first:
+     * `[Eins,Zwei,Drei]` — what Windows PowerShell leaves of a quoted JSON list — was
+     * stored as `['[Eins', 'Zwei', 'Drei]']` and answered ok (agent test, 2026-09-18).
+     */
+    public function testInvalidJsonIsRefusedBeforeAnyConversion(): void
     {
-        $this->assertSame('[{"mod":', $this->write(['modules' => '[{"mod":'])['modules']);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Not valid JSON for tl_test: modules=[{"mod":');
+
+        $this->write(['modules' => '[{"mod":']);
+    }
+
+    public function testJsonWhoseQuotesTheShellDroppedIsRefused(): void
+    {
+        $GLOBALS['TL_DCA']['tl_test']['fields']['listitems'] = ['inputType' => 'listWizard'];
+        $GLOBALS['TL_DCA']['tl_test']['fields']['tableitems'] = ['inputType' => 'tableWizard'];
+
+        foreach (['listitems' => '[Eins,Zwei,Drei]', 'tableitems' => '[[A,B],[C,D]]'] as $field => $value) {
+            try {
+                $this->write([$field => $value]);
+                $this->fail($field . ' was accepted');
+            } catch (\InvalidArgumentException $e) {
+                $this->assertStringContainsString($field . '=' . $value, $e->getMessage());
+                $this->assertStringContainsString('Nothing was written', $e->getMessage());
+            }
+        }
+    }
+
+    public function testTheCommaFormAndValidJsonStillPass(): void
+    {
+        $GLOBALS['TL_DCA']['tl_test']['fields']['listitems'] = ['inputType' => 'listWizard'];
+
+        $this->assertSame('Eins,Zwei', $this->write(['listitems' => 'Eins,Zwei'])['listitems']);
+        $this->assertSame(serialize(['Eins', 'Zwei']), $this->write(['listitems' => '["Eins","Zwei"]'])['listitems']);
+        // A text field is never JSON-checked, whatever it starts with.
+        $this->assertSame('[Hinweis] Text', $this->write(['title' => '[Hinweis] Text'])['title']);
     }
 
     // --- wiring ---
