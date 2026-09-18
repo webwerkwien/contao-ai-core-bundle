@@ -327,6 +327,8 @@ abstract class AbstractWriteCommand extends Command
         // and lists into serialized strings — a rule about what the caller
         // typed has to see what the caller typed.
         $this->refuseInvalidValues($table, $fields);
+        // The widget's other limits (maxlength, nospace, …) — see there (v0.27.0).
+        $this->refuseWidgetLimitViolations($table, $fields);
         // Also on the raw input, and for the same reason: `convertEmptyValues()`
         // below turns '' into false, which would hide the difference between a
         // deliberately empty value and a typo.
@@ -339,6 +341,8 @@ abstract class AbstractWriteCommand extends Command
         // UUID, so a half-wrong list would pass afterwards (Nr. 69).
         $this->refuseInvalidFileTreeValues($table, $fields);
         $this->refuseTakenUniqueValues($table, $fields, $excludeId);
+        // A child needs a parent that exists (v0.27.0). See there.
+        $this->refuseMissingParent($table, $fields, $excludeId);
         // A custom template has to exist. Needs the element type, so the stored
         // record is merged in on an update. See CustomTemplateRefusalTest.
         if (\array_key_exists('customTpl', $fields)) {
@@ -797,6 +801,352 @@ abstract class AbstractWriteCommand extends Command
         ));
     }
 
+    /**
+     * Refuse what `Widget::validator()` refuses besides `rgxp`: `maxlength`,
+     * `minlength`, `minval`, `maxval` and `nospace`.
+     *
+     * Found in the review before v0.26.0: `member create --username "anna muster"`
+     * was stored, where the back end says "no spaces allowed"; a username over 64
+     * characters ended in a database error on a strict server and was cut off
+     * silently on a lax one. The rules are the widget's, checked the widget's way:
+     *
+     *  - on the **trimmed** value, and not at all when it is empty — the widget
+     *    trims before it checks and returns early on `''`
+     *  - `maxlength`/`minlength` in characters (`mb_strlen`), `minval`/`maxval`
+     *    only on numeric input, and each only when the rule is set to something
+     *    truthy — a `minval` of `0` is no rule in Contao either
+     *  - on the same parts as `rgxp` (the value half of an inputUnit, the entries
+     *    of a multi-value text field); a serialized list is checked entry by
+     *    entry, as the widget runs itself over an array
+     *  - never on a `password` field: what arrives here is already a hash, the
+     *    plain password is checked where it is read (MemberPassword)
+     *
+     * Measured against the raw value, which is never longer than what the back
+     * end measures (it counts after entity encoding), so this refuses nothing the
+     * back end would accept.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @throws \InvalidArgumentException listing every value that breaks a limit
+     */
+    protected function refuseWidgetLimitViolations(string $table, array $fields): void
+    {
+        if ([] === $fields) {
+            return;
+        }
+
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+
+        $offenders = [];
+
+        foreach ($fields as $name => $value) {
+            $def  = $GLOBALS['TL_DCA'][$table]['fields'][$name] ?? [];
+            $eval = \is_array($def['eval'] ?? null) ? $def['eval'] : [];
+
+            if (!\is_scalar($value) || 'password' === ($def['inputType'] ?? null)) {
+                continue;
+            }
+
+            $maxlength = (int) ($eval['maxlength'] ?? $this->sqlLengthLimit($def));
+            $minlength = (int) ($eval['minlength'] ?? 0);
+            $minval    = $eval['minval'] ?? null;
+            $maxval    = $eval['maxval'] ?? null;
+            $nospace   = (bool) ($eval['nospace'] ?? false);
+
+            if (0 === $maxlength && 0 === $minlength && !$minval && !$maxval && !$nospace) {
+                continue;
+            }
+
+            foreach ($this->limitParts($def, (string) $value) as $part) {
+                $part = trim($part);
+
+                if ('' === $part) {
+                    continue;
+                }
+
+                $length = mb_strlen($part);
+
+                // `$varInput &&` in the widget: "0" is never a length error there.
+                if ('0' === $part) {
+                    $length = null;
+                }
+
+                if (null !== $length && $maxlength > 0 && $length > $maxlength) {
+                    $offenders[] = \sprintf('%s has %d characters (maxlength %d)', $name, $length, $maxlength);
+                }
+
+                if (null !== $length && $minlength > 0 && $length < $minlength) {
+                    $offenders[] = \sprintf('%s has %d characters (minlength %d)', $name, $length, $minlength);
+                }
+
+                if ($minval && is_numeric($part) && $part < $minval) {
+                    $offenders[] = \sprintf('%s=%s (minval %s)', $name, $part, $minval);
+                }
+
+                if ($maxval && is_numeric($part) && $part > $maxval) {
+                    $offenders[] = \sprintf('%s=%s (maxval %s)', $name, $part, $maxval);
+                }
+
+                if ($nospace && preg_match('/[\t ]+/', $part)) {
+                    $offenders[] = \sprintf('%s="%s" (no spaces allowed)', $name, $part);
+                }
+            }
+        }
+
+        if ([] === $offenders) {
+            return;
+        }
+
+        throw new \InvalidArgumentException(\sprintf(
+            'Rejected by the DCA rule for %s: %s. Nothing was written. These are the limits '
+            . 'the back end\'s widget applies to the field (eval.maxlength, minlength, minval, '
+            . 'maxval, nospace).',
+            $table,
+            implode('; ', $offenders),
+        ));
+    }
+
+    /**
+     * Refuse a `pid` that points at no record of the parent table.
+     *
+     * Found on 2026-09-18 while probing the widget limits on c5: `content create
+     * --pid 99999` stored an element below an article that does not exist, and
+     * `article`, `news` and `faq create` did the same. The back end cannot get
+     * there — `DC_Table` creates a child from its parent's list — so this is
+     * another rule lost by writing around it. Such a record is invisible
+     * everywhere: no parent lists it, no delete cascade reaches it.
+     *
+     * The parent table comes from the DCA, the way Contao reads it:
+     *
+     * | DCA | parent |
+     * |---|---|
+     * | `config.dynamicPtable` | the record's `ptable` (given, stored, or `config.ptable`) |
+     * | `config.ptable` | that table |
+     * | tree without `ptable` (`list.sorting.mode` 5, `tl_page`) | the table itself; `0` is the top level |
+     * | anything else | not checked — nothing to check against |
+     *
+     * Runs when `pid` or `ptable` is written, on create and on update (`--set
+     * pid=…` moves a record). On an update the stored value fills in the half
+     * that is not given. An empty `pid` counts as `0`, which is what gets stored.
+     * In a tree, a record cannot be moved below itself or its own subrecords.
+     * A `ptable` naming a table that does not exist is refused as such.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @throws \InvalidArgumentException naming the table and ID that were not found
+     */
+    protected function refuseMissingParent(string $table, array $fields, ?int $excludeId = null): void
+    {
+        $hasPid    = \array_key_exists('pid', $fields);
+        $hasPtable = \array_key_exists('ptable', $fields);
+
+        if (!$hasPid && !$hasPtable) {
+            return;
+        }
+
+        if (!isset($GLOBALS['TL_DCA'][$table]['config'])) {
+            Controller::loadDataContainer($table);
+        }
+
+        // The stored row only for the half that is not given (review v0.27.0:
+        // one SELECT per record on a bulk move was spent for nothing).
+        $dynamic = (bool) ($GLOBALS['TL_DCA'][$table]['config']['dynamicPtable'] ?? false);
+        $stored  = null !== $excludeId && (!$hasPid || ($dynamic && !$hasPtable))
+            ? $this->storedRow($table, $excludeId)
+            : [];
+
+        $pid = $hasPid ? $fields['pid'] : ($stored['pid'] ?? null);
+
+        // `--set pid=` is stored as 0 by convertEmptyValues() further down.
+        if ($hasPid && (null === $pid || '' === $pid)) {
+            $pid = 0;
+        }
+
+        if (!is_numeric($pid)) {
+            return;
+        }
+
+        $parent = $this->parentTable($table, (string) ($fields['ptable'] ?? $stored['ptable'] ?? ''));
+
+        if (null === $parent) {
+            return;
+        }
+
+        if (!$this->tableExists($parent)) {
+            throw new \InvalidArgumentException(\sprintf(
+                'There is no table %s on this installation, so it cannot be the parent (ptable) of '
+                . 'a %s record. Nothing was written.',
+                $parent,
+                $table,
+            ));
+        }
+
+        $pid = (int) $pid;
+
+        if ($parent === $table) {
+            if (0 === $pid) {
+                return;
+            }
+
+            // A tree record below itself or its own descendant detaches the branch
+            // from the tree. The back end's drag and drop does not offer it.
+            if (null !== $excludeId && $this->isSelfOrDescendant($table, $pid, $excludeId)) {
+                throw new \InvalidArgumentException(\sprintf(
+                    'A %s record cannot be moved below itself or one of its own subrecords '
+                    . '(%d is %d or below it). Nothing was written.',
+                    $table,
+                    $pid,
+                    $excludeId,
+                ));
+            }
+        }
+
+        if ($this->recordExists($parent, $pid)) {
+            return;
+        }
+
+        throw new \InvalidArgumentException(\sprintf(
+            'No %s record with ID %d to be the parent of this %s record. Nothing was written. '
+            . 'Read the parent ID back before using it.',
+            $parent,
+            $pid,
+            $table,
+        ));
+    }
+
+    /**
+     * Whether $candidate is $id itself or lies somewhere below it in the tree.
+     */
+    private function isSelfOrDescendant(string $table, int $candidate, int $id): bool
+    {
+        // Bounded: a tree that already contains a loop must not hang the command.
+        for ($step = 0, $current = $candidate; $step < 1000 && $current > 0; ++$step) {
+            if ($current === $id) {
+                return true;
+            }
+
+            $current = $this->parentIdOf($table, $current) ?? 0;
+        }
+
+        return false;
+    }
+
+    /**
+     * The `pid` stored for a row, or null when the row does not exist.
+     */
+    protected function parentIdOf(string $table, int $id): ?int
+    {
+        $row = $this->storedRow($table, $id);
+
+        return isset($row['pid']) && is_numeric($row['pid']) ? (int) $row['pid'] : null;
+    }
+
+    /**
+     * Whether the table exists. Its own method so tests can answer it.
+     */
+    protected function tableExists(string $table): bool
+    {
+        return (bool) preg_match('/^[a-z0-9_]+$/i', $table) && Database::getInstance()->tableExists($table);
+    }
+
+    /**
+     * The table a record's `pid` points into, or null when the DCA does not say.
+     */
+    protected function parentTable(string $table, string $ptable = ''): ?string
+    {
+        if (!isset($GLOBALS['TL_DCA'][$table]['config'])) {
+            Controller::loadDataContainer($table);
+        }
+
+        $config = $GLOBALS['TL_DCA'][$table]['config'] ?? [];
+
+        if (($config['dynamicPtable'] ?? false) && '' !== $ptable) {
+            return $ptable;
+        }
+
+        if (\is_string($config['ptable'] ?? null) && '' !== $config['ptable']) {
+            return $config['ptable'];
+        }
+
+        if (5 === (int) ($GLOBALS['TL_DCA'][$table]['list']['sorting']['mode'] ?? 0)) {
+            return $table;
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether a row with this ID exists. Its own method so tests can answer it.
+     */
+    protected function recordExists(string $table, int $id): bool
+    {
+        if (!preg_match('/^[a-z0-9_]+$/i', $table)) {
+            return false;
+        }
+
+        return Database::getInstance()->prepare('SELECT id FROM ' . $table . ' WHERE id=?')->limit(1)->execute($id)->numRows > 0;
+    }
+
+    /**
+     * The `maxlength` Contao's widget takes from the column when `eval` has none.
+     *
+     * `Widget::getAttributesFromDca()` uses `sql.length` when the field declares
+     * no `eval.maxlength` (and `sql` is an array without `columnDefinition`).
+     * Only for `text` and `textarea`: other widgets validate differently, and a
+     * fileTree arrives as a 36-character UUID for a 16-byte binary column.
+     *
+     * @param array<string, mixed> $def
+     */
+    private function sqlLengthLimit(array $def): int
+    {
+        $sql = $def['sql'] ?? null;
+
+        if (!\is_array($sql) || isset($sql['columnDefinition'])
+            || !\in_array($def['inputType'] ?? null, ['text', 'textarea'], true)
+            || \in_array($sql['type'] ?? null, ['binary', 'blob'], true)) {
+            return 0;
+        }
+
+        return (int) ($sql['length'] ?? 0);
+    }
+
+    /**
+     * The parts the widget limits apply to: the `rgxp` parts, except that a
+     * serialized list is taken apart instead of being measured as one string.
+     *
+     * @param array<string, mixed> $def
+     *
+     * @return list<string>
+     */
+    private function limitParts(array $def, string $value): array
+    {
+        $parts = $this->rgxpParts($def, $value);
+
+        if ([$value] !== $parts) {
+            return $parts;
+        }
+
+        $unserialized = @unserialize($value, ['allowed_classes' => false]);
+
+        if (!\is_array($unserialized)) {
+            // The comma form of a list field is split later by
+            // convertMultipleFields(); measured here the same way (review v0.27.0).
+            $storesArray = ($def['eval']['multiple'] ?? false)
+                || \in_array($def['inputType'] ?? null, self::ARRAY_INPUT_TYPES, true);
+
+            return $storesArray ? array_map('trim', explode(',', $value)) : $parts;
+        }
+
+        $leaves = [];
+        array_walk_recursive($unserialized, static function ($leaf) use (&$leaves): void {
+            $leaves[] = self::scalarPart($leaf);
+        });
+
+        return $leaves;
+    }
+
     private ?OptionsResolver $optionsResolver = null;
 
     #[Required]
@@ -850,7 +1200,7 @@ abstract class AbstractWriteCommand extends Command
      *
      * @return array<string, mixed>
      */
-    private function storedRow(string $table, ?int $id): array
+    protected function storedRow(string $table, ?int $id): array
     {
         if (null === $id) {
             return [];

@@ -4,6 +4,33 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.27.0 - 2026-09-18
+
+Works with every contao-ai-cli version. What changes for a caller: two more kinds of
+`--set` value are refused (exit 1, nothing written) that the back end refuses too. A minor
+release because a write that used to answer `ok` can now be refused.
+
+### Fixed
+
+- **The widget's limits were not checked:** `eval.maxlength`, `minlength`, `minval`,
+  `maxval` and `nospace`. `member create --username "anna muster"` was stored where the
+  back end says "no spaces allowed"; a username over 64 characters ended in a database
+  error on a strict server and was cut off on a lax one. Checked the way
+  `Widget::validator()` checks: on the trimmed value, not on an empty one, on the parts
+  `rgxp` applies to, a list (serialized or comma form) entry by entry, never on a
+  password field (that is checked as plain text where it is read). Without
+  `eval.maxlength`, a `text`/`textarea` field is limited by its column's `sql.length`, as
+  in the widget. Found in the review before v0.26.0.
+- **A record could be created below a parent that does not exist.** `content create
+  --pid 99999` stored an element below a missing article; so did article, news, event,
+  FAQ, page, module, layout, image size and form field create (newsletters and recipients
+  already checked their channel). Such a record is listed nowhere and no delete cascade
+  reaches it. The parent table comes from the DCA (`dynamicPtable`, `ptable`, or the tree
+  itself for tl_page, where `0` is the top level). `--set pid=` and `ptable=` on an update
+  are checked the same way; an empty `pid` counts as the `0` that would be stored, a page
+  cannot be moved below itself or its own subpages, and a `ptable` naming no table is
+  refused as such. Found on c5 on 2026-09-18 while testing the limits above.
+
 ## v0.26.0 - 2026-09-18
 
 Works with every contao-ai-cli version; `member create` and `member password` need

@@ -81,19 +81,29 @@ touching the implementation. Do not edit test files while making the fix.
 ## What `--set` refuses
 
 Every write command runs the caller's fields through `convertFields()` before
-anything reaches the database. Four rules refuse rather than write, each of them
+anything reaches the database. These rules refuse rather than write, each of them
 a rule Contao has in the DCA and loses when a write goes around `DC_Table`:
 
 | rule | refuses |
 |---|---|
 | `refuseUnknownFields()` | a field that is not a column of the table |
 | `refuseInvalidValues()` | a value failing the field's `eval.rgxp` |
+| `refuseWidgetLimitViolations()` | **from v0.27.0** — a value breaking the widget's other limits: `eval.maxlength` (for `text`/`textarea` without one: the column's `sql.length`, as the widget does), `minlength`, `minval`, `maxval`, `nospace`. Checked like `Widget::validator()`: on the trimmed value, never on an empty one or on `0` for lengths, on the same parts as `rgxp` (a list — serialized or comma form — entry by entry), never on a `password` field |
 | `refuseInvalidBooleans()` | anything but `1`, `0` or empty for a `sql.type => boolean` column |
 | `refuseInvalidOptions()` | a value not in the field's declared `options` list |
 | `refuseTakenUniqueValues()` | a duplicate in a `eval.unique` field |
+| `refuseMissingParent()` | **from v0.27.0** — a `pid` with no record in the parent table, on create and on `--set pid=` / `ptable=`. The parent comes from the DCA: the record's `ptable` for `dynamicPtable` (tl_content), else `config.ptable`; a tree without `ptable` (tl_page) points into itself and allows `0`, but not a move below the record itself or its own subpages. An empty `pid` counts as `0`; a `ptable` naming no existing table is refused as such. Tables with neither are not checked |
 | `refuseUnstructuredValues()` | **from v0.12.0** — a value that is not a serialized array for a field whose widget stores one (`moduleWizard`, `sectionWizard`, `rowWizard`, `imageSize`, … — 14 input types). Runs **after** the conversions, so a short form that becomes an array (`options="red\|green"`) passes |
 
-All six answer with `{"status":"error"}` and exit 1, and nothing is written.
+All of them answer with `{"status":"error"}` and exit 1, and nothing is written. (Two more
+refuse in the same place and are described elsewhere: `refuseInvalidFileTreeValues()` and
+`refuseUnknownTemplates()`.)
+
+> 🔴 **Why the two newest exist.** In v0.26.0 `member create --username "anna muster"`
+> was stored where the back end says "no spaces allowed", a username over 64 characters
+> ended in a database error or was cut off, and `content create --pid 99999` stored an
+> element below an article that does not exist — reachable from no list, removed by no
+> cascade. Found in the review before v0.26.0 and on c5 on 2026-09-18.
 
 > 🔴 **Why the sixth exists.** Up to v0.11.0 `layout update 25 --set modules=66`
 > answered `ok` and stored the string `66` — the layout lost its module list and
