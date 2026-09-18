@@ -14,7 +14,7 @@ Contao 5 and 6 bundle that exposes CMS operations as Symfony console commands. T
 |---|---|---|
 | **contao-ai-core-bundle** *(this package)* | Contao bundle exposing CMS operations as Symfony console commands. | Required as the foundation layer. Install on any Contao site you want to manage via AI. |
 | [contao-ai-cli](https://github.com/webwerkwien/contao-ai-cli) | Python CLI — connects to Contao via SSH and runs commands. | For developers and agencies: manage Contao from the terminal or hand control to an AI agent. |
-| [contao-ai-backend-bundle](https://github.com/webwerkwien/contao-ai-backend-bundle) | Contao backend module — browser-based AI chat interface (Anthropic Claude, OpenAI). | For editors and admins: AI directly inside the Contao backend, no SSH or terminal needed. |
+| [contao-ai-backend-bundle](https://github.com/webwerkwien/contao-ai-backend-bundle) | Contao backend module — browser-based AI chat interface for any model provider (Anthropic, OpenAI, OpenRouter, Ollama, any OpenAI-compatible service, more via `symfony/ai`). | For editors and admins: AI directly inside the Contao backend, no SSH or terminal needed. |
 
 ## What it does
 

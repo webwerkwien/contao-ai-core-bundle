@@ -24,7 +24,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
  *
  * Not covered, and knowingly so: raw SQL through `doctrine:query:sql`. Nothing
  * in this bundle can stop that, which is why the same refusal is spelled out in
- * the CLI's README and CLAUDE.md — the point is that an agent reads the reason
+ * the CLI's README and AGENTS.md — the point is that an agent reads the reason
  * before it goes looking for a way around.
  */
 final class NewsletterSendGuard

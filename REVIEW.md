@@ -43,7 +43,7 @@ At most five nits per review; summarise the rest as a count.
 
 ## Do not report
 
-- Style and naming, unless it contradicts a convention in `CLAUDE.md`.
+- Style and naming, unless it contradicts a convention in `AGENTS.md`.
 - Anything `composer ci` already enforces — it is green, so a finding it would
   have caught means the command was not run, and *that* is the finding.
 - The `ignoreErrors` entries in `phpstan.neon.dist`. Each carries its reason;

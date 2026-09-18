@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## Unreleased
+
+### Changed
+
+- **The agent guide is `AGENTS.md`, not `CLAUDE.md`**, so every coding agent finds it,
+  not only Claude Code. `CLAUDE.md` only imports it (`@AGENTS.md`). New first convention:
+  nothing in this repository may depend on one coding agent. Documentation only.
+- **Developer files stay out of the installed package.** `AGENTS.md`, `CLAUDE.md`,
+  `REVIEW.md` and `phpstan.neon.dist` are `export-ignore` now, as `tests/` already was:
+  `vendor/` gets the code, `README.md`, `LICENSE` and `CHANGELOG.md`.
+
 ## v0.24.0 - 2026-09-17
 
 From building conpai.eu in the CMS on web.werk.wien (ConpAI 1.0 acceptance test).
