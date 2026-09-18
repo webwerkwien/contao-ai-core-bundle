@@ -4,7 +4,26 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
-## Unreleased
+## v0.25.0 - 2026-09-18
+
+Works with every contao-ai-cli version. What changes for a caller: `contao:dca:palette`
+(`schema mandatory`) now answers an element inside an accordion with `sectionHeadline`,
+as the back end does.
+
+### Fixed
+
+- **Contao's callbacks saw a record unlike any back-end row.** `RecordDataContainer` — the
+  DataContainer this bundle hands to palette, options and alias callbacks on the console —
+  held only the given values, and answered `getCurrentRecord()` with that record whatever
+  ID and table were asked for. Found in web.werk.wien's log: six warnings
+  `Undefined array key "ptable"` from Contao's `AccordionListener`, one per
+  `contao:dca:palette tl_content --set type=…`. And an element was its own parent: inside
+  an accordion (`--set ptable=tl_content --set pid=<accordion>`) the palette lacked
+  `sectionHeadline`, which the back end shows. Now the given values lie over every
+  column's default, and another row is read from the database as Contao's
+  `preloadCurrentRecords()` does. Reproduced and verified on c5 (Contao 5.7.13): seven
+  element types and a root page without a warning, the accordion child with
+  `sectionHeadline`, create and alias paths unchanged.
 
 ### Changed
 

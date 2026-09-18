@@ -556,9 +556,35 @@ Used by:
 |---|---|---|
 | `OptionsResolver`, `contao:dca:options` | a field's `options_callback` | page types from the `PageRegistry` (`#[AsPage]`), templates per element type |
 | `contao:dca:palette` | `DataContainer::getPalette()` | mandatory fields of one kind of record (selectors, sub-palettes, `onpalette_callback`) |
+| `ContaoAlias` | the alias field's `generateAlias` save callback | aliases of new records as Contao makes them |
 
 A callback that needs more (a request, a user) throws and is reported as unresolvable; the
 image size list returns `[]` on the console — "not known", not "none".
+
+**The record looks like a back-end row (v0.25.0).** Two differences from Contao's
+`DataContainer::getCurrentRecord()` went unnoticed until web.werk.wien's log showed
+`Undefined array key "ptable"` from Contao's `AccordionListener`, once per
+`contao:dca:palette tl_content` call:
+
+- The given values are laid over **every column's default** (`listTableColumns()`, cached
+  per connection and table), typed as `SELECT *` returns them through pdo_mysql: integer
+  columns as int, the rest as string; NOT NULL without a default as `0`/`''`; an
+  expression default (DBAL 4: `CURRENT_TIMESTAMP`) as null. In the back end even a new
+  element is a full row before its palette is built; a callback may read any column. An
+  empty record stays "no record".
+- **`getCurrentRecord($id, $table)` for another row reads that row** (`SELECT *`, null when
+  there is none or the ID is not positive), as `preloadCurrentRecords()` does; no ID, ID 0
+  or the own ID/table answer the own record — ID 0 as in Contao's `$id ?: $this->intId`.
+  It used to answer the own record for everything, so an element was its own parent:
+  `--set ptable=tl_content --set pid=<accordion>` did not show `sectionHeadline`, which
+  the back end shows.
+- **No permission check on that read.** Contao's voters need a back-end user, which the
+  console has not. The backend bundle runs these commands inside a logged-in user's
+  request, and there it skips the voters too — acceptable because the row only reaches
+  the callback that asked for it (a parent's `type`, an option list), never an answer.
+
+Without a container (unit tests) the record stays as given and other rows answer null.
+`create()` takes the connection as an optional fourth argument for tests.
 
 **`options_callback` is still not enforced on write in general** (see above) — with one
 exception, `customTpl`: `TemplateOptionsListener` needs only the element type.
