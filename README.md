@@ -2,9 +2,10 @@
 
 Contao 5 and 6 bundle that exposes CMS operations as Symfony console commands. The agnostic operator layer for the **contao-ai** family — programmatic read and write access to pages, articles, news, files, members, and more, without any LLM dependency.
 
-> **Pre-1.0.** Runs in production on the author's own installations. Interfaces —
-> command names, options, JSON output schema — still change between minor
-> versions. Read the changelog before updating.
+> **Stable since 1.0.** Command names, options and the JSON answers follow
+> [Semantic Versioning](https://semver.org/): within 1.x they are only extended, never
+> changed or removed. A new refusal of a value the back end refuses too counts as a fix,
+> not a break. Read the changelog before updating.
 
 ## ConpAI — the contao-ai family
 
@@ -28,7 +29,7 @@ contao-ai-core-bundle exposes Contao 5 and 6 CMS operations as Symfony console c
 ## Installation
 
 ```bash
-composer require "webwerkwien/contao-ai-core-bundle:>=0.2 <1.0"
+composer require "webwerkwien/contao-ai-core-bundle:^1.0"
 ```
 
 ## Available Commands

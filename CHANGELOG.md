@@ -1,8 +1,26 @@
 # Changelog
 
-All notable changes to this project are documented here. The project adheres to [Semantic Versioning](https://semver.org/) (within the pre-1.0 reservations).
+All notable changes to this project are documented here. The project adheres to [Semantic Versioning](https://semver.org/); before 1.0.0, minor versions could change interfaces.
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
+
+## v1.0.0 - 2026-09-19
+
+**The first stable release.** The code is that of v0.28.0; what changes is the promise.
+From here on command names, options and the JSON answers follow Semantic Versioning:
+within 1.x they are only extended, never changed or removed. A new refusal of a value the
+back end refuses too counts as a fix, not a break.
+
+- **Install with `composer require "webwerkwien/contao-ai-core-bundle:^1.0"`.** A site on
+  the former recommendation `>=0.2 <1.0` does not reach 1.0 until that constraint is
+  changed; contao-ai-cli v1.0.0 writes `^1.0` on `bundle update core`.
+- **Where contao-ai-backend-bundle is installed, update it to v0.9.2 first** — up to v0.9.1
+  it requires core `<1.0`, and Composer refuses core 1.0 next to it.
+
+Before 1.0: the acceptance test on conpai.eu, regression runs on Contao 5.3.51, 5.7.13 and
+6.0.0, three agent tests with agents that knew only the guide, and a practical test of the
+core modules (FAQ, news, events, newsletter, forms, comments, listing) including front end
+submissions — its fixes are v0.28.0.
 
 ## v0.28.0 - 2026-09-19
 
