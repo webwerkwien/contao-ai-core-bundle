@@ -223,6 +223,15 @@ class UndoRestoreCommand extends AbstractWriteCommand
             }
 
             $this->cacheTags->invalidate($tags);
+
+            foreach (self::listSourcesIn($pending) as $source) {
+                $this->cacheTags->warn(\sprintf(
+                    'A list of %s that was visited while it was deleted stays cached without it: '
+                    . "Contao tags a list only with the containers it finds, so no tag reaches that page. "
+                    . 'If the site may have been visited in between, run `cache clear`.',
+                    $source,
+                ));
+            }
         }
 
         $this->logUndone((string) ($row['query'] ?? ''));
@@ -272,6 +281,43 @@ class UndoRestoreCommand extends AbstractWriteCommand
         }
 
         return substr(preg_replace('/\s+/', ' ', $message) ?? '', 0, 300);
+    }
+
+    /**
+     * Containers whose front end lists Contao tags only while they exist.
+     *
+     * `ModuleEventlist`, `ModuleNewsList`, `ModuleFaqList` and their twins drop a
+     * container that is not there (`sortOutProtected()`) and return before
+     * tagging the response with it. A page rendered while the calendar was
+     * deleted therefore carries no `contao.db.tl_calendar.<id>`, and restoring
+     * the calendar invalidates nothing that reaches it — measured on c5 on
+     * 2026-09-19: the event list stayed empty for the cache lifetime (24 h there)
+     * although every record was back. Restoring a single event is not affected:
+     * its calendar was there all along and tagged the page.
+     */
+    private const LIST_SOURCES = [
+        'tl_calendar'           => 'calendar',
+        'tl_news_archive'       => 'news archive',
+        'tl_faq_category'       => 'FAQ category',
+        'tl_newsletter_channel' => 'newsletter channel',
+    ];
+
+    /**
+     * @param list<array{0: string, 1: mixed, 2: array<string, mixed>}> $pending
+     *
+     * @return list<string> e.g. "calendar 12"
+     */
+    private static function listSourcesIn(array $pending): array
+    {
+        $found = [];
+
+        foreach ($pending as [$table, , $record]) {
+            if (isset(self::LIST_SOURCES[$table], $record['id'])) {
+                $found[] = self::LIST_SOURCES[$table] . ' ' . (int) $record['id'];
+            }
+        }
+
+        return array_values(array_unique($found));
     }
 
     /**

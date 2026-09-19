@@ -4,6 +4,64 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v0.28.0 - 2026-09-19
+
+Works with every contao-ai-cli version; the date and time options of `event create` and
+`event update` are passed by contao-ai-cli v0.30.0. What changes for a caller: events store
+the times the front end needs, create answers carry the alias, and text for a number or
+a point in time is refused (exit 1, nothing written) where the database used to fail or
+store it as text. A minor release because a write that used to answer `ok` can now be
+refused. All from the practical test of the core modules on c5 (Contao 5.7.13) and the
+checks on 5.3.51 and 6.0.0 on 2026-09-19.
+
+### Fixed
+
+- **Events dropped out of "upcoming events" as soon as they were created.** `event create`
+  defaulted the end date to the day of the call and stored `endTime = endDate`. An event
+  on 4 October created on 19 September ended on 19 September at midnight; a two-day event
+  would have left the list at midnight of its last day. The stored times are now derived
+  as the back end derives them (`tl_calendar_events::adjustTime()`, identical in 5.3, 5.7
+  and 6.0): an all-day event ends at 23:59:59 of its last day, a one-day event keeps no
+  end date, an event with a time takes it on its days, recurrences get their `repeatEnd`.
+  On create and on every update that touches a date, time or recurrence field. What the
+  back end cannot reach is refused instead of stored: emptying `startDate`, a `startTime`
+  or `endTime` on an all-day event without `addTime`, and turning on `addTime` without a
+  start time (`--endTime 21:00` alone would have started an all-day event at 00:00; found
+  in the review before release).
+- **A time of day could not be set.** `--set startTime=17:30` ended in `DriverException:
+  Data truncated`. New: `--startTime`/`--endTime` (`H:i`, sets `addTime`) on `event create`
+  and `event update`, `--startDate`/`--endDate` on `event update` too. Dates must be
+  `Y-m-d`; `news create --date` refuses what it cannot read instead of storing `0`.
+- **Text for a number or a point in time is refused by name** — integer columns, and
+  fields with `rgxp` `date`/`time`/`datim` whatever their column. `--set
+  start=2026-10-01` on a news entry was stored as that string; the refusal now names the
+  timestamp it stands for.
+- **Created records did not get the DCA defaults the back end gives them.**
+  `DC_Table::create()` fills every column that has a `default` in the DCA; no create
+  command did. A subscribe module created through the CLI had no confirmation mail text
+  (`nl_subscribe`), and the first subscription in the front end ended in an HTTP 500
+  (`SimpleTokenParser::parse(): Argument #1 must be of type string, null given`). The same
+  held for the unsubscribe, registration and password mail texts, for `tl_layout.modules`
+  (the back end starts a layout with the article module in the main column — one created
+  here rendered nothing), for `tl_page.enableCanonical`, `chmod` and `csp`,
+  and for the `alpty`/`fop` defaults of a user group. Every create now adds the defaults of
+  the columns it does not set, raw, after its own checks, as the back end does. A default
+  that needs a logged-in back end user is skipped (the commands set `author` themselves);
+  texts from the language files come in the console's language.
+- **No recurring event could be created.** `repeatEach` is a `timePeriod` field
+  (`{value, unit}`), and the options check held the whole pair against the unit list
+  (`days, weeks, months, years`), so `--set repeatEach={"unit":"weeks","value":1}` was
+  refused in every form. Now only the unit goes against the options, as for `inputUnit`;
+  the value is checked by `rgxp` as before. Found on 5.3.51.
+- **FAQ questions had no alias.** The reader linked to `/faq/21.html`. `faq create`
+  generates Contao's alias like the other creates.
+- **Create answers carry the alias** for articles, news, events, FAQ and newsletters, as
+  the agent guide already told callers to read it from there.
+- **Restoring a calendar, news archive, FAQ category or newsletter channel** answers with a
+  `cacheWarnings` entry: a list visited while it was deleted stays cached without it,
+  because Contao's list modules return before tagging a container they cannot find. The
+  restore itself invalidates what it can, as before.
+
 ## v0.27.0 - 2026-09-18
 
 Works with every contao-ai-cli version. What changes for a caller: two more kinds of

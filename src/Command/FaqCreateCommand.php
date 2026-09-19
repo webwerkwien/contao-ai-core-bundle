@@ -39,6 +39,10 @@ class FaqCreateCommand extends AbstractWriteCommand
             // Behind the last question of the category. Was 0 until v0.13.0.
             'sorting'   => $this->nextSorting('tl_faq', (int) $pid),
             'question'  => $question,
+            // Generated like the back end's `generateAlias` (v0.28.0). Until then a
+            // question had none, and the reader linked to /faq/21.html instead of a
+            // speaking URL (practical test 2026-09-19).
+            'alias'     => $this->resolveAlias('tl_faq', '', (string) $question, record: ['question' => (string) $question, 'pid' => (int) $pid]),
             'answer'    => $this->input->getOption('answer'),
             'published' => '0',
             'author'    => $this->resolveAuthorId(),
@@ -53,7 +57,7 @@ class FaqCreateCommand extends AbstractWriteCommand
         $faq->save();
         $this->createVersion('tl_faq', (int) $faq->id, created: true);
 
-        $this->outputSuccess(['id' => (int) $faq->id, 'question' => $question]);
+        $this->outputSuccess(['id' => (int) $faq->id, 'question' => $question, 'alias' => (string) $faq->alias]);
         return Command::SUCCESS;
     }
 }

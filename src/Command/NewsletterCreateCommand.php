@@ -109,7 +109,7 @@ class NewsletterCreateCommand extends AbstractWriteCommand
         $newsletter->save();
         $this->createVersion('tl_newsletter', (int) $newsletter->id, created: true);
 
-        $this->outputSuccess(['id' => (int) $newsletter->id, 'subject' => $subject]);
+        $this->outputSuccess(['id' => (int) $newsletter->id, 'subject' => $subject, 'alias' => (string) $newsletter->alias]);
 
         return Command::SUCCESS;
     }

@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 use Contao\Controller;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\ModuleModel;
+use Contao\System;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
@@ -61,6 +62,15 @@ class ModuleCreateCommand extends AbstractWriteCommand
             return $this->outputError(\sprintf('--pid must be a theme ID, got: %s', $pid));
         }
 
+        // The language file first, as the back end does: the mail texts of the
+        // subscribe, unsubscribe, registration and password modules are DCA
+        // defaults read from $GLOBALS['TL_LANG'] when the DCA file is included.
+        // Loaded the other way round, as a console command did until v0.28.0, they
+        // are null — and a subscribe module without its text answers the first
+        // subscription with an HTTP 500 (see AbstractWriteCommand::dcaDefaults()).
+        // A DCA cannot be loaded twice, so this has to come before anything else
+        // touches tl_module.
+        System::loadLanguageFile('tl_module');
         Controller::loadDataContainer('tl_module');
         $palettes = $GLOBALS['TL_DCA']['tl_module']['palettes'] ?? [];
 

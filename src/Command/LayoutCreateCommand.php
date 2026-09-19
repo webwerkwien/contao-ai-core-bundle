@@ -21,11 +21,11 @@ use Symfony\Component\Console\Input\InputOption;
  * because the demo install uses it would be inventing an answer for a question
  * only the caller can settle.
  *
- * What a created layout does *not* have is sections and modules. Both are
- * wizard columns holding serialized structures, and there is no sensible empty
- * default that is also useful — a layout without modules renders nothing. The
- * expectation is that they are filled in afterwards, in the back end or through
- * `--set` by a caller that knows the format.
+ * What a created layout does *not* have is sections. Its modules are the DCA
+ * default since v0.28.0 — the article module in the main column, as a layout
+ * created in the back end starts; until then it had none and rendered nothing
+ * (see AbstractWriteCommand::dcaDefaults()). More modules go in with
+ * `contao:layout:module`.
  */
 #[AsCommand(name: 'contao:layout:create', description: 'Create a page layout under a theme')]
 class LayoutCreateCommand extends AbstractWriteCommand

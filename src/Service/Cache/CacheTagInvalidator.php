@@ -155,6 +155,14 @@ class CacheTagInvalidator implements ResetInterface
         }
     }
 
+    /**
+     * A cache note the tags cannot carry, for the command's `cacheWarnings`.
+     */
+    public function warn(string $message): void
+    {
+        $this->warnings[] = $message;
+    }
+
     public function recordChanged(string $table, int $id): void
     {
         $this->invalidate($this->collect($table, $id));

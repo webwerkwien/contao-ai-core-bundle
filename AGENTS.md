@@ -94,10 +94,72 @@ a rule Contao has in the DCA and loses when a write goes around `DC_Table`:
 | `refuseTakenUniqueValues()` | a duplicate in a `eval.unique` field |
 | `refuseMissingParent()` | **from v0.27.0** — a `pid` with no record in the parent table, on create and on `--set pid=` / `ptable=`. The parent comes from the DCA: the record's `ptable` for `dynamicPtable` (tl_content), else `config.ptable`; a tree without `ptable` (tl_page) points into itself and allows `0`, but not a move below the record itself or its own subpages. An empty `pid` counts as `0`; a `ptable` naming no existing table is refused as such. Tables with neither are not checked |
 | `refuseUnstructuredValues()` | **from v0.12.0** — a value that is not a serialized array for a field whose widget stores one (`moduleWizard`, `sectionWizard`, `rowWizard`, `imageSize`, … — 14 input types). Runs **after** the conversions, so a short form that becomes an array (`options="red\|green"`) passes |
+| `refuseNonNumericValues()` | **from v0.28.0** — text for an integer column (`int`, `bigint`, … in string or Doctrine form) or for a field with `rgxp` `date`, `time` or `datim`, whatever its column (`tl_news.start` is a `varchar(10)` holding a timestamp). Empty passes. For a date the message names the timestamp the text stands for on this server; on `tl_calendar_events` it points at the date and time options. Runs last, on the values as they will be written |
 
 All of them answer with `{"status":"error"}` and exit 1, and nothing is written. (Two more
 refuse in the same place and are described elsewhere: `refuseInvalidFileTreeValues()` and
 `refuseUnknownTemplates()`.)
+
+> 🔴 **Why the newest exists.** In the practical test of 2026-09-19 `--set startTime=17:30`
+> on an event ended in `DriverException: Data truncated for column 'startTime'` — the
+> database the only thing to object. On a text column nothing objects at all:
+> `--set start=2026-10-01` on a news entry would have been stored as that string.
+
+## Event dates are derived, as in the back end (v0.28.0)
+
+An event stores its days (`startDate`, `endDate`) and the moments the front end works
+with (`startTime`, `endTime`, `repeatEnd`); every list asks `endTime >= now`. The back end
+derives the second set in the `adjustTime()` onsubmit callback, which this write path
+does not run. `Service\Calendar\EventTimes` mirrors it line for line (identical in
+Contao 5.3, 5.7 and 6.0) and runs on `event create` and on every `event update` that
+touches a date, time or recurrence field:
+
+- all day: `startTime` = start date 00:00, `endTime` = last day 23:59:59, one-day events keep no `endDate`
+- `addTime`: the time of day of `startTime`/`endTime` on the start and end day
+- an `endDate` not after the start becomes the start; `repeatEnd` follows `recurrences` × `repeatEach`
+
+`event create` and `event update` take `--startDate`/`--endDate` (`Y-m-d`) and
+`--startTime`/`--endTime` (`H:i`, which sets `addTime`). `EventTimes::refusal()` refuses
+what the back end's form cannot produce: an emptied `startDate`, a `startTime`/`endTime`
+on an event without `addTime`, and `addTime` turned on without a start time. `event create` has no end-date
+default any more: until v0.27.0 it was the day of the call, so an event created without
+one ended that day and dropped out of "upcoming events" at once (practical test on c5,
+2026-09-19).
+
+## Created records get the DCA defaults (v0.28.0)
+
+`DC_Table::create()` fills every column that has a `default` in the DCA before its
+INSERT; `preparedFields()` now does the same on create (never on update), after the
+caller's values are converted and checked, raw as the back end inserts them
+(`AbstractWriteCommand::dcaDefaults()`). A closure default that cannot run on the
+console — the `author` defaults read the logged-in back end user — is skipped; the
+commands set those fields themselves. Two more deliberate differences from `DC_Table`:
+a `null` default is skipped (the column default applies), and virtual fields (5.7+) get
+none — only real columns. Found in the practical test of 2026-09-19: a
+subscribe module had no `nl_subscribe` mail text and the first front end subscription
+answered HTTP 500; a created layout had no modules.
+
+⚠️ **Defaults read from `$GLOBALS['TL_LANG']` need the language file before the DCA.**
+The DCA file evaluates them when it is included, and a DCA is included once per
+process. `module create` therefore loads `tl_module`'s language file first; a command
+that needs another language-dependent default must do the same before anything loads
+that table's DCA. Texts come in the console's language (English unless configured).
+
+## Create answers carry the alias (v0.28.0)
+
+`article`, `news`, `event`, `faq` and `newsletter create` answer with `alias` next to the
+id, as `page create` did already. FAQ questions get Contao's alias for the first time;
+until v0.27.0 they had none and the reader linked to `/faq/21.html`.
+
+## Restoring a calendar, archive, category or channel (v0.28.0)
+
+`undo restore` invalidates the tags of every record it brings back. For a calendar, news
+archive, FAQ category or newsletter channel that is not enough: Contao's list modules drop
+a container that does not exist and return **before** tagging the page with it
+(`ModuleEventlist` and its twins). A list visited while the container was deleted is
+cached without any tag the restore could reach. The answer then carries a
+`cacheWarnings` entry naming the container; `cache clear` fixes it. Restoring a single
+entry is not affected — its container was there and tagged the page.
 
 > 🔴 **Why the two newest exist.** In v0.26.0 `member create --username "anna muster"`
 > was stored where the back end says "no spaces allowed", a username over 64 characters

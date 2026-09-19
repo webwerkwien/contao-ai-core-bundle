@@ -16,6 +16,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Contracts\Service\Attribute\Required;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\ContaoAlias;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\OptionsResolver;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\RecordDataContainer;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\StructuredFields;
 use Webwerkwien\ContaoAiCoreBundle\Service\Sorting;
 use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
@@ -357,6 +358,10 @@ abstract class AbstractWriteCommand extends Command
         // that only becomes an array above. What is still not one now, no
         // conversion could make one — that is the silent case.
         $this->refuseUnstructuredValues($table, $fields);
+        // On the values as they will be written (v0.28.0): the conversions above
+        // have turned lists and UUIDs into their stored form, none of which is
+        // the caller's text any more.
+        $this->refuseNonNumericValues($table, $fields);
 
         // Last on purpose: the three above leave empty values alone, and this
         // one turns them into something that is no longer the empty string.
@@ -503,7 +508,75 @@ abstract class AbstractWriteCommand extends Command
 
     protected function preparedFields(string $table, array $own, array $set, ?int $excludeId = null): array
     {
-        return $this->convertFields($table, array_merge($own, $set), $excludeId);
+        $fields = $this->convertFields($table, array_merge($own, $set), $excludeId);
+
+        // Only on create: an update must not reset what it was not asked to touch.
+        return null === $excludeId ? $fields + $this->dcaDefaults($table, $fields) : $fields;
+    }
+
+    /**
+     * The DCA `default` of every column the new record does not set yet.
+     *
+     * `DC_Table::create()` does this before its INSERT (5.3, 5.7, 6.0): for each
+     * field with a `default` that is a real column, the value — a closure is
+     * called, an array serialized. None of the create commands did, and some of
+     * those defaults are not cosmetic (practical test 2026-09-19):
+     *
+     *  - `tl_module.nl_subscribe`/`nl_unsubscribe`/`reg_text`/`reg_password`, the
+     *    mail texts: a subscribe module created here had none, and the first
+     *    subscription in the front end ended in a TypeError (HTTP 500);
+     *  - `tl_layout.modules`: the back end starts a layout with the article module
+     *    in the main column, one created here rendered nothing;
+     *  - `tl_page.enableCanonical`, `chmod`, `csp` (`cuser`/`cgroup` the command sets);
+     *    `tl_user_group.alpty`/`fop`.
+     *
+     * Added raw, after the conversions and checks, exactly as the back end inserts
+     * them — they are Contao's own values, not the caller's. A closure that cannot
+     * run on the console (the `author` defaults read the logged-in back end user)
+     * is skipped; the commands set those fields themselves. Language-dependent
+     * texts come in the console's language.
+     *
+     * @param array<string, mixed> $set the fields the record already gets
+     *
+     * @return array<string, mixed>
+     */
+    protected function dcaDefaults(string $table, array $set): array
+    {
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+
+        $columns  = $this->tableColumns($table);
+        $defaults = [];
+
+        foreach ($GLOBALS['TL_DCA'][$table]['fields'] ?? [] as $name => $def) {
+            if (!\is_array($def) || !\array_key_exists('default', $def) || \array_key_exists($name, $set)) {
+                continue;
+            }
+
+            // Where the columns cannot be read, no default is guessed onto one.
+            if (!\in_array($name, $columns, true)) {
+                continue;
+            }
+
+            $default = $def['default'];
+
+            if ($default instanceof \Closure) {
+                try {
+                    $default = $default(RecordDataContainer::create($table, 0, []));
+                } catch (\Throwable) {
+                    continue;
+                }
+            }
+
+            if (null === $default) {
+                continue;
+            }
+
+            $defaults[$name] = \is_array($default) ? serialize($default) : $default;
+        }
+
+        return $defaults;
     }
 
     /**
@@ -1433,6 +1506,22 @@ abstract class AbstractWriteCommand extends Command
                 continue;
             }
 
+            // A timePeriod field (`repeatEach` of an event): the same split — the
+            // options list the units, the value half is a number for `rgxp`. Until
+            // v0.28.0 the whole serialized pair was held against the units, so no
+            // recurring event could be created (found on 5.3.51, 2026-09-19). A
+            // value that is not a pair is left to refuseUnstructuredValues().
+            if ('timePeriod' === ($def['inputType'] ?? null)) {
+                $pair = \is_string($value) ? @unserialize($value, ['allowed_classes' => false]) : $value;
+                $unit = \is_array($pair) && \is_scalar($pair['unit'] ?? null) ? (string) $pair['unit'] : '';
+
+                if ('' !== $unit && !\in_array($unit, $allowed, true)) {
+                    $offenders[] = \sprintf('%s unit=%s (allowed: %s)', $name, $unit, implode(', ', \array_slice($allowed, 0, 12)));
+                }
+
+                continue;
+            }
+
             foreach ($this->optionParts($def, $value) as $part) {
                 // An empty value is cleared, not chosen; `convertEmptyValues()`
                 // maps it afterwards, exactly as `DC_Table::save()` does.
@@ -1591,6 +1680,94 @@ abstract class AbstractWriteCommand extends Command
             $table,
             implode('; ', $offenders),
         ));
+    }
+
+    /**
+     * Refuse text for a field that stores a number or a point in time.
+     *
+     * Two kinds of field, one failure: `--set startTime=17:30` on an event ended
+     * in `DriverException: Data truncated for column 'startTime'` (practical test
+     * 2026-09-19) — an integer column, and the database the only one to object.
+     * Where the column is text, nothing objects at all: `tl_news.start` is a
+     * `varchar(10)` holding a timestamp, and `--set start=2026-10-01` was stored
+     * as that string, which Contao then compares with the current time.
+     *
+     *  - **integer columns** (`int`, `bigint`, …, string or Doctrine form)
+     *  - **`rgxp` date, time, datim**, whatever the column — the back end's widget
+     *    turns the typed date into a timestamp before it is stored, and `--set`
+     *    writes the stored form (see RGXP_VALIDATORS)
+     *
+     * An empty value passes: it clears the field, as in the back end. For a date
+     * the refusal names the timestamp the text stands for on this server, so the
+     * caller can pass it without a second lookup.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @throws \InvalidArgumentException naming every offending field
+     */
+    protected function refuseNonNumericValues(string $table, array $fields): void
+    {
+        if ([] === $fields) {
+            return;
+        }
+
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+
+        $offenders = [];
+
+        foreach ($fields as $name => $value) {
+            if (!\is_string($value) || '' === trim($value) || is_numeric(trim($value))) {
+                continue;
+            }
+
+            $def  = $GLOBALS['TL_DCA'][$table]['fields'][$name] ?? null;
+            $rgxp = \is_array($def) ? ($def['eval']['rgxp'] ?? null) : null;
+            $time = \in_array($rgxp, ['date', 'time', 'datim'], true);
+
+            if (!$time && !(\is_array($def) && self::isIntegerColumn($def['sql'] ?? null))) {
+                continue;
+            }
+
+            $line = \sprintf('%s=%s', $name, $value);
+
+            if ($time) {
+                $stamp = strtotime($value);
+                $line .= false !== $stamp
+                    ? \sprintf(' (a Unix timestamp; "%s" is %d on this server, %s)', $value, $stamp, date('Y-m-d H:i', $stamp) . ' ' . date_default_timezone_get())
+                    : ' (a Unix timestamp)';
+            }
+
+            $offenders[] = $line;
+        }
+
+        if ([] === $offenders) {
+            return;
+        }
+
+        $hint = 'tl_calendar_events' === $table
+            ? ' For an event, pass the day and time as --startDate/--endDate (YYYY-MM-DD) and --startTime/--endTime (HH:MM) instead; the stored times are derived from them.'
+            : '';
+
+        throw new \InvalidArgumentException(\sprintf(
+            'Not a number for %s: %s. Nothing was written. These fields store a number, and a point in time as a Unix timestamp.%s',
+            $table,
+            implode('; ', $offenders),
+            $hint,
+        ));
+    }
+
+    /**
+     * Whether a DCA `sql` definition is an integer column.
+     */
+    private static function isIntegerColumn(mixed $sql): bool
+    {
+        if (\is_array($sql)) {
+            return \in_array($sql['type'] ?? null, ['integer', 'smallint', 'bigint'], true);
+        }
+
+        return \is_string($sql) && 1 === preg_match('/^\s*(tinyint|smallint|mediumint|int|integer|bigint)\b/i', $sql);
     }
 
     /**

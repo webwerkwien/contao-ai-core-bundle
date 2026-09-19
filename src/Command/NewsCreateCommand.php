@@ -41,7 +41,11 @@ class NewsCreateCommand extends AbstractWriteCommand
             return $this->outputError('--headline and --pid are required');
         }
 
-        $date = strtotime($this->input->getOption('date'));
+        $date = strtotime((string) $this->input->getOption('date'));
+
+        if (false === $date) {
+            return $this->outputError(\sprintf('"%s" is not a date. Use YYYY-MM-DD, e.g. 2026-10-04.', (string) $this->input->getOption('date')));
+        }
 
         $fields = $this->preparedFields('tl_news', [
             'pid' => (int) $pid,
@@ -70,7 +74,7 @@ class NewsCreateCommand extends AbstractWriteCommand
         $news->save();
         $this->createVersion('tl_news', (int) $news->id, created: true);
 
-        $this->outputSuccess(['id' => (int) $news->id, 'headline' => $headline]);
+        $this->outputSuccess(['id' => (int) $news->id, 'headline' => $headline, 'alias' => (string) $news->alias]);
         return Command::SUCCESS;
     }
 }
