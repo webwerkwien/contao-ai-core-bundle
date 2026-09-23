@@ -161,6 +161,12 @@ abstract class AbstractWriteCommand extends Command
      * invalidated here too. CacheInvalidationAfterCreateTest keeps "save first"
      * true for every *CreateCommand.
      */
+    /**
+     * Columns that address the row itself, refused on every table and in every
+     * command — lower case, see refuseIdentityFields().
+     */
+    private const IDENTITY_FIELDS = ['id', 'tstamp'];
+
     /** @var array<string, int> versions found under a created record's ID, per `table.id` */
     private array $earlierVersions = [];
 
@@ -323,6 +329,9 @@ abstract class AbstractWriteCommand extends Command
         // Fields read as arrays can be written back as JSON (v0.16.0).
         $fields = $this->convertJsonStructuredFields($table, $fields);
 
+        // Before everything else, and for every table: the row's identity is not
+        // a field. See refuseIdentityFields() for what happens when it is.
+        $this->refuseIdentityFields($fields);
         $this->refuseUnknownFields($table, $fields);
         // Both on the raw input, before the conversions below turn UUIDs binary
         // and lists into serialized strings — a rule about what the caller
@@ -406,6 +415,98 @@ abstract class AbstractWriteCommand extends Command
      *
      * @throws \InvalidArgumentException when a field is not a column of $table
      */
+    /**
+     * `id` and `tstamp` are never `--set` values, on any table.
+     *
+     * 🔴 **`--set id=…` really renumbered the row.** Contao's `Model::save()`
+     * has explicit handling for it — *"Track primary key changes"*, it keeps the
+     * OLD key for the `WHERE` and writes the new one into the `SET`
+     * (`Contao\Model::save()`). `ModelWriter::update()` assigns every field to
+     * the model, so nothing stood in the way. Measured on c5 against the
+     * released v1.0.0:
+     *
+     *     member-group update 12 --set id=9012
+     *     -> {"status":"ok","id":12,"updated":["id"]}      … and the row is 9012
+     *
+     * Three things go wrong at once: the back end cannot do this (`id` is in no
+     * palette); the version snapshot is taken under the old id, so the renumbered
+     * row loses its history; and the answer reports the id the caller passed in,
+     * not the one that now exists.
+     *
+     * 🎯 **On `tl_user` it is privilege escalation.** Page ownership is
+     * `$cuser === $user->id` with a fallback to `Config defaultUser`, which is
+     * user 1 almost everywhere: move the admin off id 1 and another account onto
+     * it, and that account inherits the rights. Two ordinary update calls, no
+     * password involved.
+     *
+     * `tstamp` is refused for a quieter reason: `ModelWriter::update()` sets it
+     * to `time()` after the field loop, so `--set tstamp=0` was reported as
+     * written and never was — the silent-success shape this bundle keeps hunting.
+     *
+     * ⚠️ Compared case-insensitively and trimmed. MySQL column names are not
+     * case-sensitive, so `--set ID=9012` addresses the same column, and only the
+     * spelling would have differed.
+     *
+     * Found by the pre-release review of v1.1.0 and fixed there, but the hole is
+     * older: it was open on every table whose update command had no allow list
+     * of its own, which was all of them but `tl_member` and `tl_user`.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @throws \InvalidArgumentException when a field addresses the row's identity
+     */
+    protected function refuseIdentityFields(array $fields): void
+    {
+        $hit = [];
+
+        foreach (array_keys($fields) as $name) {
+            if (\in_array(strtolower(trim((string) $name)), self::IDENTITY_FIELDS, true)) {
+                $hit[] = $name;
+            }
+        }
+
+        if ([] === $hit) {
+            return;
+        }
+
+        throw new \InvalidArgumentException(\sprintf(
+            'Not settable: %s. Nothing was written. `id` is the row itself — writing it '
+            . 'renumbers the record, loses its version history and would let page ownership '
+            . 'be moved between accounts; `tstamp` is set by the write itself. Neither can '
+            . 'be changed in the back end either.',
+            implode(', ', $hit),
+        ));
+    }
+
+    /**
+     * The `--set` keys that hit a deny list, compared the way a column is.
+     *
+     * ⚠️ **Case-insensitive and trimmed, and that is not cosmetic.** MySQL column
+     * names are not case-sensitive, so `--set Password=…` addresses the same
+     * column as `password`. A plain `array_intersect` on the raw keys would have
+     * let the capitalised spelling past the deny list; it would still have been
+     * stopped by the column check below, but only while a database can answer —
+     * `refuseUnknownFields()` returns silently when the column list cannot be
+     * read. A guard that depends on another guard's availability is not a guard.
+     *
+     * @param array<string, mixed> $fields
+     * @param list<string>         $denied lower case
+     *
+     * @return list<string> the offending keys as the caller spelled them
+     */
+    protected function deniedAmong(array $fields, array $denied): array
+    {
+        $hit = [];
+
+        foreach (array_keys($fields) as $name) {
+            if (\in_array(strtolower(trim((string) $name)), $denied, true)) {
+                $hit[] = (string) $name;
+            }
+        }
+
+        return $hit;
+    }
+
     protected function refuseUnknownFields(string $table, array $fields): void
     {
         if ([] === $fields) {

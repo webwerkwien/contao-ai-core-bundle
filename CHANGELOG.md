@@ -4,6 +4,88 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.1.0 - 2026-09-23
+
+**A security fix on every table, and fields of other bundles become writable on
+`tl_member` and `tl_user`.** Requires nothing new; `contao-ai-cli` from v1.0.0 works
+unchanged. **Recommended for every installation** — see the first entry.
+
+### Security
+
+- **`--set id=…` renumbered the record. On every table, in every version up to and
+  including v1.0.0** ([#72](https://github.com/webwerkwien/contao-ai-core-bundle/issues/72)).
+  Contao's `Model::save()` has explicit handling for a changed primary key and keeps the old
+  key for the `WHERE`, so the write went through:
+
+  ```
+  member-group update 12 --set id=9012
+  -> {"status":"ok","id":12,"updated":["id"]}        … and the row is now 9012
+  ```
+
+  Three things went wrong at once: the back end cannot do this (`id` is in no palette); the
+  version snapshot was taken under the old id, so the renumbered row lost its history; and
+  the answer reported the id that was passed in, not the one that now existed. **On
+  `tl_user` it is privilege escalation** — page ownership is `$cuser === $user->id` with a
+  fallback to `Config defaultUser`, user 1 on almost every installation, so moving one
+  account off id 1 and another onto it transfers the rights. `id` and `tstamp` are now
+  refused centrally, for every table and every command, compared case-insensitively.
+
+### Changed
+
+- **`contao:member:update`, `contao:member:create` and `contao:user:update` now refuse a
+  named set of fields instead of allowing a named set** ([#71](https://github.com/webwerkwien/contao-ai-core-bundle/issues/71)).
+  Refused: `password`, `secret`, `useTwoFactor`, `backupCodes`, `trustedTokenVersion`,
+  `session`; on `user:update` also `admin`, `pwChange` and `amg`; on `member:create` also
+  `username`. Everything else goes through the ordinary column check, the same one every
+  other table already used. Compared lower-case and trimmed — MySQL column names are not
+  case-sensitive, so `--set Password=…` addresses the same column.
+- **What this fixes:** a bundle that adds columns to `tl_member` could not be served through
+  the CLI at all. `--set consho_shippingStreet=…` answered *"Field(s) not allowed"* while
+  `contao:dca:schema tl_member` listed the very same field as writable — two commands of
+  this bundle contradicting each other about one table. The guard was right, the allow list
+  was the wrong mechanism: to keep two fields out it kept every third-party field out, and
+  every field Contao might add in a future version.
+- **`member:create` refuses `username` in `--set`.** `--set` wins over the command's own
+  options, so `--username anna --set username=bob` created bob, answered `"username":"anna"`
+  and ran the "password must not equal the username" check against anna. Renaming stays
+  possible with `member:update`.
+
+### Newly writable, deliberately
+
+The allow lists held back more than credentials, and the full list is worth stating rather
+than summarising. Measured against the DCAs of **5.3.51** and **5.7.13**; besides any column
+another bundle adds:
+
+- **`tl_member`:** `username`, `fax`, `assignDir`, `homeDir`, `dateAdded`, `lastLogin`,
+  `currentLogin`, and `newsletter` when the newsletter bundle is installed.
+- **`tl_user`:** `uploader`, `showHelp`, `thumbnails`, `useRTE`, `useCE`, `doNotCollapse`,
+  `frontendModules`, `imageSizes`, `dateAdded`, `lastLogin`, `currentLogin`; on 5.7 also
+  `backendWidth`, `doNotHideMessages` and `cud`; plus the optional bundles' permission
+  fields, which differ by version — on 5.3 `news`, `newp`, `calendars`, `calendarp`,
+  `faqs`, `faqp`, `newsletters`, `newsletterp`, on 5.7 the `…p` half of those has moved
+  into `cud`.
+
+Permission administration was never the thing being withheld: `elements`, `fields`,
+`pagemounts`, `fop`, `forms`, `formp` and `modules` were all on the allow list. **`cud`
+belongs to that group** — on 5.7 it is the successor of `formp`
+(`Version507\FieldPermissionMigration`), so refusing it would have made this release
+stricter than the one it fixes.
+
+`amg` is the one exception and stays refused: it is the allowed member groups, and Contao's
+front-end preview authenticates **as** them — setting it is impersonation of member
+accounts, not a display preference.
+
+### Notes
+
+- A misspelled field is still refused, now by the column check — which names the table and
+  needs a database, where the old list did not. When the column list cannot be read the
+  check is skipped, which is why the credential guard does not rely on it.
+- `MemberUpdateCommand::ALLOWED_FIELDS` (public since v0.26.0) is removed and replaced by
+  `DENIED_FIELDS`. A removed public constant in a minor release; no consumer exists in the
+  three ConpAI repos, and the CLI contract — commands, options, answers — is unaffected.
+  `UserUpdateCommand::ALLOWED_FIELDS` was `private` and never API; its replacement is public.
+- `conpai` added to the package keywords.
+
 ## v1.0.0 - 2026-09-19
 
 **The first stable release.** The code is that of v0.28.0; what changes is the promise.

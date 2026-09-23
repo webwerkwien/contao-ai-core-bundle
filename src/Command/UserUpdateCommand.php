@@ -10,13 +10,56 @@ use Symfony\Component\Console\Input\InputArgument;
 #[AsCommand(name: 'contao:user:update', description: 'Update a backend user field')]
 class UserUpdateCommand extends AbstractWriteCommand
 {
-    // 'admin' and 'password' deliberately excluded to prevent privilege escalation
-    private const ALLOWED_FIELDS = [
-        'username', 'name', 'email', 'language', 'backendTheme', 'fullscreen',
-        'description', 'groups', 'inherit', 'modules', 'themes',
-        'elements', 'fields', 'pagemounts', 'alpty', 'filemounts',
-        'fop', 'forms', 'formp', 'disable', 'start', 'stop',
+    /**
+     * What may NOT be written — everything else is decided by the table itself.
+     *
+     * Until v1.0.0 an ALLOW list of 22 names, with the same flaw as its twin in
+     * MemberUpdateCommand (see the docblock there, and the note below): to keep
+     * `admin` and `password` out, it kept every field of every other bundle out
+     * as well, plus whatever Contao adds in a future version.
+     *
+     * The escalation guard is unchanged in substance — `admin` still cannot be
+     * set from here, and neither can anything that is a credential or part of
+     * the second factor. What changed is that the list now says what it guards
+     * instead of enumerating the remainder.
+     *
+     * ⚠️ `groups` stays writable, and a group can carry admin-equivalent rights.
+     * That was true before as well; the escalation this guards is the direct
+     * one, not every path to power.
+     */
+    public const DENIED_FIELDS = [
+        'admin',                // direct escalation to full control
+        'password',             // writing it directly bypasses Contao's hashing
+        'pwchange',             // forcing or clearing the password change flag
+        'secret',               // TOTP seed
+        'usetwofactor',         // switching it off would disarm the second factor
+        'backupcodes',          // 2FA recovery codes
+        'trustedtokenversion',  // bumping it forges "this device is trusted"
+        'session',              // forging a session is forging a login
+        // 🔴 Added after the pre-release review of v1.1.0: the old allow list
+        // withheld it by omission, the first draft of this list let it through,
+        // and it is not a preference.
+        'amg',                  // allowed member groups: Contao's front-end preview
+                                // authenticates AS those groups — see
+                                // BackendPreviewSwitchController, which filters by
+                                // it. Setting it is impersonation of member accounts
     ];
+
+    // 🎯 `cud` was on this list for one draft and came back off. Worth recording,
+    // because the reasoning nearly went the wrong way.
+    //
+    // It is the per-user create/update/delete permission table and looks like a
+    // grant one should withhold. But in Contao 5.7 it is the SUCCESSOR of
+    // `formp`: Version507\FieldPermissionMigration maps `formp` to
+    // `tl_form::create` / `tl_form::delete` inside `cud`, and `formp` stood on
+    // the old allow list. Denying `cud` would have made v1.1.0 **stricter than
+    // v1.0.0 on 5.7+** — a capability taken away in passing, in the very release
+    // whose point is that a guard must not withhold more than it protects.
+    //
+    // It also sits in the same class as `elements`, `pagemounts`, `fop`, `forms`
+    // and `modules`, all writable before and after. Back-end permission
+    // administration is not what this guard withholds; direct escalation
+    // (`admin`), credentials and impersonation (`amg`) are.
 
     public function __construct(private readonly ContaoFramework $framework)
     {
@@ -34,17 +77,25 @@ class UserUpdateCommand extends AbstractWriteCommand
         $this->framework->initialize();
         $username = $this->input->getArgument('username');
 
-        // Input is validated before the record is loaded: a rejected field must
-        // not depend on whether the user happens to exist, and the check stays
-        // reachable without a database — which is what makes it testable.
+        // The escalation guard runs before the record is loaded: refusing `admin`
+        // must not depend on whether the user happens to exist, and the check
+        // stays reachable without a database — which is what makes it testable.
+        // The column check cannot work that way, it needs the schema.
         if (empty($fields)) {
             return $this->outputError('No fields specified. Use --set field=value');
         }
 
-        $disallowedFields = array_diff(array_keys($fields), self::ALLOWED_FIELDS);
-        if (!empty($disallowedFields)) {
-            return $this->outputError('Field(s) not allowed: ' . implode(', ', $disallowedFields));
+        $denied = $this->deniedAmong($fields, self::DENIED_FIELDS);
+        if ([] !== $denied) {
+            return $this->outputError(\sprintf(
+                'Field(s) not allowed: %s. Admin rights, credentials and two-factor state are '
+                . 'never written through --set. Nothing was written.',
+                implode(', ', $denied),
+            ));
         }
+        // Everything else is checked against the table's real columns further
+        // down, in convertFields() -> refuseUnknownFields(). That is what makes
+        // fields from other bundles usable here.
 
         $user = UserModel::findByUsername($username);
         if ($user === null) {

@@ -25,8 +25,11 @@ use Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface;
  *   log in; in the back end the two fields only appear once `login` is ticked. `--set
  *   login=` overrides it.
  * - **`dateAdded` is now**, what `tl_member::storeDateAdded()` stores on the first save.
- * - **Further fields with --set**, the same list `contao:member:update` accepts
- *   (`groups=1,2`, `disable`, `start`, address fields …). `password` is not among them.
+ * - **Further fields with --set**, judged the same way `contao:member:update` judges them:
+ *   anything that is a column of `tl_member`, including columns other bundles add
+ *   (`groups=1,2`, `disable`, `start`, address fields …). Refused are the credential and
+ *   two-factor fields (MemberUpdateCommand::DENIED_FIELDS), `username` — see the note at
+ *   the check — and `id`/`tstamp` on every table.
  *
  * The answer never contains the password or its hash.
  */
@@ -70,10 +73,21 @@ class MemberCreateCommand extends AbstractWriteCommand
         }
 
         // Before anything else: shape of the request, no database needed.
-        $disallowed = array_diff(array_keys($fields), MemberUpdateCommand::ALLOWED_FIELDS, ['login']);
+        // Shares the deny list with contao:member:update — one table, one rule.
+        // Until v1.0.0 this was an allow list and locked out every field added
+        // by another bundle; see the docblock on MemberUpdateCommand::DENIED_FIELDS.
+        //
+        // ⚠️ `username` is denied HERE and only here, and the reason is that
+        // `--set` wins over the command's own options (preparedFields(), see
+        // its docblock). `--username anna --set username=bob` created bob,
+        // answered "anna", and ran the "password must not equal the username"
+        // check against anna — three statements about one record, two of them
+        // wrong. Renaming a member stays possible with member:update.
+        $disallowed = $this->deniedAmong($fields, [...MemberUpdateCommand::DENIED_FIELDS, 'username']);
         if ([] !== $disallowed) {
             return $this->outputError(\sprintf(
-                'Field(s) not allowed: %s. The password only comes through --password-stdin. Nothing was written.',
+                'Field(s) not allowed: %s. The password only comes through --password-stdin, '
+                . 'and the username through --username. Nothing was written.',
                 implode(', ', $disallowed),
             ));
         }

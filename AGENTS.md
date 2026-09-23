@@ -691,10 +691,93 @@ Both share `MemberPassword` (trait):
   Password: before the write, and what the callback returns is stored. `CreateCommandConversionTest` lists the create case as its
   second allowed assignment outside `preparedFields()`.
 - Create: every value through `preparedFields()` (username/email unique, email valid), plus
-  `login=1` and `dateAdded=time()`; `--set` takes `MemberUpdateCommand::ALLOWED_FIELDS`.
+  `login=1` and `dateAdded=time()`; `--set` refuses `MemberUpdateCommand::DENIED_FIELDS`
+  and lets the column check decide the rest (see below).
 - Answers never carry the password or the hash. Verified on 5.3.51, 5.7.13 and 6.0.0: the
   stored hash verifies against the piped password (trailing space kept), the old one no
   longer does, three versions, `tl_log` with source CLI.
+
+## Member and user fields: a deny list, not an allow list (v1.1.0)
+
+`contao:member:update`, `contao:member:create` and `contao:user:update` refuse a **short,
+named set** of fields and leave everything else to the ordinary column check in
+`refuseUnknownFields()`. **Any field another bundle adds to `tl_member` or `tl_user` is
+therefore writable through `--set`**, exactly as it is on every other table.
+
+| Command | refused | why |
+| --- | --- | --- |
+| `member:update` | `password` `secret` `useTwoFactor` `backupCodes` `trustedTokenVersion` `session` | credentials and authentication state |
+| `member:create` | the same, plus `username` | `--set` wins over `--username`, so it renamed the member while the answer reported the option |
+| `user:update` | the same as member, plus `admin` `pwChange` `amg` | direct privilege escalation and impersonation |
+
+Plus `id` and `tstamp`, refused **on every table** one level up — see the next section.
+
+`login`, `disable`, `start`, `stop` and `groups` stay writable on purpose — the CLI operator
+manages account state. So do the back-end permission fields: `elements`, `fields`,
+`pagemounts`, `fop`, `forms`, `formp` and `modules` were on the old allow list, and **`cud`
+belongs to that group** — on 5.7 it is the successor of `formp`
+(`Version507\FieldPermissionMigration`), so refusing it would make this release stricter
+than the one it fixes. `groups` can carry admin-equivalent rights; the guard is against the
+*direct* escalation, not against every path to power.
+
+**`amg` is the one that looks like a preference and is not.** It is the allowed member
+groups, and Contao's front-end preview authenticates **as** them — so setting it is
+impersonation of front-end accounts, not a display setting.
+
+⚠️ **The deny lists are lower case and compared lower-case and trimmed.** MySQL column names
+are not case-sensitive, so `--set Password=…` addresses the same column; a raw comparison
+would have let it past. A test asserts the lists stay lower case, because an entry spelled
+`useTwoFactor` would never match and the guard would be silently open.
+
+> 🔴 **Until v1.0.0 these three commands carried ALLOW lists** of 20–22 hand-maintained
+> names. To keep two fields out they kept every third-party field out with them: `--set
+> consho_shippingStreet=…` answered *"Field(s) not allowed"* while `contao:dca:schema
+> tl_member` listed the very same field as writable — two commands of this bundle
+> contradicting each other about one table (Issue #71). A hand-maintained allow list also
+> silently drops whatever Contao adds in a future version.
+>
+> 🎯 **The rule that follows: guard by naming what is dangerous, not by enumerating what is
+> harmless.** The second list is never finished.
+
+**Consequence for callers:** a misspelled member field is still refused, but by the column
+check — so the refusal now needs a database and names the table (`check the spelling against
+contao:dca:schema tl_member`).
+
+**Newly writable besides foreign columns**, because the allow lists held back more than
+credentials — measured against the DCAs of 5.3.51 and 5.7.13: on `tl_member` `username`,
+`fax`, `assignDir`, `homeDir`, `dateAdded`, `lastLogin`, `currentLogin` and the newsletter
+bundle's `newsletter`; on `tl_user` `uploader`, `showHelp`, `thumbnails`, `useRTE`, `useCE`,
+`doNotCollapse`, `frontendModules`, `imageSizes`, `dateAdded`, `lastLogin`, `currentLogin`,
+on 5.7 also `backendWidth`, `doNotHideMessages` and `cud`, plus the optional bundles'
+permission fields — which differ by version, since 5.7 folded the `…p` half of them
+into `cud`.
+
+## `id` and `tstamp` are refused on every table (v1.1.0)
+
+`AbstractWriteCommand::refuseIdentityFields()` runs inside `convertFields()`, so it covers
+every create and every update.
+
+> 🔴 **`--set id=…` really renumbered the row, in every version up to v1.0.0.** Contao's
+> `Model::save()` has explicit handling for a changed primary key — it keeps the OLD key for
+> the `WHERE` and writes the new one into the `SET` — and `ModelWriter::update()` assigned
+> whatever it was given. Measured on c5 against the released v1.0.0:
+>
+> ```
+> member-group update 12 --set id=9012
+> -> {"status":"ok","id":12,"updated":["id"]}        … and the row is 9012
+> ```
+>
+> The back end cannot do this (`id` is in no palette), the version snapshot was taken under
+> the old id so the row lost its history, and the answer named the id that was passed in.
+> **On `tl_user` it is privilege escalation:** page ownership is `$cuser === $user->id` with
+> a fallback to `Config defaultUser` — user 1 almost everywhere.
+>
+> 🎯 The commands that were safe were safe **by accident** — `member:update` and
+> `user:update`, because they happened to carry allow lists. Every other table was open.
+> [#72](https://github.com/webwerkwien/contao-ai-core-bundle/issues/72).
+
+`tstamp` is refused for a quieter reason: `ModelWriter::update()` sets it to `time()` after
+the field loop, so `--set tstamp=0` was reported as written and never was.
 
 ## Structured fields: read as arrays, written as JSON (v0.16.0)
 

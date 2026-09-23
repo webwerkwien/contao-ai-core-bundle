@@ -84,6 +84,35 @@ class MemberPasswordCommandsTest extends TestCase
         $this->assertStringContainsString('not allowed: password', $out['message']);
     }
 
+    /**
+     * `--set` wins over the command's own options (preparedFields()), so
+     * `--username anna --set username=bob` created bob, answered `"username":
+     * "anna"` and ran the "password must not equal the username" check against
+     * anna — three statements about one record, two of them wrong. Found by the
+     * pre-release review of v1.1.0; `username` is denied on create only,
+     * renaming stays possible with member:update.
+     */
+    public function testUsernameAsASetFieldIsRefused(): void
+    {
+        [$code, $out] = $this->create(['--password-stdin' => true, '--set' => ['username=bob']], ['x']);
+
+        $this->assertSame(1, $code);
+        $this->assertStringContainsString('not allowed: username', $out['message']);
+        $this->assertStringContainsString('--username', $out['message']);
+    }
+
+    /**
+     * Same column, different spelling — MySQL does not care about the case, so
+     * neither may the deny list.
+     */
+    public function testUsernameIsRefusedWhateverTheSpelling(): void
+    {
+        [$code, $out] = $this->create(['--password-stdin' => true, '--set' => ['UserName=bob']], ['x']);
+
+        $this->assertSame(1, $code);
+        $this->assertStringContainsString('UserName', $out['message']);
+    }
+
     public function testWithoutPasswordStdinNothingIsWritten(): void
     {
         [$code, $out] = $this->create();
