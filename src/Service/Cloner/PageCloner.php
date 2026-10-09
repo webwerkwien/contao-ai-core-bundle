@@ -10,6 +10,7 @@ use Contao\StringUtil;
 use Contao\UserModel;
 use Doctrine\DBAL\Connection;
 use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageLanguage;
+use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageTreeRules;
 use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageUrlGuard;
 use Webwerkwien\ContaoAiCoreBundle\Service\Sorting;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
@@ -96,6 +97,7 @@ class PageCloner implements EntityClonerInterface
         private readonly ContaoFramework $framework,
         private readonly VersionManager $versionManager,
         private readonly PageUrlGuard $pageUrlGuard,
+        private readonly PageTreeRules $pageTreeRules,
     ) {
     }
 
@@ -153,6 +155,8 @@ class PageCloner implements EntityClonerInterface
             }
             $this->pageUrlGuard->assertAliases([$newRootId]);
             $this->pageUrlGuard->assertTree($newRootId);
+            // A cloned error page would be a second one below the same root (v1.2.0).
+            $this->pageTreeRules->assertPlaced($newRootId);
 
             return [
                 'id'             => $newRootId,

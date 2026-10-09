@@ -29,6 +29,26 @@ final class PageTreeRules
     }
 
     /**
+     * Check a page that is already stored, inside the transaction that wrote it.
+     *
+     * For the cloner (review W3): a clone keeps the source's type and parent, so a
+     * cloned error page was a second one below the same root. Checked as a new page
+     * would be, the clone itself excluded from the duplicate search.
+     *
+     * @throws \InvalidArgumentException naming the rule
+     */
+    public function assertPlaced(int $pageId): void
+    {
+        $row = $this->connection->fetchAssociative('SELECT type, pid FROM tl_page WHERE id = ?', [$pageId]);
+
+        if (false === $row) {
+            return;
+        }
+
+        $this->assertPlacement(['type' => (string) $row['type'], 'pid' => (int) $row['pid']], [], $pageId);
+    }
+
+    /**
      * @param array<string, mixed> $fields the values being written
      * @param array<string, mixed> $stored the stored page on an update, empty on a create
      *

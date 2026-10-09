@@ -71,6 +71,11 @@ trait MovesRecord
             }
         }
 
+        // Review H3: with --after the element takes the sibling's parent table.
+        if ($this->hasPtableOption() && '' !== $after && '' !== (string) ($this->input->getOption('ptable') ?? '')) {
+            return $this->outputError('--ptable goes with --to; with --after the element takes the sibling\'s parent table.');
+        }
+
         $this->framework->initialize();
 
         $class = $this->modelClass();
@@ -119,12 +124,18 @@ trait MovesRecord
      *
      * @return array<string, mixed>
      *
-     * @throws \InvalidArgumentException when the sibling is the record or does not exist
+     * @throws \InvalidArgumentException when the sibling is the record, or either does not exist
      */
     protected function positionAfter(string $table, int $id, int $sibling): array
     {
         if ($sibling === $id) {
             throw new \InvalidArgumentException(\sprintf('A %s record cannot be moved behind itself. Nothing was written.', $table));
+        }
+
+        // Before the renumbering below writes anything (review W1): a mistyped ID
+        // renumbered someone else's siblings and only then answered "not found".
+        if ([] === $this->storedRow($table, $id)) {
+            throw new \InvalidArgumentException(\sprintf('No %s record with ID %d to move. Nothing was written.', $table, $id));
         }
 
         $row = $this->storedRow($table, $sibling);
@@ -142,10 +153,14 @@ trait MovesRecord
         $ptable  = $dynamic ? (string) ($row['ptable'] ?? '') : '';
         $current = (int) $row['sorting'];
 
-        $siblings = $this->siblingsInOrder($table, $pid, $ptable, $id);
-        $ids      = array_keys($siblings);
-        $index    = array_search($sibling, $ids, true);
-        $next     = false === $index ? null : ($siblings[$ids[$index + 1] ?? -1] ?? null);
+        // The moved record stays in the list when it shares the parent: the
+        // renumbering gives it a number at its old place, so a move refused
+        // afterwards leaves the order as it was (review W1). It is only skipped as
+        // the "next" sibling — moving behind its own predecessor needs no room.
+        $siblings = $this->siblingsInOrder($table, $pid, $ptable);
+        $others   = array_values(array_filter(array_keys($siblings), static fn (int $key): bool => $key !== $id));
+        $index    = array_search($sibling, $others, true);
+        $next     = false === $index ? null : ($siblings[$others[$index + 1] ?? -1] ?? null);
 
         if (null === $next) {
             $sorting = $this->sortingAfter($current);
@@ -164,10 +179,11 @@ trait MovesRecord
      * Renumber the siblings in steps of 128, leaving the slot behind $sibling free.
      *
      * As `DC_Table::getNewPosition()` does, directly on `sorting`: a version per
-     * sibling would record a change nobody made. The order does not change, so a
-     * move refused afterwards leaves the siblings as they were, only renumbered.
+     * sibling would record a change nobody made. Every sibling keeps its place —
+     * the record being moved included, when it shares the parent — so a move
+     * refused afterwards leaves the order as it was, only renumbered.
      *
-     * @param array<int, int> $siblings id => sorting, in order
+     * @param array<int, int> $siblings id => sorting, in order, the moved record included
      *
      * @return int the free slot
      */
@@ -198,16 +214,16 @@ trait MovesRecord
     }
 
     /**
-     * The siblings below a parent, without the record being moved.
+     * The records below a parent, the one being moved included if it is there.
      *
      * `$table` is always the literal table of the command's model, never input.
      *
      * @return array<int, int> id => sorting, in order
      */
-    protected function siblingsInOrder(string $table, int $pid, string $ptable, int $exclude): array
+    protected function siblingsInOrder(string $table, int $pid, string $ptable): array
     {
-        $sql    = 'SELECT id, sorting FROM ' . $table . ' WHERE pid=? AND id!=?';
-        $params = [$pid, $exclude];
+        $sql    = 'SELECT id, sorting FROM ' . $table . ' WHERE pid=?';
+        $params = [$pid];
 
         if ('' !== $ptable) {
             $sql     .= ' AND ptable=?';

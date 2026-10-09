@@ -31,7 +31,8 @@ without `--pid` is now refused unless `--type root` (see Fixed).
   put a regular page at the top level, `--set type=root` made a subpage a root, a second
   404 page could go below the same root, and `page create` without `--pid` created a
   regular page at the top level. Contao enforces this in `PageTypeAccessVoter`, a permission
-  voter the console never asks. Now refused on create and on any update of `type` or `pid`:
+  voter the console never asks; `record clone` of a 404 page made a second one below the
+  same root. Now refused on create, on clone and on any update of `type` or `pid`:
   a root only at the top level and nothing else there, an error page only directly below a
   root and one of each type per root.
 - **A move left the old parent's cached pages stale** — a navigation or article list that

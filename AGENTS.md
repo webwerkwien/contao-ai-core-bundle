@@ -566,15 +566,21 @@ and the next one; behind the last sibling `+128`; and when no integer is left in
 the siblings are renumbered in steps of 128 with the slot behind the sibling left free.
 **That renumbering writes `sorting` directly, as Contao does** — the one write here that
 bypasses the record writer, because a version per sibling would record a change nobody
-made. Only values that change are written; the order is unchanged, so a move refused
-afterwards leaves the siblings renumbered but in the same order. `MoveCommandTest`.
+made. Only values that change are written. The record being moved is renumbered at its
+old place when it shares the parent, so a move refused afterwards leaves the order as it
+was, only renumbered; and the record is looked up before anything is renumbered, so a
+mistyped ID changes nothing. (The first version left the moved record out of the
+renumbering — a refused move in the same parent then swapped it with a neighbour; found by
+the pre-release review.) `--ptable` with `--after` is refused: the element takes the
+sibling's parent table. `MoveCommandTest`.
 
 **The page tree has rules of its own** (`Service\Page\PageTreeRules`, from Contao's
 `PageTypeAccessVoter`, a voter the console never asks): a website root stands at the top
 level and nothing else does; an error page (`error_401/403/404/503`) stands directly below a
-root, one of each type per root. Checked on `page:create` and on every `page:update` (and
-so `page:move`) that changes `type` or `pid`; an update touching neither is not checked, so
-a page already in the wrong place stays editable. Up to v1.1.0 `page create` without
+root, one of each type per root. Checked on `page:create`, on every `page:update` (and
+so `page:move`) that changes `type` or `pid`, and on the root of a `record:clone` of a page
+(`assertPlaced()`, inside the clone's transaction — a cloned 404 was a second one); an
+update touching neither is not checked, so a page already in the wrong place stays editable. Up to v1.1.0 `page create` without
 `--pid` made a regular page at the top level. `PageTreeRulesTest`.
 
 **A move invalidates the old parent too.** `ModelWriter::update()` collects the record's tags
