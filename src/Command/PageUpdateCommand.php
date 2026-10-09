@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 use Contao\PageModel;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Contracts\Service\Attribute\Required;
+use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageTreeRules;
 use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageUrlGuard;
 
 #[AsCommand(name: 'contao:page:update', description: 'Update a Contao page')]
@@ -18,6 +19,8 @@ class PageUpdateCommand extends AbstractModelUpdateCommand
 
     private ?PageUrlGuard $pageUrlGuard = null;
 
+    private ?PageTreeRules $pageTreeRules = null;
+
     protected function modelClass(): string { return PageModel::class; }
     protected function entityName(): string { return 'Page'; }
 
@@ -25,6 +28,12 @@ class PageUpdateCommand extends AbstractModelUpdateCommand
     public function setPageUrlGuard(PageUrlGuard $pageUrlGuard): void
     {
         $this->pageUrlGuard = $pageUrlGuard;
+    }
+
+    #[Required]
+    public function setPageTreeRules(PageTreeRules $pageTreeRules): void
+    {
+        $this->pageTreeRules = $pageTreeRules;
     }
 
     /**
@@ -46,6 +55,15 @@ class PageUpdateCommand extends AbstractModelUpdateCommand
      */
     protected function applyToRecord(int $id, array $fields): ?array
     {
+        // Root only at the top level, error pages directly below a root (v1.2.0).
+        if (null !== $this->pageTreeRules && (\array_key_exists('type', $fields) || \array_key_exists('pid', $fields))) {
+            $stored = $this->storedRow('tl_page', $id);
+
+            if ([] !== $stored) {
+                $this->pageTreeRules->assertPlacement($fields, $stored, $id);
+            }
+        }
+
         if (null === $this->pageUrlGuard) {
             return parent::applyToRecord($id, $fields);
         }

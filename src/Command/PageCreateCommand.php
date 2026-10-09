@@ -10,12 +10,21 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Contracts\Service\Attribute\Required;
 use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageLanguage;
+use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageTreeRules;
 use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageUrlGuard;
 
 #[AsCommand(name: 'contao:page:create', description: 'Create a Contao page')]
 class PageCreateCommand extends AbstractWriteCommand
 {
     private ?PageUrlGuard $pageUrlGuard = null;
+
+    private ?PageTreeRules $pageTreeRules = null;
+
+    #[Required]
+    public function setPageTreeRules(PageTreeRules $pageTreeRules): void
+    {
+        $this->pageTreeRules = $pageTreeRules;
+    }
 
     public function __construct(private readonly ContaoFramework $framework)
     {
@@ -69,6 +78,10 @@ class PageCreateCommand extends AbstractWriteCommand
             'cgroup'    => 0,
             'published' => '0',
         ], $fields);
+
+        // Root only at the top level, error pages directly below a root (v1.2.0).
+        // Until v1.1.0 a page without --pid became a regular page at the top level.
+        $this->pageTreeRules?->assertPlacement($fields);
 
         // Write and check the URL rules in one transaction (v0.15.0): a second root on
         // the same domain and prefix, or a page at a URL that is taken, is rolled back
