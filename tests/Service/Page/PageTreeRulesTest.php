@@ -181,6 +181,19 @@ class PageTreeRulesTest extends TestCase
         $this->assertStringContainsString('already has a page of type error_404 (ID 3)', $message);
     }
 
+    /**
+     * The clone is stored when it is checked, so it must not find itself as the
+     * duplicate (re-review 2026-10-09: passing null instead of the id left every
+     * test green, and would have refused every error page clone).
+     */
+    public function testAClonedErrorPageIsNotItsOwnDuplicate(): void
+    {
+        $tree = [1 => ['type' => 'root', 'pid' => 0], 40 => ['type' => 'error_404', 'pid' => 1]];
+
+        $this->rules($tree)->assertPlaced(40);
+        $this->addToAssertionCount(1);
+    }
+
     public function testAClonedRegularPageAndRootPass(): void
     {
         $rules = $this->rules(self::TREE + [41 => ['type' => 'regular', 'pid' => 1], 42 => ['type' => 'root', 'pid' => 0]]);

@@ -18,7 +18,8 @@ without `--pid` is now refused unless `--type root` (see Fixed).
   <sibling>` directly behind the sibling, below its parent. The position follows
   `DC_Table::getNewPosition()`: halfway to the next sibling, or the siblings renumbered in
   steps of 128 when no integer is left. The write is the update command's, with all its
-  rules. `--set pid=` could already move a record; nobody looking for "move" found it, and
+  rules. `content:move --to` takes `--ptable` for another parent table; with `--after` the
+  element takes the sibling's, and `--ptable` is refused. `--set pid=` could already move a record; nobody looking for "move" found it, and
   it could only put the record at the end. Prompted by Contao's 6.1 API gaining the same
   operation ([contao/contao#10400](https://github.com/contao/contao/pull/10400)).
 
