@@ -40,9 +40,9 @@ All commands output JSON and follow a consistent `{"status":"ok", ...}` / `{"sta
 
 | Area | Commands |
 |---|---|
-| Pages | `contao:page:read` `contao:page:create` `contao:page:update` `contao:page:delete` `contao:page:publish` |
-| Articles | `contao:article:read` `contao:article:create` `contao:article:update` `contao:article:delete` |
-| Content elements | `contao:content:read` `contao:content:create` `contao:content:update` `contao:content:delete` |
+| Pages | `contao:page:read` `contao:page:create` `contao:page:update` `contao:page:delete` `contao:page:publish` `contao:page:move` |
+| Articles | `contao:article:read` `contao:article:create` `contao:article:update` `contao:article:delete` `contao:article:move` |
+| Content elements | `contao:content:read` `contao:content:create` `contao:content:update` `contao:content:delete` `contao:content:move` |
 | News | `contao:news:read` `contao:news:create` `contao:news:update` `contao:news:delete` |
 | Events | `contao:event:read` `contao:event:create` `contao:event:update` `contao:event:delete` |
 | FAQ | `contao:faq:read` `contao:faq:create` `contao:faq:update` `contao:faq:delete` |

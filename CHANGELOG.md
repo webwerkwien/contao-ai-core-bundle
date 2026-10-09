@@ -4,6 +4,44 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.2.0 - 2026-10-09
+
+**Moving pages, articles and content elements — and the page tree keeps Contao's
+shape.** Requires nothing new; `contao-ai-cli` from v1.0.0 works unchanged, the move
+commands in the CLI need v1.2.0. One behaviour change to check in scripts: `page create`
+without `--pid` is now refused unless `--type root` (see Fixed).
+
+### Added
+
+- **`contao:page:move`, `contao:article:move`, `contao:content:move`** — the back end's cut
+  and paste. `--to <parent>` puts the record behind the parent's last child, `--after
+  <sibling>` directly behind the sibling, below its parent. The position follows
+  `DC_Table::getNewPosition()`: halfway to the next sibling, or the siblings renumbered in
+  steps of 128 when no integer is left. The write is the update command's, with all its
+  rules. `--set pid=` could already move a record; nobody looking for "move" found it, and
+  it could only put the record at the end. Prompted by Contao's 6.1 API gaining the same
+  operation ([contao/contao#10400](https://github.com/contao/contao/pull/10400)).
+
+### Fixed
+
+- **A record moved with `--set pid=` kept its old `sorting`**, and landed wherever that
+  number fell among its new siblings. It now goes behind the last of them, as a create does;
+  a given `--set sorting=` still wins.
+- **Pages could stand where Contao's back end does not let them.** `page update --set pid=0`
+  put a regular page at the top level, `--set type=root` made a subpage a root, a second
+  404 page could go below the same root, and `page create` without `--pid` created a
+  regular page at the top level. Contao enforces this in `PageTypeAccessVoter`, a permission
+  voter the console never asks. Now refused on create and on any update of `type` or `pid`:
+  a root only at the top level and nothing else there, an error page only directly below a
+  root and one of each type per root.
+- **A move left the old parent's cached pages stale** — a navigation or article list that
+  still showed the record. Its cache tags are now invalidated along with the new parent's.
+
+### Changed
+
+- Comments, tests and older changelog entries no longer name the installation a finding
+  came from ([#73](https://github.com/webwerkwien/contao-ai-core-bundle/issues/73)).
+
 ## v1.1.0 - 2026-09-23
 
 **A security fix on every table, and fields of other bundles become writable on

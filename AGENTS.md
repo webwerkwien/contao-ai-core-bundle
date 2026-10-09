@@ -282,6 +282,14 @@ and may be overridden by a command that has a Doctrine connection.
 > size items did it right with private copies. `SortingOnCreateTest` now lists all six;
 > **a new create command for a sorted table belongs in that list.**
 
+### A moved record goes behind its new siblings (v1.2.0)
+
+An update that changes `pid` (for tl_content also `ptable`) gets `sorting` from
+`sortingForMove()`, applied in `AbstractModelUpdateCommand::applyToRecord()` after
+`convertFields()`: the same `nextSorting()` as a create. A `--set sorting=` wins, and an
+update that keeps the parent leaves the position alone. Up to v1.1.0 a moved record kept
+its old number and landed wherever it fell among the new siblings. `SortingOnMoveTest`.
+
 ### `inputUnit` fields: each half has its own rule (v0.11.0)
 
 `tl_content.headline`, `tl_layout.width` and the other `inputUnit` fields store a
@@ -540,6 +548,45 @@ UUID, and every element pointing at the old one renders nothing (Nr. 64).
 **Reading:** every `binary(16)` column comes out as a UUID string
 (`AbstractReadCommand::convertFileTreeFieldsToUuid()`), not only `fileTree` fields —
 `tl_files.uuid` and `tl_files.pid` have no widget, and their raw bytes left as `null`.
+
+## Moving pages, articles and content — the back end's cut and paste (v1.2.0)
+
+`contao:page:move`, `contao:article:move` and `contao:content:move` take one ID and either
+`--to <parent>` (behind the parent's last child) or `--after <sibling>` (directly behind it,
+below the sibling's parent; for content also in the sibling's `ptable`). `content:move --to`
+keeps the element's `ptable` unless `--ptable` is given. No `--set`, no `--ids`.
+
+Each extends the table's update command and uses the `MovesRecord` trait, which computes
+only the position and hands `pid` and `sorting` to `applyToRecord()` — so every rule of an
+update applies: parent check and no move below itself (`refuseMissingParent()`), the page
+tree rules and URL rules below, version, log, cache.
+
+The position is `DC_Table::getNewPosition()` (5.3, 5.7, 6.0): halfway between the sibling
+and the next one; behind the last sibling `+128`; and when no integer is left in between,
+the siblings are renumbered in steps of 128 with the slot behind the sibling left free.
+**That renumbering writes `sorting` directly, as Contao does** — the one write here that
+bypasses the record writer, because a version per sibling would record a change nobody
+made. Only values that change are written; the order is unchanged, so a move refused
+afterwards leaves the siblings renumbered but in the same order. `MoveCommandTest`.
+
+**The page tree has rules of its own** (`Service\Page\PageTreeRules`, from Contao's
+`PageTypeAccessVoter`, a voter the console never asks): a website root stands at the top
+level and nothing else does; an error page (`error_401/403/404/503`) stands directly below a
+root, one of each type per root. Checked on `page:create` and on every `page:update` (and
+so `page:move`) that changes `type` or `pid`; an update touching neither is not checked, so
+a page already in the wrong place stays editable. Up to v1.1.0 `page create` without
+`--pid` made a regular page at the top level. `PageTreeRulesTest`.
+
+**A move invalidates the old parent too.** `ModelWriter::update()` collects the record's tags
+before the write when `pid` or `ptable` changes, and invalidates them after. Contao's own
+`cut()` invalidates nothing, so this goes beyond the back end on purpose.
+
+> 🔴 **Collect before `findById()`.** The first version collected after loading the record,
+> and on c5 every page move answered *"The model instance has been detached and cannot be
+> saved"*: tl_page's sitemap callback (`addSitemapCacheInvalidationTag`) calls
+> `PageModel::findWithDetails()`, and `loadDetails()` takes the registry's instance out —
+> the one just loaded. Articles and content moved fine, so a test on those alone passes.
+> The same trap as `generateAlias()` under *Page URLs follow Contao's back-end rules*.
 
 ## Cloning and creating pages — as the back end does (v0.22.0)
 
