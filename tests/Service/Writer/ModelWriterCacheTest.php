@@ -86,6 +86,35 @@ class ModelWriterCacheTest extends TestCase
         );
     }
 
+    /**
+     * 🔴 On c5 (Contao 5.7, 2026-10-09) every page move answered "The model instance
+     * has been detached and cannot be saved": tl_page's sitemap callback calls
+     * `PageModel::findWithDetails()`, and `loadDetails()` takes the instance out of
+     * the registry — the one findById() had just returned. Collecting before the
+     * lookup lets findById() load a fresh, attached instance.
+     */
+    public function testTheOldParentIsCollectedBeforeTheRecordIsLoaded(): void
+    {
+        CacheTestRecord::$logFind = true;
+
+        $cacheTags = $this->createMock(CacheTagInvalidator::class);
+        $cacheTags->method('collect')->willReturnCallback(
+            static function (string $table, int $id): array {
+                CacheTestRecord::$log[] = 'collect ' . $table . ':' . $id;
+
+                return [];
+            }
+        );
+
+        try {
+            $this->writer($cacheTags)->update('tl_page', 2, ['pid' => 5], 'claude');
+        } finally {
+            CacheTestRecord::$logFind = false;
+        }
+
+        $this->assertSame(['collect tl_page:2', 'find tl_page:2'], \array_slice(CacheTestRecord::$log, 0, 2));
+    }
+
     public function testAnUpdateWithoutAMoveCollectsNothingBefore(): void
     {
         $cacheTags = $this->createMock(CacheTagInvalidator::class);
@@ -114,10 +143,16 @@ final class CacheTestRecord
     /** @var list<string> */
     public static array $log = [];
 
+    public static bool $logFind = false;
+
     public int $id = 0;
 
     public static function findById(int $id): ?self
     {
+        if (self::$logFind) {
+            self::$log[] = 'find tl_page:' . $id;
+        }
+
         if (2 !== $id) {
             return null;
         }
