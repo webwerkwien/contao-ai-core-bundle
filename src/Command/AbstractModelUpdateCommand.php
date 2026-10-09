@@ -235,6 +235,8 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
         // find itself and refuse — which is why the check was create-only until
         // 2026-09-01. `DC_Table::save()` passes the same id for the same reason.
         $fields = $this->convertFields($class::getTable(), $fields, $id);
+        // A new parent puts the record behind its new siblings (v1.2.0).
+        $fields = $this->sortingForMove($class::getTable(), $fields, $record->row());
 
         return $this->writer()->update(
             $class::getTable(),

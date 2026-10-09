@@ -607,6 +607,46 @@ abstract class AbstractWriteCommand extends Command
         return Sorting::after($max);
     }
 
+    /**
+     * A record that changes its parent goes behind the last of its new siblings.
+     *
+     * `--set pid=` moved a record but kept its `sorting`, so among the new siblings
+     * it landed wherever its old number fell. `DC_Table::cut()` always sets a
+     * position; without one, "at the end" is the rule a create follows. A given
+     * `sorting` wins, and a write that keeps the parent (and for a `dynamicPtable`
+     * table the `ptable`) leaves the position alone. A table without a `sorting`
+     * column is not touched. See SortingOnMoveTest (v1.2.0).
+     *
+     * Call it after convertFields(), with the stored row of the record.
+     *
+     * @param array<string, mixed> $fields
+     * @param array<string, mixed> $stored
+     *
+     * @return array<string, mixed>
+     */
+    protected function sortingForMove(string $table, array $fields, array $stored): array
+    {
+        if (\array_key_exists('sorting', $fields) || !\array_key_exists('sorting', $stored) || !\array_key_exists('pid', $stored)) {
+            return $fields;
+        }
+
+        if (!\array_key_exists('pid', $fields) && !\array_key_exists('ptable', $fields)) {
+            return $fields;
+        }
+
+        $dynamic = (bool) ($GLOBALS['TL_DCA'][$table]['config']['dynamicPtable'] ?? false);
+        $pid     = (int) ($fields['pid'] ?? $stored['pid']);
+        $ptable  = $dynamic ? (string) ($fields['ptable'] ?? $stored['ptable'] ?? '') : '';
+
+        if ($pid === (int) $stored['pid'] && (!$dynamic || $ptable === (string) ($stored['ptable'] ?? ''))) {
+            return $fields;
+        }
+
+        $fields['sorting'] = $this->nextSorting($table, $pid, $ptable);
+
+        return $fields;
+    }
+
     protected function preparedFields(string $table, array $own, array $set, ?int $excludeId = null): array
     {
         $fields = $this->convertFields($table, array_merge($own, $set), $excludeId);
