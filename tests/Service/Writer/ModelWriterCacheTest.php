@@ -52,6 +52,49 @@ class ModelWriterCacheTest extends TestCase
         $this->assertSame(['save tl_page:2 title=Neu', 'invalidate tl_page:2'], CacheTestRecord::$log);
     }
 
+    /**
+     * A move leaves the old parent's cached pages behind: it listed the record too
+     * (a navigation, an article list). Its tags are read before the write, while the
+     * record still names it, and invalidated after (v1.2.0).
+     */
+    public function testAMoveAlsoInvalidatesTheOldParent(): void
+    {
+        $cacheTags = $this->createMock(CacheTagInvalidator::class);
+        $cacheTags->method('collect')->willReturnCallback(
+            static function (string $table, int $id): array {
+                CacheTestRecord::$log[] = 'collect ' . $table . ':' . $id;
+
+                return ['contao.db.tl_page.1'];
+            }
+        );
+        $cacheTags->method('recordChanged')->willReturnCallback(
+            static function (string $table, int $id): void {
+                CacheTestRecord::$log[] = 'invalidate ' . $table . ':' . $id;
+            }
+        );
+        $cacheTags->method('invalidate')->willReturnCallback(
+            static function (array $tags): void {
+                CacheTestRecord::$log[] = 'invalidate ' . implode(',', $tags);
+            }
+        );
+
+        $this->writer($cacheTags)->update('tl_page', 2, ['pid' => 5], 'claude');
+
+        $this->assertSame(
+            ['collect tl_page:2', 'save tl_page:2 title=', 'invalidate tl_page:2', 'invalidate contao.db.tl_page.1'],
+            CacheTestRecord::$log,
+        );
+    }
+
+    public function testAnUpdateWithoutAMoveCollectsNothingBefore(): void
+    {
+        $cacheTags = $this->createMock(CacheTagInvalidator::class);
+        $cacheTags->expects($this->never())->method('collect');
+        $cacheTags->expects($this->never())->method('invalidate');
+
+        $this->writer($cacheTags)->update('tl_page', 2, ['title' => 'Neu'], 'claude');
+    }
+
     public function testARecordThatDoesNotExistInvalidatesNothing(): void
     {
         $cacheTags = $this->createMock(CacheTagInvalidator::class);
