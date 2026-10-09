@@ -31,18 +31,21 @@ class ModelWriter implements RecordWriterInterface
 
     public function update(string $table, int $id, array $fields, string $operator): ?array
     {
+        // A move: the old parent listed the record too (a navigation, an article
+        // list). Its tags are read now, while the record still names it (v1.2.0).
+        // Before findById(): tl_page's sitemap callback calls findWithDetails(),
+        // which takes the loaded instance out of the registry, and a detached
+        // instance cannot be saved (c5, 2026-10-09).
+        $before = \array_key_exists('pid', $fields) || \array_key_exists('ptable', $fields)
+            ? ($this->cacheTags?->collect($table, $id) ?? [])
+            : [];
+
         $class  = Model::getClassFromTable($table);
         $record = $class::findById($id);
 
         if (null === $record) {
             return null;
         }
-
-        // A move: the old parent listed the record too (a navigation, an article
-        // list). Its tags are read now, while the record still names it (v1.2.0).
-        $before = \array_key_exists('pid', $fields) || \array_key_exists('ptable', $fields)
-            ? ($this->cacheTags?->collect($table, $id) ?? [])
-            : [];
 
         foreach ($fields as $key => $value) {
             $record->$key = $value;
