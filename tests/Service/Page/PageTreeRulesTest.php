@@ -30,6 +30,11 @@ class PageTreeRulesTest extends TestCase
     private function rules(array $pages): PageTreeRules
     {
         $connection = $this->createMock(Connection::class);
+        $connection->method('fetchAssociative')->willReturnCallback(
+            static fn (string $sql, array $params): array|false => isset($pages[$params[0]])
+                ? ['type' => $pages[$params[0]]['type'], 'pid' => (string) $pages[$params[0]]['pid']]
+                : false,
+        );
         $connection->method('fetchOne')->willReturnCallback(
             static function (string $sql, array $params) use ($pages): mixed {
                 if (str_contains($sql, 'SELECT type FROM tl_page WHERE id')) {
@@ -155,6 +160,77 @@ class PageTreeRulesTest extends TestCase
 
             $this->assertStringContainsString('->assertPlacement(', $source, "$file must check the page's place in the tree");
         }
+    }
+
+    /**
+     * Review W3 (2026-10-09): `record clone` of an error page put a second 404 below
+     * the same root — the clone keeps the source's parent and type. The cloner checks
+     * the stored clone inside its transaction, as it does the URL rules.
+     */
+    public function testAClonedSecondErrorPageIsRefused(): void
+    {
+        $tree = self::TREE + [40 => ['type' => 'error_404', 'pid' => 1]];
+
+        $message = '';
+        try {
+            $this->rules($tree)->assertPlaced(40);
+        } catch (\InvalidArgumentException $e) {
+            $message = $e->getMessage();
+        }
+
+        $this->assertStringContainsString('already has a page of type error_404 (ID 3)', $message);
+    }
+
+    public function testAClonedRegularPageAndRootPass(): void
+    {
+        $rules = $this->rules(self::TREE + [41 => ['type' => 'regular', 'pid' => 1], 42 => ['type' => 'root', 'pid' => 0]]);
+
+        $rules->assertPlaced(41);
+        $rules->assertPlaced(42);
+        $this->addToAssertionCount(1);
+    }
+
+    public function testTheClonerChecksTheClone(): void
+    {
+        $source = (string) file_get_contents(__DIR__ . '/../../../src/Service/Cloner/PageCloner.php');
+
+        $this->assertStringContainsString('->assertPlaced($newRootId)', $source, 'PageCloner must check the cloned root page against the page tree rules');
+    }
+
+    /**
+     * Review H1 (2026-10-09): the test above only finds the call in the source.
+     * Changing `||` to `&&` in PageUpdateCommand — the rule only when type AND pid
+     * are written — left every test green. This one runs the command's own
+     * applyToRecord() with the rules set the way the container sets them.
+     *
+     * @dataProvider oneFieldMoves
+     *
+     * @param array<string, mixed> $fields
+     */
+    public function testPageUpdateChecksTypeOrPidAlone(array $fields): void
+    {
+        $command = new class($this->createMock(\Contao\CoreBundle\Framework\ContaoFramework::class)) extends \Webwerkwien\ContaoAiCoreBundle\Command\PageUpdateCommand {
+            protected function storedRow(string $table, ?int $id): array
+            {
+                return ['id' => 2, 'type' => 'regular', 'pid' => 1];
+            }
+        };
+        $command->setPageTreeRules($this->rules(self::TREE));
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        (new \ReflectionMethod($command, 'applyToRecord'))->invoke($command, 2, $fields);
+    }
+
+    /**
+     * @return array<string, array{array<string, mixed>}>
+     */
+    public static function oneFieldMoves(): array
+    {
+        return [
+            'pid alone'  => [['pid' => 0]],
+            'type alone' => [['type' => 'root']],
+        ];
     }
 
     public function testAnUpdateThatKeepsTypeAndPidIsNotChecked(): void

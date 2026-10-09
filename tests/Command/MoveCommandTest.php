@@ -4,6 +4,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Console\Tester\CommandTester;
 use Webwerkwien\ContaoAiCoreBundle\Command\ArticleMoveCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\ArticleUpdateCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\ContentMoveCommand;
@@ -134,9 +135,91 @@ class MoveCommandTest extends TestCase
         $this->after($this->probe(self::PAGES), 'tl_page', 3, 99);
     }
 
+    /**
+     * Review W1 (2026-10-09): the renumbering runs before the update's checks. With
+     * the moved record left out of it, a refused move in the same parent kept its
+     * old number while its neighbours got new ones — 10, 20, 30, 31 read 10, 30, 20,
+     * 31 afterwards. Renumbered at its old place, it keeps the order either way.
+     */
+    public function testARefusedMoveInTheSameParentKeepsTheOrder(): void
+    {
+        $probe = $this->probe([
+            10 => ['id' => 10, 'pid' => 1, 'sorting' => 128],
+            20 => ['id' => 20, 'pid' => 1, 'sorting' => 256],
+            30 => ['id' => 30, 'pid' => 1, 'sorting' => 384],
+            31 => ['id' => 31, 'pid' => 1, 'sorting' => 385],
+        ]);
+        $fields = $this->after($probe, 'tl_page', 20, 30);
+
+        // 10, 20, 30, [slot], 31 — the moved record keeps a number at its old place
+        $this->assertSame(['pid' => 1, 'sorting' => 512], $fields);
+        $this->assertSame([31 => 640], $probe->written);
+    }
+
+    public function testAMissingRecordRenumbersNothing(): void
+    {
+        $probe = $this->probe(self::PAGES);
+
+        try {
+            $this->after($probe, 'tl_page', 99, 3);
+            $this->fail('expected a refusal');
+        } catch (\InvalidArgumentException $e) {
+            $this->assertStringContainsString('No tl_page record with ID 99 to move', $e->getMessage());
+        }
+
+        $this->assertSame([], $probe->written);
+    }
+
+    /**
+     * Review H3: `--ptable` goes with `--to`. With `--after` the element takes the
+     * sibling's parent table, and a given one was silently ignored.
+     */
+    public function testPtableWithAfterIsRefused(): void
+    {
+        $output = $this->runCommand(new ContentMoveCommand($this->createMock(ContaoFramework::class)), ['id' => '12', '--after' => '5', '--ptable' => 'tl_news']);
+
+        $this->assertSame('error', $output['status']);
+        $this->assertStringContainsString('--ptable', $output['message']);
+    }
+
+    public function testAMoveTakesNoSet(): void
+    {
+        $output = $this->runCommand(new PageMoveCommand($this->createMock(ContaoFramework::class)), ['id' => '12', '--to' => '3', '--set' => ['title=x']]);
+
+        $this->assertSame('error', $output['status']);
+        $this->assertStringContainsString('no --set', $output['message']);
+    }
+
+    public function testExactlyOneOfToAndAfter(): void
+    {
+        foreach ([['id' => '12'], ['id' => '12', '--to' => '3', '--after' => '5']] as $input) {
+            $output = $this->runCommand(new PageMoveCommand($this->createMock(ContaoFramework::class)), $input);
+
+            $this->assertSame('error', $output['status']);
+            $this->assertStringContainsString('either --to', $output['message']);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    private function runCommand(PageMoveCommand|ContentMoveCommand $command, array $input): array
+    {
+        $tester = new CommandTester($command);
+        $tester->execute($input);
+
+        /** @var array<string, mixed> */
+        return json_decode(trim($tester->getDisplay()), true, 512, JSON_THROW_ON_ERROR);
+    }
+
     public function testContentAfterASiblingTakesItsParentTable(): void
     {
-        $probe  = $this->probe([20 => ['id' => 20, 'pid' => 8, 'ptable' => 'tl_news', 'sorting' => 128]]);
+        $probe  = $this->probe([
+            20 => ['id' => 20, 'pid' => 8, 'ptable' => 'tl_news', 'sorting' => 128],
+            30 => ['id' => 30, 'pid' => 5, 'ptable' => 'tl_article', 'sorting' => 64],
+        ]);
         $fields = $this->after($probe, 'tl_content', 30, 20);
 
         $this->assertSame(['pid' => 8, 'sorting' => 256, 'ptable' => 'tl_news'], $fields);
@@ -206,13 +289,14 @@ class PageMoveProbe extends PageMoveCommand
         return $this->max;
     }
 
-    protected function siblingsInOrder(string $table, int $pid, string $ptable, int $exclude): array
+    /** As the production query: the ptable filter only when one is given (review H4). */
+    protected function siblingsInOrder(string $table, int $pid, string $ptable): array
     {
         $this->asked[] = "siblings $table.$pid.$ptable";
         $siblings      = [];
 
         foreach ($this->rows as $id => $row) {
-            if ((int) $row['pid'] === $pid && $id !== $exclude && (string) ($row['ptable'] ?? '') === $ptable) {
+            if ((int) $row['pid'] === $pid && ('' === $ptable || (string) ($row['ptable'] ?? '') === $ptable)) {
                 $siblings[$id] = (int) $row['sorting'];
             }
         }
