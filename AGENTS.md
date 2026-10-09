@@ -334,7 +334,7 @@ Three fields, and they answer different questions:
 list declared `isAssociative` stores its index: Contao's `tl_page.useSSL` declares
 `array('http://', 'https://')` and answers `["0", "1"]`, so `--set useSSL=1` is the way
 to set https. Up to v0.21.0 the labels came back and `useSSL=1` was refused (Nr. 53,
-live on web.werk.wien). As in Contao's widget, the flag applies to the top level only;
+live on a production installation). As in Contao's widget, the flag applies to the top level only;
 an optgroup decides by its own keys. In 5.7.13 `useSSL` is the only such field.
 
 `optionsTarget` is `null` for everything else, **including a `foreignKey` whose
@@ -641,7 +641,7 @@ A callback that needs more (a request, a user) throws and is reported as unresol
 image size list returns `[]` on the console — "not known", not "none".
 
 **The record looks like a back-end row (v0.25.0).** Two differences from Contao's
-`DataContainer::getCurrentRecord()` went unnoticed until web.werk.wien's log showed
+`DataContainer::getCurrentRecord()` went unnoticed until the log of a production installation showed
 `Undefined array key "ptable"` from Contao's `AccordionListener`, once per
 `contao:dca:palette tl_content` call:
 

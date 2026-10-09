@@ -8,7 +8,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\MissingBundleHint;
 /**
  * "DCA not found" is true and points at the wrong thing.
  *
- * On wienerwandern.at, `news list` answered *DCA not found or empty for table:
+ * On a production installation, `news list` answered *DCA not found or empty for table:
  * tl_news*. Correct — and `contao/news-bundle` is simply not installed there.
  * A reader sees "DCA not found" and starts looking for a broken data container,
  * when the answer is that an optional extension was never added.

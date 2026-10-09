@@ -101,7 +101,7 @@ class VersionManagerTest extends TestCase
         $vm = new VersionManager($conn);
         // Operator passed explicitly: without it the username falls back to
         // $_SERVER[USER]/[USERNAME], which makes the assertion depend on the
-        // machine running the suite (it read "booki" on Windows, and would
+        // machine running the suite (it read the developer's login on Windows, and would
         // read the CI user on Linux).
         $vm->createVersion('tl_article', 1, 'j.wilson');
     }

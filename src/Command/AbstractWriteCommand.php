@@ -2481,7 +2481,7 @@ abstract class AbstractWriteCommand extends Command
     /**
      * Refuse a fileTree value that would not resolve to a file.
      *
-     * 🔴 **Measured on 2026-09-17 on web.werk.wien (Contao 5.7.13, v0.23.0),
+     * 🔴 **Measured on 2026-09-17 on a production installation (Contao 5.7.13, v0.23.0),
      * Nr. 69:** `layout update 2 --set 'external=["7cb2d18f-…"]'` answered
      * `{"status":"ok"}` and stored the JSON text. The layout never linked its
      * stylesheet. The JSON list was what `layout read` answered for the field,
@@ -2555,7 +2555,7 @@ abstract class AbstractWriteCommand extends Command
      * Contao stores these as a serialized {value, unit} pair. This writes value
      * first, as the column's SQL default does (a:2:{s:5:"value";...;s:4:"unit";...}).
      * Records saved in the back end may hold unit first — 139 of 144 headlines on
-     * web.werk.wien (2026-09-17, Nr. 56) — and Contao reads both by key, so the
+     * a production installation (2026-09-17, Nr. 56) — and Contao reads both by key, so the
      * order carries no meaning. The unit is resolved in
      * this order:
      *   1. a companion "<field>_unit" key in the --set payload

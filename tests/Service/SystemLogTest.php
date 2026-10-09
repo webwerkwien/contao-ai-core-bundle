@@ -62,7 +62,7 @@ class SystemLogTest extends TestCase
      *
      * `folder:publish` logs *Folder "…" has been published* to `contao.files` and
      * *Regenerated the symlinks* to `contao.cron`, as the back end does. Without a context
-     * both reached tl_log as source FE, username N/A — live on web.werk.wien on 2026-09-17
+     * both reached tl_log as source FE, username N/A — live on a production installation on 2026-09-17
      * (ConpAI 1.0, Nr. 59), next to the command's own CLI line.
      */
     public function testGivesTheContextForAnotherChannel(): void

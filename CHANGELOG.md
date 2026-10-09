@@ -241,7 +241,7 @@ as the back end does.
 - **Contao's callbacks saw a record unlike any back-end row.** `RecordDataContainer` — the
   DataContainer this bundle hands to palette, options and alias callbacks on the console —
   held only the given values, and answered `getCurrentRecord()` with that record whatever
-  ID and table were asked for. Found in web.werk.wien's log: six warnings
+  ID and table were asked for. Found in the log of a production installation: six warnings
   `Undefined array key "ptable"` from Contao's `AccordionListener`, one per
   `contao:dca:palette tl_content --set type=…`. And an element was its own parent: inside
   an accordion (`--set ptable=tl_content --set pid=<accordion>`) the palette lacked
@@ -262,7 +262,7 @@ as the back end does.
 
 ## v0.24.0 - 2026-09-17
 
-From building conpai.eu in the CMS on web.werk.wien (ConpAI 1.0 acceptance test).
+From building conpai.eu in the CMS on a production installation (ConpAI 1.0 acceptance test).
 
 ### Added
 
@@ -302,7 +302,7 @@ From building conpai.eu in the CMS on web.werk.wien (ConpAI 1.0 acceptance test)
 
 ## v0.22.0 - 2026-09-17
 
-From phases 3 and 4 of the live run of the ConpAI 1.0 acceptance test on web.werk.wien,
+From phases 3 and 4 of the live run of the ConpAI 1.0 acceptance test on a production installation,
 each compared with Contao's back end on c5 before it was changed.
 
 ### Changed
@@ -330,7 +330,7 @@ each compared with Contao's back end on c5 before it was changed.
 
 ## v0.21.1 - 2026-09-17
 
-Found in phase 1 of the live run of the ConpAI 1.0 acceptance test on web.werk.wien.
+Found in phase 1 of the live run of the ConpAI 1.0 acceptance test on a production installation.
 
 ### Fixed
 
@@ -642,7 +642,7 @@ All found in the ConpAI 1.0 acceptance test on 2026-09-16 and verified live on c
   re-adding would make `addResource()` duplicate every child, and a child's UUID may be
   referenced already. The answer lists the changed paths in `repaired`.
 
-  Measured before the release: web.werk.wien and wienerwandern.at have no folder without
+  Measured before the release: two production installations have no folder without
   a UUID and no orphaned file.
 
 - **`contao:file:write` checked none of the installation's upload rules.** Any
@@ -1415,7 +1415,7 @@ installation that has it. The minor stays where it is until both can move togeth
 ### Fixed
 
 - **"DCA not found" now says when the cause is a bundle that is not installed.**
-  On wienerwandern.at, `record:list tl_news` answered *DCA not found or empty for
+  On a production installation, `record:list tl_news` answered *DCA not found or empty for
   table: tl_news*. True — and `contao/news-bundle` is simply not installed there,
   so nothing was broken and a reader following the message had nothing to find.
 
@@ -1462,7 +1462,7 @@ installation that has it. The minor stays where it is until both can move togeth
 
 ### Added
 
-- **`contao:page:tree` — the page tree, built on the server.** The CLI used to select every page and nest the rows itself, which could not move to `contao:record:list`: its 100-row cap is passed by any real site, and wienerwandern.at has 283 pages.
+- **`contao:page:tree` — the page tree, built on the server.** The CLI used to select every page and nest the rows itself, which could not move to `contao:record:list`: its 100-row cap is passed by any real site, and one production site has 283 pages.
 
   🎯 **The cap was never the real problem.** Paginating around it would work and still put **80 KB** of JSON in front of the caller, for a question that is almost never "all 283 pages" but "what hangs under this node".
 
@@ -1674,7 +1674,7 @@ installation that has it. The minor stays where it is until both can move togeth
 
 - **`optionsSource` per field in `contao:dca:schema`** — `static`, `callback`, `foreignKey` or `null`. A field with an `options_callback` or a `foreignKey` has options; they are simply not in the DCA array, and several callbacks need a live DataContainer this command does not have. Reporting a bare `null` for those made "this field takes any value" and "the values exist but not here" look identical — the same confusion the wrong `options` caused, one step further along. On a live install `tl_page.type` and `tl_page.layout` now say `callback` instead of appearing to have no options at all.
 
-  Found by the parallel session working on the wienerwandern booking module, which hit it on a table of its own and checked `tl_page` to rule out its own DCA. Verified across nine tables on the test install: 61 fields carry options, and the single list that still looks like indices is `tl_module.news_startDay`, which genuinely declares `array(0, …, 6)` for the days of the week.
+  Found by the parallel session working on a booking module for a production site, which hit it on a table of its own and checked `tl_page` to rule out its own DCA. Verified across nine tables on the test install: 61 fields carry options, and the single list that still looks like indices is `tl_module.news_startDay`, which genuinely declares `array(0, …, 6)` for the days of the week.
 
   The CLI needs no release for this — it passes the server's answer through unchanged.
 

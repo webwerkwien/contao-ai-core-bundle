@@ -10,7 +10,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
 /**
  * A fileTree value is a UUID, or a list of them — never text that resolves to nothing.
  *
- * 🔴 Nr. 69, measured on 2026-09-17 on web.werk.wien (Contao 5.7.13, v0.23.0):
+ * 🔴 Nr. 69, measured on 2026-09-17 on a production installation (Contao 5.7.13, v0.23.0):
  * `layout update 2 --set 'external=["<uuid>"]'` answered ok and stored the JSON
  * text. `layout read` answers that field as exactly such a JSON list, so the read
  * value could not be written back.

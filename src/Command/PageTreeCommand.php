@@ -16,7 +16,7 @@ use Symfony\Component\Console\Input\InputOption;
  * The CLI used to build the tree itself: `SELECT … FROM tl_page ORDER BY
  * sorting` over every page, then nest the rows in Python. That could not move
  * to `contao:record:list`, whose 100-row cap a real site passes easily —
- * wienerwandern.at has **283 pages**.
+ * one production site has **283 pages**.
  *
  * 🎯 **But the cap was never the real problem.** Paginating around it with
  * `--offset` would work and still put **80 KB** of JSON in front of the caller,

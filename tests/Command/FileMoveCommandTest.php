@@ -11,7 +11,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\FileMoveCommand;
 /**
  * A file or folder is moved into another folder the way the back end moves it.
  *
- * 🟡 **The gap, found on 2026-09-17** in the ConpAI 1.0 acceptance test (web.werk.wien):
+ * 🟡 **The gap, found on 2026-09-17** in the ConpAI 1.0 acceptance test (production installation):
  * the site's files were to go from `files/conpai` into `files/conpai-consho/layout`. There
  * was no command for it — deleting and writing anew changes the UUID, and every image
  * element pointing at the file renders nothing (Nr. 64).

@@ -107,7 +107,7 @@ class FolderPublishCommand extends AbstractWriteCommand
         if ($changed) {
             // Automator::generateSymlinks(), with the same command and messages — but its
             // log lines carry no context, and on the console Contao fills in FE / N/A
-            // (live on web.werk.wien, 2026-09-17, Nr. 59). In the back end the processor
+            // (live on a production installation, 2026-09-17, Nr. 59). In the back end the processor
             // takes the editor from the session; here the operator is passed along.
             $container = System::getContainer();
             $webDir    = Path::makeRelative($container->getParameter('contao.web_dir'), $container->getParameter('kernel.project_dir'));

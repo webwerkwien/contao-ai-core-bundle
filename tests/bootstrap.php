@@ -18,7 +18,7 @@
  *
  *   CONTAO_ROOT=/var/www/.../web vendor/bin/phpunit
  *
- * Verified on c5.axeltest.at (Contao 5.7.11): 114 tests, 183 assertions,
+ * Verified on the test server (Contao 5.7.11): 114 tests, 183 assertions,
  * 0 errors, 0 failures, 4 incomplete.
  */
 

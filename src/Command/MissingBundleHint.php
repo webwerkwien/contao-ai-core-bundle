@@ -6,7 +6,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
  * Why a table has no DCA, when the reason is that an extension is not installed.
  *
  * `DCA not found or empty for table: tl_news` is a true sentence and it points
- * at the wrong thing. On wienerwandern.at (2026-09-01) it was the answer to
+ * at the wrong thing. On a production installation (2026-09-01) it was the answer to
  * `news list`, and `contao/news-bundle` is simply not installed there — nothing
  * was broken, so a reader following the message had nothing to find.
  *
