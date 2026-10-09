@@ -120,6 +120,12 @@ class JsonErrorBoundaryTest extends TestCase
             if (preg_match('/\bextends\s+Abstract\w*Command\b/', $source)) {
                 continue;
             }
+            // One level further down: the move commands extend an update command
+            // (v1.2.0). Asked of the class, not the text, so it holds for any depth.
+            $class = 'Webwerkwien\\ContaoAiCoreBundle\\Command\\' . basename($file, '.php');
+            if (class_exists($class) && is_subclass_of($class, \Webwerkwien\ContaoAiCoreBundle\Command\AbstractWriteCommand::class)) {
+                continue;
+            }
             if (str_contains($source, 'use JsonErrorBoundary;')) {
                 continue;
             }
