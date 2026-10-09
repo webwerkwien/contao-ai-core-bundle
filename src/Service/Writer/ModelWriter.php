@@ -38,6 +38,12 @@ class ModelWriter implements RecordWriterInterface
             return null;
         }
 
+        // A move: the old parent listed the record too (a navigation, an article
+        // list). Its tags are read now, while the record still names it (v1.2.0).
+        $before = \array_key_exists('pid', $fields) || \array_key_exists('ptable', $fields)
+            ? ($this->cacheTags?->collect($table, $id) ?? [])
+            : [];
+
         foreach ($fields as $key => $value) {
             $record->$key = $value;
         }
@@ -50,6 +56,11 @@ class ModelWriter implements RecordWriterInterface
         // After the write, as DC_Table::submit() does — before it, a request in
         // between would cache the old state again.
         $this->cacheTags?->recordChanged($table, $id);
+
+        // Not empty only when there is an invalidator.
+        if ([] !== $before) {
+            $this->cacheTags->invalidate($before);
+        }
 
         return array_keys($fields);
     }
