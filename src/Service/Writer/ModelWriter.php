@@ -34,10 +34,10 @@ class ModelWriter implements RecordWriterInterface
     /** Fields a move writes; the back end changes them by cut and paste, not in the mask. */
     private const POSITION_FIELDS = ['pid', 'ptable', 'sorting'];
 
-    public function update(string $table, int $id, array $fields, string $operator): ?array
+    public function update(string $table, int $id, array $fields, string $operator, bool $saveCallbacks = false): ?array
     {
         // All or nothing: a callback that refuses rolls the save back (v1.4.0).
-        return $this->connection->transactional(fn (): ?array => $this->doUpdate($table, $id, $fields, $operator));
+        return $this->connection->transactional(fn (): ?array => $this->doUpdate($table, $id, $fields, $operator, $saveCallbacks));
     }
 
     /**
@@ -45,7 +45,7 @@ class ModelWriter implements RecordWriterInterface
      *
      * @return list<string>|null
      */
-    private function doUpdate(string $table, int $id, array $fields, string $operator): ?array
+    private function doUpdate(string $table, int $id, array $fields, string $operator, bool $saveCallbacks = false): ?array
     {
         // On both paths: Model::save() drops a key that is no column without a word,
         // and the answer would name it as written (pre-release review M4). The
@@ -73,6 +73,8 @@ class ModelWriter implements RecordWriterInterface
                 return null;
             }
 
+            $fields = $this->withSaveCallbacks($saveCallbacks, $table, $id, $fields, $old);
+
             $this->versionManager->initialize($table, $id);
             $this->connection->update($table, $this->quoted(['tstamp' => time()] + $fields), ['id' => $id]);
         } else {
@@ -82,7 +84,8 @@ class ModelWriter implements RecordWriterInterface
                 return null;
             }
 
-            $old = $record->row();
+            $old    = $record->row();
+            $fields = $this->withSaveCallbacks($saveCallbacks, $table, $id, $fields, $old);
 
             foreach ($fields as $key => $value) {
                 $record->$key = $value;
@@ -120,17 +123,30 @@ class ModelWriter implements RecordWriterInterface
         return array_keys($fields);
     }
 
-    public function create(string $table, array $fields, string $operator): int
+    public function create(string $table, array $fields, string $operator, bool $saveCallbacks = false): int
     {
-        return $this->connection->transactional(function () use ($table, $fields, $operator): int {
+        return $this->connection->transactional(function () use ($table, $fields, $operator, $saveCallbacks): int {
             $this->refuseUnknownColumns($table, $fields);
 
             $this->connection->insert($table, $this->quoted(['tstamp' => time()] + $fields));
             $id = (int) $this->connection->lastInsertId();
 
-            // As a create in the commands: oncreate and onsubmit before the first
-            // version, which is marked as the record's own (RecordIdReuseTest).
+            // As a create in the commands: oncreate, the fields' save_callbacks on the
+            // record that now exists, onsubmit, then the first version, which is
+            // marked as the record's own (RecordIdReuseTest). DC_Table::create() plus
+            // the saved mask.
             $this->callbacks?->create($table, $id);
+
+            if ($saveCallbacks && null !== $this->callbacks) {
+                $row     = $this->connection->fetchAssociative('SELECT * FROM ' . $this->connection->quoteIdentifier($table) . ' WHERE id = ?', [$id]) ?: [];
+                $saved   = $this->withSaveCallbacks(true, $table, $id, $fields, $row);
+                $changed = array_filter($saved, static fn ($value, $field): bool => !\array_key_exists($field, $fields) || $fields[$field] !== $value, \ARRAY_FILTER_USE_BOTH);
+
+                if ([] !== $changed) {
+                    $this->connection->update($table, $this->quoted($changed), ['id' => $id]);
+                }
+            }
+
             $this->callbacks?->submit($table, $id);
             $this->versionManager->createInitialVersion($table, $id, $operator);
             $this->cacheTags?->recordChanged($table, $id);
@@ -142,6 +158,30 @@ class ModelWriter implements RecordWriterInterface
     public function delete(string $table, int $id, string $operator, int $undoUserId): array
     {
         return $this->connection->transactional(fn (): array => $this->doDelete($table, $id, $undoUserId));
+    }
+
+    /**
+     * The fields' save_callbacks when the caller asked for them — every field handed
+     * over counts as set on purpose. Their return values are what gets written.
+     *
+     * @param array<string, mixed> $fields
+     * @param array<string, mixed> $row the stored record
+     *
+     * @return array<string, mixed>
+     */
+    private function withSaveCallbacks(bool $wanted, string $table, int $id, array $fields, array $row): array
+    {
+        if (!$wanted || null === $this->callbacks) {
+            return $fields;
+        }
+
+        $saved = $this->callbacks->save($table, $id, $fields, $row, [], array_map('strval', array_keys($fields)));
+
+        // A callback answers for its own field; it cannot add a column the caller
+        // did not hand over (DcaCallbacks::save() replaces values, it adds none).
+        $this->refuseUnknownColumns($table, $saved);
+
+        return $saved;
     }
 
     /**

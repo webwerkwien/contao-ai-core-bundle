@@ -37,9 +37,13 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Writer;
  * one transaction per write. Decided with the maintainer on 2026-10-10; changes to
  * these signatures need a major version.
  *
- * Values are handed over in their stored form. Field save_callbacks are the caller's
- * to run first, through DcaCallbacks::save(), because which fields count as set on
- * purpose is the caller's knowledge.
+ * Values are handed over in their stored form. The fields' save_callbacks run when the
+ * caller asks for them with `$saveCallbacks` — for every field handed over, where
+ * DC_Table runs them: on a create after the INSERT and `oncreate`, before `onsubmit`;
+ * on an update before the save. Consho's onsubmit listeners work with values only
+ * the save_callbacks produce (net prices, shop relations), so a caller cannot run them
+ * itself around create() — onsubmit would see the raw values (asked for by Consho,
+ * 2026-10-10). Without the flag the caller may run them through DcaCallbacks::save().
  *
  * @api
  */
@@ -49,10 +53,11 @@ interface RecordWriterInterface
      * Insert a record (v1.4.0).
      *
      * `tstamp` is set; a key that is no column is refused before anything is written.
-     * Then, as a create of the bundle's own commands: oncreate and onsubmit, the
-     * record's first version (marked as its own, so versions of an earlier record with
-     * the same ID are told apart), cache invalidation — one transaction, so a refusing
-     * callback leaves no record behind.
+     * Then, as a create of the bundle's own commands: oncreate, with `$saveCallbacks`
+     * the fields' save_callbacks (what they change is written to the record), onsubmit,
+     * the record's first version (marked as its own, so versions of an earlier record
+     * with the same ID are told apart), cache invalidation — one transaction, so a
+     * refusing callback leaves no record behind.
      *
      * @param array<string, mixed> $fields stored values, without `id`
      *
@@ -60,7 +65,7 @@ interface RecordWriterInterface
      *
      * @throws \InvalidArgumentException a key is not a column, or a callback refused
      */
-    public function create(string $table, array $fields, string $operator): int;
+    public function create(string $table, array $fields, string $operator, bool $saveCallbacks = false): int;
 
     /**
      * Apply values to an existing record.
@@ -69,13 +74,14 @@ interface RecordWriterInterface
      * if the record has no version yet, the new state is versioned after the save.
      * In between the record callbacks run — onsubmit for a field, oncut for a new
      * parent — and the whole write is one transaction, so a refusing callback leaves
-     * nothing behind.
+     * nothing behind. With `$saveCallbacks` the fields' save_callbacks run first, on the
+     * stored record, and their return values are written.
      *
      * @param array<string, mixed> $fields
      *
      * @return list<string>|null the written field names, or null when the record does not exist
      */
-    public function update(string $table, int $id, array $fields, string $operator): ?array;
+    public function update(string $table, int $id, array $fields, string $operator, bool $saveCallbacks = false): ?array;
 
     /**
      * Delete a record together with everything that cascades from it.

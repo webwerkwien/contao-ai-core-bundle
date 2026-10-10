@@ -84,6 +84,79 @@ class ModelWriterTest extends TestCase
         $this->assertSame(['insert tl_consho_shop `tstamp`,`title`', 'oncreate 42', 'onsubmit 42', 'version 42'], $order);
     }
 
+    /**
+     * Asked for by Consho (2026-10-10): its onsubmit listeners need the values the
+     * save_callbacks produce. With the flag, create() is DC_Table::create() plus the
+     * saved mask — oncreate, save_callbacks on the record that exists, onsubmit, version.
+     */
+    public function testCreateWithSaveCallbacksRunsThemBetweenOncreateAndOnsubmitAndWritesTheirResult(): void
+    {
+        $order      = [];
+        $connection = $this->connectionWithColumns(['id', 'tstamp', 'title', 'net']);
+        $connection->method('insert')->willReturnCallback(static function () use (&$order): int { $order[] = 'insert'; return 1; });
+        $connection->method('lastInsertId')->willReturn('42');
+        $connection->method('fetchAssociative')->willReturn(['id' => 42, 'title' => 'Laden', 'net' => '']);
+        $connection->method('update')->willReturnCallback(static function (string $table, array $data, array $criteria) use (&$order): int {
+            $order[] = 'update ' . $criteria['id'] . ' ' . json_encode($data);
+
+            return 1;
+        });
+
+        $callbacks = $this->createMock(DcaCallbacks::class);
+        $callbacks->method('create')->willReturnCallback(static function (string $t, int $id) use (&$order): void { $order[] = 'oncreate ' . $id; });
+        $callbacks->method('save')->willReturnCallback(static function (string $t, int $id, array $fields, array $row, array $skip, array $requested) use (&$order): array {
+            $order[] = \sprintf('save %d row=%s requested=%s', $id, $row['title'], implode(',', $requested));
+
+            return ['title' => 'Laden', 'net' => '8.26'];
+        });
+        $callbacks->method('submit')->willReturnCallback(static function (string $t, int $id) use (&$order): void { $order[] = 'onsubmit ' . $id; });
+
+        $versions = $this->createMock(VersionManager::class);
+        $versions->method('createInitialVersion')->willReturnCallback(static function (string $t, int $id) use (&$order): int { $order[] = 'version ' . $id; return 0; });
+
+        $writer = new ModelWriter($connection, $versions, $this->createMock(RecordCascadeCollector::class), null, $callbacks);
+
+        $this->assertSame(42, $writer->create('tl_consho_price', ['title' => 'Laden', 'net' => '9.90'], 'claude', true));
+        $this->assertSame([
+            'insert',
+            'oncreate 42',
+            'save 42 row=Laden requested=title,net',
+            'update 42 {"`net`":"8.26"}',
+            'onsubmit 42',
+            'version 42',
+        ], $order);
+    }
+
+    public function testCreateWithoutTheFlagRunsNoSaveCallbacks(): void
+    {
+        $connection = $this->connectionWithColumns(['id', 'tstamp', 'title']);
+        $connection->method('lastInsertId')->willReturn('42');
+
+        $callbacks = $this->createMock(DcaCallbacks::class);
+        $callbacks->expects($this->never())->method('save');
+
+        (new ModelWriter($connection, $this->createMock(VersionManager::class), $this->createMock(RecordCascadeCollector::class), null, $callbacks))
+            ->create('tl_consho_shop', ['title' => 'Laden'], 'claude');
+    }
+
+    public function testUpdateWithSaveCallbacksWritesWhatTheyReturn(): void
+    {
+        $connection = $this->connectionWithColumns(['id', 'tstamp', 'title']);
+        $connection->method('fetchAssociative')->willReturn(['id' => 3, 'title' => 'Alt']);
+        $written = null;
+        $connection->method('update')->willReturnCallback(static function (string $table, array $data) use (&$written): int { $written = $data; return 1; });
+
+        $callbacks = $this->createMock(DcaCallbacks::class);
+        $callbacks->expects($this->once())->method('save')
+            ->with('tl_contao_ai_no_model', 3, ['title' => 'neu'], ['id' => 3, 'title' => 'Alt'], [], ['title'])
+            ->willReturn(['title' => 'Neu']);
+
+        $writer = new ModelWriter($connection, $this->createMock(VersionManager::class), $this->createMock(RecordCascadeCollector::class), null, $callbacks);
+
+        $this->assertSame(['title'], $writer->update('tl_contao_ai_no_model', 3, ['title' => 'neu'], 'claude', true));
+        $this->assertSame('Neu', $written['`title`']);
+    }
+
     public function testCreateRefusesAKeyThatIsNoColumnBeforeWriting(): void
     {
         $connection = $this->connectionWithColumns(['id', 'tstamp', 'title']);
