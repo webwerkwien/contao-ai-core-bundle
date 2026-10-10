@@ -157,10 +157,16 @@ class DcaCallbacks
      * @param array<string, mixed> $fields the values to write
      * @param array<string, mixed> $record the stored record, empty for a new one
      * @param list<string>         $skip
+     * @param list<string>         $requested fields the caller set on purpose (`--set`, the
+     *                                        field of a dedicated command): their callbacks run
+     *                                        even where the palette on the console does not
+     *                                        show them — a package may add a field to the
+     *                                        palette only in its onload callback for the edit
+     *                                        mask (changelanguage's languageMain)
      *
      * @return array<string, mixed> the values to write after the callbacks
      */
-    public function save(string $table, int $id, array $fields, array $record, array $skip = []): array
+    public function save(string $table, int $id, array $fields, array $record, array $skip = [], array $requested = []): array
     {
         $definitions = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
         $withCallbacks = array_filter(
@@ -175,7 +181,7 @@ class DcaCallbacks
             return $fields;
         }
 
-        return $this->withSession(function () use ($table, $id, $fields, $record, $definitions, $withCallbacks): array {
+        return $this->withSession(function () use ($table, $id, $fields, $record, $definitions, $withCallbacks, $requested): array {
             ($this->loadLanguageFile)('default');
             ($this->loadLanguageFile)($table);
 
@@ -189,12 +195,16 @@ class DcaCallbacks
             try {
                 $inPalette = DcaPaletteCommand::fieldsOf((string) ($this->palette)($dc));
             } catch (\Throwable $e) {
-                $this->ran[] = $table . ': no save_callback ran, the palette could not be built on the console (' . $e->getMessage() . ')';
-
-                return $fields;
+                $this->ran[] = $table . ': the palette could not be built on the console (' . $e->getMessage() . '); only the save_callbacks of the fields set on purpose ran';
+                $inPalette   = [];
             }
 
-            $withCallbacks = array_values(array_intersect($withCallbacks, $inPalette));
+            // What the caller set on purpose is checked whatever the palette says: a
+            // package can add a field to the palette in its onload callback for the edit
+            // mask only, and changelanguage's duplicate check on languageMain was skipped
+            // that way (c5, 6.0, 2026-10-10). What a command adds itself — language ''
+            // on a regular page — only where the palette shows it.
+            $withCallbacks = array_values(array_intersect($withCallbacks, [...$inPalette, ...$requested]));
 
             foreach ($withCallbacks as $field) {
                 \Closure::bind(static function (DataContainer $dc, string $field): void {

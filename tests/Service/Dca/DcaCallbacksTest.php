@@ -334,10 +334,32 @@ class DcaCallbacksTest extends TestCase
         $this->assertSame(['dns'], $ran);
     }
 
-    public function testWithoutAPaletteNoSaveCallbackRunsAndTheReportSaysSo(): void
+    /**
+     * changelanguage adds languageMain to the page palette in its onload callback for the
+     * edit mask only; on the console its duplicate check was skipped (c5, 6.0).
+     */
+    public function testAFieldSetOnPurposeRunsItsCallbacksOutsideThePaletteToo(): void
     {
+        $GLOBALS['TL_DCA']['tl_page']['fields']['languageMain']['save_callback'] = [static function (): void {
+            throw new \RuntimeException('Another page in this tree is linked to it already.');
+        }];
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Another page in this tree is linked to it already.');
+
+        $this->callbacks()->save('tl_page', 85, ['languageMain' => 73], ['id' => 85], [], ['languageMain']);
+    }
+
+    public function testWithoutAPaletteOnlyFieldsSetOnPurposeRunAndTheReportSaysSo(): void
+    {
+        $ran = [];
         $GLOBALS['TL_DCA']['tl_page']['fields']['dns']['save_callback'] = [static function (): void {
             throw new \Exception('must not run');
+        }];
+        $GLOBALS['TL_DCA']['tl_page']['fields']['title']['save_callback'] = [static function ($v) use (&$ran) {
+            $ran[] = 'title';
+
+            return $v;
         }];
 
         $schema = $this->createMock(AbstractSchemaManager::class);
@@ -349,7 +371,8 @@ class DcaCallbacksTest extends TestCase
             throw new \RuntimeException('no request');
         });
 
-        $this->assertSame(['dns' => 'x'], $callbacks->save('tl_page', 0, ['dns' => 'x'], []));
+        $this->assertSame(['dns' => 'x', 'title' => 'T'], $callbacks->save('tl_page', 0, ['dns' => 'x', 'title' => 'T'], [], [], ['title']));
+        $this->assertSame(['title'], $ran);
         $this->assertStringContainsString('the palette could not be built on the console (no request)', $callbacks->drainReport()[0]);
     }
 

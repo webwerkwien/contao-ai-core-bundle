@@ -60,6 +60,15 @@ abstract class AbstractWriteCommand extends Command
     }
 
     /**
+     * Fields set on purpose — `--set`, or the field a dedicated command writes. Their
+     * save_callbacks run even where the palette built on the console does not show
+     * them; see DcaCallbacks::save() (v1.4.0).
+     *
+     * @var list<string>
+     */
+    protected array $requestedFields = [];
+
+    /**
      * For the transaction around a create (CreatesRecord); nullable like the others,
      * a hand-built command runs without one.
      */
@@ -145,6 +154,9 @@ abstract class AbstractWriteCommand extends Command
         $this->output = $output;
 
         $fields = $this->parseSetOptions($input->getOption('set'));
+
+        // Their save_callbacks run whatever the palette on the console shows (v1.4.0).
+        $this->requestedFields = array_map('strval', array_keys($fields));
 
         // A create runs in one transaction: a refusing oncreate/onsubmit callback must
         // not leave the record behind (v1.4.0). Only creates — an update of many
@@ -421,7 +433,7 @@ abstract class AbstractWriteCommand extends Command
         // own create-time helpers (ContaoAlias) treat it the same way.
         return null === $this->dcaCallbacks
             ? $fields
-            : $this->dcaCallbacks->save($table, (int) $excludeId, $fields, $this->storedRow($table, $excludeId), self::OWN_SAVE_PATHS[$table] ?? []);
+            : $this->dcaCallbacks->save($table, (int) $excludeId, $fields, $this->storedRow($table, $excludeId), self::OWN_SAVE_PATHS[$table] ?? [], $this->requestedFields);
     }
 
     /**

@@ -76,6 +76,11 @@ class LanguageLinkCommand extends AbstractWriteCommand
             return Command::SUCCESS;
         }
 
+        // The field is written on purpose: changelanguage's save_callback (no duplicate
+        // link) runs although the package adds the field to the palette only for the
+        // edit mask.
+        $this->requestedFields[] = $field;
+
         $write = $this->convertFields($table, [$field => (int) $main], (int) $id);
 
         $this->writer()->update($table, (int) $id, $write, $this->resolveOperator());
