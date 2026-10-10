@@ -6,7 +6,10 @@ use Contao\CoreBundle\DependencyInjection\Attribute\AsCallback;
 use Contao\CoreBundle\DependencyInjection\Attribute\AsHook;
 use Contao\CoreBundle\Exception\AccessDeniedException;
 use Doctrine\DBAL\Connection;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException as SecurityAccessDeniedException;
+use Symfony\Component\Security\Http\Event\SwitchUserEvent;
 use Webwerkwien\ContaoAiCoreBundle\Service\CliUser;
 
 /**
@@ -48,14 +51,41 @@ class CliUserProtectionListener
             return;
         }
 
-        $id = (int) $request->query->get('id');
+        $act = (string) $request->query->get('act');
 
-        if ($id < 1 || !\in_array((string) $request->query->get('act'), self::LOCKED_ACTIONS, true)) {
+        if (\in_array($act, self::LOCKED_ACTIONS, true)) {
+            $ids = [(int) $request->query->get('id')];
+        } elseif (\in_array($act, self::LOCKED_BULK_ACTIONS, true)) {
+            // The select mode keeps its IDs in the session (`CURRENT.IDS`), set by a
+            // POST the list's filter does not stand in front of (review K2).
+            $current = $request->hasSession() ? $request->getSession()->get('CURRENT') : null;
+            $ids     = array_map('intval', (array) (\is_array($current) ? ($current['IDS'] ?? []) : []));
+        } else {
             return;
         }
 
-        if ($id === (int) $this->connection->fetchOne('SELECT id FROM tl_user WHERE username = ?', [CliUser::USERNAME])) {
-            throw new AccessDeniedException('The user "' . CliUser::USERNAME . '" belongs to contao-ai-core-bundle: it is what DCA callbacks see on the console, and it cannot log in.');
+        $own = (int) $this->connection->fetchOne('SELECT id FROM tl_user WHERE username = ?', [CliUser::USERNAME]);
+
+        if ($own > 0 && \in_array($own, $ids, true)) {
+            throw new AccessDeniedException(self::REFUSAL);
         }
     }
+
+    /**
+     * Nobody switches into it (review K1). Contao checks `disable` only at login, not
+     * when an admin switches user, and changes made as `contao-ai` would carry its name
+     * in versions and the system log — a trail that points at the bundle, not at the
+     * person.
+     */
+    #[AsEventListener]
+    public function refuseSwitch(SwitchUserEvent $event): void
+    {
+        if (CliUser::USERNAME === $event->getTargetUser()->getUserIdentifier()) {
+            throw new SecurityAccessDeniedException(self::REFUSAL);
+        }
+    }
+
+    private const REFUSAL = CliUser::REFUSAL;
+
+    private const LOCKED_BULK_ACTIONS = ['editAll', 'overrideAll', 'deleteAll', 'copyAll', 'cutAll'];
 }

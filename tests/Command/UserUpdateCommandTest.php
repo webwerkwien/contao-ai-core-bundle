@@ -38,6 +38,32 @@ class UserUpdateCommandTest extends TestCase
         return json_decode($tester->getDisplay(), true);
     }
 
+    /**
+     * Review K2: `--set disable=` on contao-ai would make an admin that can log in.
+     */
+    public function testTheCliUserIsNotChangedHere(): void
+    {
+        $tester = $this->tester();
+        $tester->execute(['username' => \Webwerkwien\ContaoAiCoreBundle\Service\CliUser::USERNAME, '--set' => ['disable=']]);
+        $out = json_decode($tester->getDisplay(), true);
+
+        $this->assertSame('error', $out['status']);
+        $this->assertStringContainsString('belongs to contao-ai-core-bundle', $out['message']);
+    }
+
+    public function testTheCliUserIsNotDeletedHere(): void
+    {
+        $cmd = new \Webwerkwien\ContaoAiCoreBundle\Command\UserDeleteCommand($this->createMock(ContaoFramework::class));
+        $cmd->setLogger($this->createMock(LoggerInterface::class));
+        $cmd->setVersionManager($this->createMock(VersionManager::class));
+        $tester = new CommandTester($cmd);
+        $tester->execute(['username' => \Webwerkwien\ContaoAiCoreBundle\Service\CliUser::USERNAME]);
+        $out = json_decode($tester->getDisplay(), true);
+
+        $this->assertSame('error', $out['status']);
+        $this->assertStringContainsString('belongs to contao-ai-core-bundle', $out['message']);
+    }
+
     public function testRejectsAdminField(): void
     {
         $out = $this->runCommand(['admin=1']);

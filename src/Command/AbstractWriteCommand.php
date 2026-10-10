@@ -4,6 +4,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\Controller;
 use Contao\Database;
+use Contao\Model;
 use Contao\CoreBundle\Monolog\ContaoContext;
 use Contao\StringUtil;
 use Contao\Validator;
@@ -153,6 +154,12 @@ abstract class AbstractWriteCommand extends Command
         $this->input  = $input;
         $this->output = $output;
 
+        // A command is a service: in the back-end chat one instance serves every run
+        // of the request. Nothing of a previous run — a refused one above all — may
+        // reach this one's answer or its callbacks (pre-release review K3).
+        $this->deferredSaveFields = [];
+        $this->dcaCallbacks?->drainReport();
+
         $fields = $this->parseSetOptions($input->getOption('set'));
 
         // Their save_callbacks run whatever the palette on the console shows (v1.4.0).
@@ -247,10 +254,12 @@ abstract class AbstractWriteCommand extends Command
     protected function createVersion(string $table, int $id, bool $created = false): void
     {
         if ($created) {
-            // DC_Table runs oncreate after the INSERT and onsubmit when the mask is
-            // saved — for a record created complete, both now, before its first
-            // version (v1.4.0). Every create passes here once its record exists.
+            // DC_Table runs oncreate after the INSERT, then the mask's save_callbacks
+            // and onsubmit when it is saved — for a record created complete, all now,
+            // before its first version (v1.4.0). Every create passes here once its
+            // record exists.
             $this->dcaCallbacks?->create($table, $id);
+            $this->runDeferredSaveCallbacks($table, $id);
             $this->dcaCallbacks?->submit($table, $id);
 
             $earlier = $this->versionManager->createInitialVersion($table, $id, $this->resolveOperator());
@@ -428,12 +437,63 @@ abstract class AbstractWriteCommand extends Command
         // one turns them into something that is no longer the empty string.
         $fields = $this->convertEmptyValues($table, $fields);
 
+        if (null === $this->dcaCallbacks) {
+            return $fields;
+        }
+
+        // A create: the save_callbacks run once the record exists, in createVersion()
+        // — DC_Table::create() inserts first and the mask saves the fields with the
+        // record's ID. Run here, with ID 0 and no row, a callback that loads its
+        // record found nothing: changelanguage's languageMain check refused a
+        // legitimate `page create --set languageMain=…` (pre-release review M3).
+        if (null === $excludeId && $this instanceof CreatesRecord) {
+            $this->deferredSaveFields[$table] = $fields;
+
+            return $fields;
+        }
+
         // The fields' save_callbacks, on the values as they will be stored — where
-        // DC_Table::save() runs them (v1.4.0). A new record has no ID yet; Contao's
-        // own create-time helpers (ContaoAlias) treat it the same way.
-        return null === $this->dcaCallbacks
-            ? $fields
-            : $this->dcaCallbacks->save($table, (int) $excludeId, $fields, $this->storedRow($table, $excludeId), self::OWN_SAVE_PATHS[$table] ?? [], $this->requestedFields);
+        // DC_Table::save() runs them (v1.4.0).
+        return $this->dcaCallbacks->save($table, (int) $excludeId, $fields, $this->storedRow($table, $excludeId), self::OWN_SAVE_PATHS[$table] ?? [], $this->requestedFields);
+    }
+
+    /**
+     * Fields of a create whose save_callbacks wait for the record (see convertFields()).
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    private array $deferredSaveFields = [];
+
+    /**
+     * The deferred save_callbacks of a create, with the record's ID and row. What a
+     * callback changes is written back to the record and to the model instance the
+     * command may still hold, so a later save() of that instance does not undo it.
+     */
+    private function runDeferredSaveCallbacks(string $table, int $id): void
+    {
+        if (null === $this->dcaCallbacks || !isset($this->deferredSaveFields[$table])) {
+            return;
+        }
+
+        $fields = $this->deferredSaveFields[$table];
+        unset($this->deferredSaveFields[$table]);
+
+        $saved   = $this->dcaCallbacks->save($table, $id, $fields, $this->storedRow($table, $id), self::OWN_SAVE_PATHS[$table] ?? [], $this->requestedFields);
+        $changed = array_filter($saved, static fn ($value, $field): bool => !\array_key_exists($field, $fields) || $fields[$field] !== $value, \ARRAY_FILTER_USE_BOTH);
+
+        if ([] !== $changed) {
+            $this->writeBack($table, $id, $changed);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $changed
+     */
+    protected function writeBack(string $table, int $id, array $changed): void
+    {
+        Database::getInstance()->prepare('UPDATE ' . $table . ' %s WHERE id=?')->set($changed)->execute($id);
+
+        Model\Registry::getInstance()->fetch($table, $id)?->mergeRow($changed);
     }
 
     /**

@@ -38,7 +38,16 @@ class CliUserMigration extends AbstractMigration
             return false;
         }
 
-        return false === $this->connection->fetchOne('SELECT id FROM tl_user WHERE username = ?', [CliUser::USERNAME]);
+        if (false !== $this->connection->fetchOne('SELECT id FROM tl_user WHERE username = ?', [CliUser::USERNAME])) {
+            return false;
+        }
+
+        // Not before the first real user (pre-release review M2). On a fresh install
+        // contao:migrate runs before the administrator is created: contao-ai would get
+        // id 1 — the user Contao and this bundle fall back to as author — and an
+        // installer that looks for an existing admin would find this one. The next
+        // migration after the first user creates it.
+        return (int) $this->connection->fetchOne('SELECT COUNT(*) FROM tl_user') > 0;
     }
 
     public function run(): MigrationResult

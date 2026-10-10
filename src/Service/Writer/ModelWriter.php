@@ -47,6 +47,11 @@ class ModelWriter implements RecordWriterInterface
      */
     private function doUpdate(string $table, int $id, array $fields, string $operator): ?array
     {
+        // On both paths: Model::save() drops a key that is no column without a word,
+        // and the answer would name it as written (pre-release review M4). The
+        // commands check beforehand; an extension through the public API may not.
+        $this->refuseUnknownColumns($table, $fields);
+
         // A move: the old parent listed the record too (a navigation, an article
         // list). Its tags are read now, while the record still names it (v1.2.0).
         // Before findById(): tl_page's sitemap callback calls findWithDetails(),
@@ -68,7 +73,6 @@ class ModelWriter implements RecordWriterInterface
                 return null;
             }
 
-            $this->refuseUnknownColumns($table, $fields);
             $this->versionManager->initialize($table, $id);
             $this->connection->update($table, $this->quoted(['tstamp' => time()] + $fields), ['id' => $id]);
         } else {

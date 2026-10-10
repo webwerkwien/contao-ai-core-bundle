@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\UserModel;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Webwerkwien\ContaoAiCoreBundle\Service\CliUser;
 use Symfony\Component\Console\Input\InputArgument;
 
 #[AsCommand(name: 'contao:user:delete', description: 'Delete a backend user')]
@@ -25,6 +26,12 @@ class UserDeleteCommand extends AbstractWriteCommand
     {
         $this->framework->initialize();
         $username = $this->input->getArgument('username');
+
+        // Locked here as in the back end (review K2); the next migration would bring
+        // it back anyway.
+        if (CliUser::USERNAME === $username) {
+            return $this->outputError(CliUser::REFUSAL);
+        }
 
         $user = UserModel::findByUsername($username);
         if ($user === null) {

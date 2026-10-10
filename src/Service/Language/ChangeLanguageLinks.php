@@ -41,6 +41,9 @@ class ChangeLanguageLinks
     }
 
     /**
+     * The back-end bundle's LanguageTool keeps a copy of this rule for its field
+     * permission check (it allows older cores) — change both.
+     *
      * @param array<string, mixed> $record
      */
     public function field(string $table, array $record): string

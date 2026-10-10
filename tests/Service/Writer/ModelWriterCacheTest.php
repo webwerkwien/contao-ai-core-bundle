@@ -29,11 +29,13 @@ class ModelWriterCacheTest extends TestCase
         unset($GLOBALS['TL_MODELS']);
     }
 
-    private function writer(CacheTagInvalidator $cacheTags, ?DcaCallbacks $callbacks = null, ?VersionManager $versions = null): ModelWriter
+    private function writer(CacheTagInvalidator $cacheTags, ?DcaCallbacks $callbacks = null, ?VersionManager $versions = null, ?Connection $connection = null): ModelWriter
     {
         // The writer runs an update in one transaction (v1.4.0).
-        $connection = $this->createMock(Connection::class);
-        $connection->method('transactional')->willReturnCallback(static fn (callable $fn) => $fn());
+        if (null === $connection) {
+            $connection = $this->columns($this->createMock(Connection::class));
+            $connection->method('transactional')->willReturnCallback(static fn (callable $fn) => $fn());
+        }
 
         return new ModelWriter(
             $connection,
@@ -42,6 +44,109 @@ class ModelWriterCacheTest extends TestCase
             $cacheTags,
             $callbacks,
         );
+    }
+
+    /**
+     * The columns of tl_page these tests write; the writer checks keys against the
+     * table on both paths (review M4).
+     *
+     * @param Connection&\PHPUnit\Framework\MockObject\MockObject $connection
+     *
+     * @return Connection&\PHPUnit\Framework\MockObject\MockObject
+     */
+    private function columns(Connection $connection): Connection
+    {
+        $schema = $this->createMock(\Doctrine\DBAL\Schema\AbstractSchemaManager::class);
+        $schema->method('listTableColumns')->willReturn(array_map(
+            static fn (string $c): \Doctrine\DBAL\Schema\Column => new \Doctrine\DBAL\Schema\Column($c, new \Doctrine\DBAL\Types\StringType()),
+            ['id', 'tstamp', 'title', 'pid', 'ptable', 'sorting'],
+        ));
+        $connection->method('createSchemaManager')->willReturn($schema);
+
+        return $connection;
+    }
+
+    /**
+     * A transaction that records what happens inside it and rolls back on an
+     * exception — what DBAL's transactional() does.
+     */
+    private function recordingTransaction(): Connection
+    {
+        $connection = $this->columns($this->createMock(Connection::class));
+        $connection->expects($this->once())->method('transactional')->willReturnCallback(static function (callable $fn) {
+            CacheTestRecord::$log[] = 'begin';
+
+            try {
+                $result = $fn();
+            } catch (\Throwable $e) {
+                CacheTestRecord::$log[] = 'rollback';
+
+                throw $e;
+            }
+
+            CacheTestRecord::$log[] = 'commit';
+
+            return $result;
+        });
+
+        return $connection;
+    }
+
+    /**
+     * Review M1: removing transactional() around the update left every writer test
+     * green. Save, callbacks, version and invalidation happen inside it.
+     */
+    public function testTheWholeUpdateRunsInsideOneTransaction(): void
+    {
+        $cacheTags = $this->createMock(CacheTagInvalidator::class);
+        $cacheTags->method('recordChanged')->willReturnCallback(static function (string $table, int $id): void {
+            CacheTestRecord::$log[] = 'invalidate ' . $table . ':' . $id;
+        });
+
+        $this->writer($cacheTags, $this->loggingCallbacks(), $this->loggingVersions(), $this->recordingTransaction())
+            ->update('tl_page', 2, ['title' => 'Neu'], 'claude');
+
+        $this->assertSame('begin', CacheTestRecord::$log[0]);
+        $this->assertSame('commit', end(CacheTestRecord::$log));
+        $this->assertContains('save tl_page:2 title=Neu', CacheTestRecord::$log);
+        $this->assertContains('invalidate tl_page:2', CacheTestRecord::$log);
+    }
+
+    /**
+     * A callback that refuses: the exception leaves the transaction, which rolls the
+     * save back, and nothing after it runs — no version, no invalidation.
+     */
+    public function testARefusingCallbackRollsTheSaveBack(): void
+    {
+        $callbacks = $this->createMock(DcaCallbacks::class);
+        $callbacks->method('submit')->willThrowException(new \InvalidArgumentException('tl_page.onsubmit refused by Probe::check. Nothing was written.'));
+
+        $versions = $this->createMock(VersionManager::class);
+        $versions->expects($this->never())->method('createVersion');
+
+        $cacheTags = $this->createMock(CacheTagInvalidator::class);
+        $cacheTags->expects($this->never())->method('recordChanged');
+
+        try {
+            $this->writer($cacheTags, $callbacks, $versions, $this->recordingTransaction())->update('tl_page', 2, ['title' => 'Neu'], 'claude');
+            $this->fail('expected the refusal');
+        } catch (\InvalidArgumentException $e) {
+            $this->assertStringContainsString('Nothing was written', $e->getMessage());
+        }
+
+        $this->assertSame(['begin', 'save tl_page:2 title=Neu', 'rollback'], CacheTestRecord::$log);
+    }
+
+    public function testAKeyThatIsNoColumnIsRefusedOnTheModelPathToo(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Not a column of tl_page: titel. Nothing was written.');
+
+        try {
+            $this->writer($this->createMock(CacheTagInvalidator::class))->update('tl_page', 2, ['titel' => 'Neu'], 'claude');
+        } finally {
+            $this->assertSame([], CacheTestRecord::$log, 'nothing saved');
+        }
     }
 
     public function testAnUpdateInvalidatesAfterTheRecordIsSaved(): void

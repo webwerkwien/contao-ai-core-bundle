@@ -15,7 +15,7 @@ class CliUserMigrationTest extends TestCase
     /**
      * @param list<string> $columns
      */
-    private function connection(bool $table, int|false $existing, array $columns = []): Connection
+    private function connection(bool $table, int|false $existing, array $columns = [], int $users = 1): Connection
     {
         $schema = $this->createMock(AbstractSchemaManager::class);
         $schema->method('tablesExist')->willReturn($table);
@@ -23,7 +23,11 @@ class CliUserMigrationTest extends TestCase
 
         $connection = $this->createMock(Connection::class);
         $connection->method('createSchemaManager')->willReturn($schema);
-        $connection->method('fetchOne')->with('SELECT id FROM tl_user WHERE username = ?', [CliUser::USERNAME])->willReturn($existing);
+        $connection->method('fetchOne')->willReturnCallback(static fn (string $sql, array $params = []) => match ($sql) {
+            'SELECT id FROM tl_user WHERE username = ?' => [CliUser::USERNAME] === $params ? $existing : throw new \LogicException('wrong username'),
+            'SELECT COUNT(*) FROM tl_user'              => (string) $users,
+            default                                     => throw new \LogicException('unexpected query: ' . $sql),
+        });
 
         return $connection;
     }
@@ -33,6 +37,17 @@ class CliUserMigrationTest extends TestCase
         $this->assertTrue((new CliUserMigration($this->connection(true, false)))->shouldRun());
         $this->assertFalse((new CliUserMigration($this->connection(true, 12)))->shouldRun());
         $this->assertFalse((new CliUserMigration($this->connection(false, false)))->shouldRun());
+    }
+
+    /**
+     * Review M2: on a fresh install contao:migrate runs before the administrator is
+     * created. contao-ai would become user 1 — Contao's and the bundle's fallback
+     * author — and an installer looking for an admin would find it.
+     */
+    public function testWaitsForTheFirstRealUser(): void
+    {
+        $this->assertFalse((new CliUserMigration($this->connection(true, false, [], 0)))->shouldRun());
+        $this->assertTrue((new CliUserMigration($this->connection(true, false, [], 1)))->shouldRun());
     }
 
     public function testCreatesAnAdminThatCannotLogInWithTheColumnsTheInstallationHas(): void

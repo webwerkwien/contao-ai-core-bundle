@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\UserModel;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Webwerkwien\ContaoAiCoreBundle\Service\CliUser;
 use Symfony\Component\Console\Input\InputArgument;
 
 #[AsCommand(name: 'contao:user:update', description: 'Update a backend user field')]
@@ -76,6 +77,12 @@ class UserUpdateCommand extends AbstractWriteCommand
     {
         $this->framework->initialize();
         $username = $this->input->getArgument('username');
+
+        // Locked here as in the back end (review K2): enabling it or giving it a
+        // password would make an admin that can log in.
+        if (CliUser::USERNAME === $username) {
+            return $this->outputError(CliUser::REFUSAL);
+        }
 
         // The escalation guard runs before the record is loaded: refusing `admin`
         // must not depend on whether the user happens to exist, and the check

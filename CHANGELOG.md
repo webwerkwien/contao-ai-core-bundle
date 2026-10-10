@@ -48,15 +48,19 @@ API for extensions.
   they will be stored, with Contao's message as the refusal (*"You can only define one
   website root page per domain as the language fallback"*). Fields set on purpose always
   run theirs; fields a command adds itself only where the record's palette shows them,
-  as the back end submits only those.
+  as the back end submits only those. **On a create they run after the INSERT**, with the
+  record's ID and row, between `oncreate` and `onsubmit` — a callback that loads its record
+  (changelanguage's `languageMain` check) finds it; what a callback changes is written back.
 - **A callback that throws refuses the write and rolls it back** (creates run in one
   transaction for this). An `\Error` stays a defect.
 - Answers list the callbacks that ran under `callbacks`.
 - **On the console the callbacks see the back-end user `contao-ai`**, created by a
   migration: an admin that cannot log in (disabled, no password), hidden from the user
-  list and locked against editing in the back end. It is put in place for a callback run
-  only; the commands check no permissions, as before. In the back end's chat the
-  callbacks see the logged-in editor.
+  list and locked against editing in the back end — single and bulk actions — and against
+  `user update`/`user delete`; nobody can switch into it with `_switch_user`. It is put in
+  place for a callback run only; the commands check no permissions, as before. In the back
+  end's chat the callbacks see the logged-in editor. **The migration waits for the first
+  real user**, so on a fresh install it does not become user 1.
 - **`page create` answers `articles`:** Contao's `generateArticleForPage` now gives a new
   page its article where the layout has an article column, as in the back end.
 
@@ -73,7 +77,8 @@ API for extensions.
 - **Public write API for extensions** (`@api`): `RecordWriterInterface` with the new
   `create()`, `DcaCallbacks` and `VersionManager`. An extension's own `#[AiContract]`
   command gets versions, callbacks, undo and cache invalidation like this bundle's own.
-  `update()` also writes tables without a registered model.
+  `update()` also writes tables without a registered model. `create()` and `update()`
+  refuse a key that is no column.
 
 ### Fixed
 

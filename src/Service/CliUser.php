@@ -32,6 +32,9 @@ class CliUser
 {
     public const USERNAME = 'contao-ai';
 
+    /** The answer wherever someone tries to change, delete or become it. */
+    public const REFUSAL = 'The user "' . self::USERNAME . '" belongs to contao-ai-core-bundle: it is what DCA callbacks see on the console, and it cannot log in. Nothing was changed.';
+
     /**
      * @param UserProviderInterface<BackendUser> $users
      */

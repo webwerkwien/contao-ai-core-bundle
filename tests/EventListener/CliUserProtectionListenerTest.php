@@ -74,6 +74,62 @@ class CliUserProtectionListenerTest extends TestCase
         return ['edit' => ['edit'], 'delete' => ['delete'], 'copy' => ['copy'], 'toggle' => ['toggle'], 'cut' => ['cut']];
     }
 
+    /**
+     * Review K2: the select mode keeps the IDs in the session, set by a POST.
+     *
+     * @param list<int> $ids
+     */
+    private function bulkListener(string $act, array $ids): CliUserProtectionListener
+    {
+        $connection = $this->createMock(Connection::class);
+        $connection->method('fetchOne')->willReturn('9');
+
+        $request = Request::create('/contao?do=user&act=' . $act);
+        $session = new \Symfony\Component\HttpFoundation\Session\Session(new \Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage());
+        $session->set('CURRENT', ['IDS' => $ids]);
+        $request->setSession($session);
+
+        $requests = new RequestStack();
+        $requests->push($request);
+
+        return new CliUserProtectionListener($connection, $requests);
+    }
+
+    public function testASelectionThatContainsItIsRefused(): void
+    {
+        foreach (['editAll', 'overrideAll', 'deleteAll', 'copyAll', 'cutAll'] as $act) {
+            try {
+                $this->bulkListener($act, [3, 9])->lock();
+                $this->fail($act . ' should be refused');
+            } catch (AccessDeniedException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+
+        $this->bulkListener('editAll', [3, 4])->lock();
+        $this->addToAssertionCount(1);
+    }
+
+    /**
+     * Review K1: Contao checks `disable` at login only, not when an admin switches.
+     */
+    public function testNobodySwitchesIntoIt(): void
+    {
+        $listener = $this->listener(null);
+        $target   = new \Symfony\Component\Security\Core\User\InMemoryUser(CliUser::USERNAME, null);
+
+        $this->expectException(\Symfony\Component\Security\Core\Exception\AccessDeniedException::class);
+
+        $listener->refuseSwitch(new \Symfony\Component\Security\Http\Event\SwitchUserEvent(new Request(), $target));
+    }
+
+    public function testSwitchingToSomeoneElseIsLeftAlone(): void
+    {
+        $this->listener(null)->refuseSwitch(new \Symfony\Component\Security\Http\Event\SwitchUserEvent(new Request(), new \Symfony\Component\Security\Core\User\InMemoryUser('testredakteur', null)));
+
+        $this->addToAssertionCount(1);
+    }
+
     public function testOtherUsersAndReadingAreLeftAlone(): void
     {
         $this->listener('do=user&act=edit&id=3')->lock();

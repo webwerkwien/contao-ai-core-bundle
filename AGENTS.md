@@ -455,7 +455,13 @@ password — both checked only by the UserChecker at login, which it never goes 
 `CliUser` puts it into the token storage for a callback run and takes it out again; an
 empty `BackendUser::$objInstance` cached earlier is dropped first. `CliUserProtectionListener`
 hides it from the user list and refuses edit, delete, copy, toggle and cut (a voter cannot:
-Contao decides affirmatively). **The commands' rights do not change** — they check none.
+Contao decides affirmatively), the bulk actions on a selection containing it (IDs from the
+session's `CURRENT.IDS`), and `_switch_user` into it (`SwitchUserEvent`: Contao checks
+`disable` at login only, and changes made as `contao-ai` would carry its name).
+`user update` and `user delete` refuse it too. **The migration waits for the first real
+user** — on a fresh install `contao:migrate` runs before the admin exists, and `contao-ai`
+would become user 1, the fallback author. **The commands' rights do not change** — they
+check none.
 
 ### The one kind of callback that does run: cache tags (v0.10.0)
 
@@ -961,7 +967,22 @@ on an unpublished test tree the article options are empty, in the back end as we
 are marked `@api`, decided with the maintainer on 2026-10-10 for Consho Connect: an
 extension's `#[AiContract]` commands write through them. **A signature change needs a major
 version.** `ModelWriter::update()` writes a table without a registered model row by row —
-Contao 5's `Model::getClassFromTable()` throws for one instead of guessing.
+Contao 5's `Model::getClassFromTable()` throws for one instead of guessing. Both `update()`
+and `create()` refuse a key that is no column (before v1.4.0 was tagged, `update()` on a
+model table reported such a key as written — `Model::save()` drops it silently).
+
+- **For the console and the back end, not for a front-end request.** `DcaCallbacks` uses
+  the current request's session and, without a token, puts `contao-ai` (an admin) into the
+  token storage for the length of a callback. In a front-end request that would be the
+  visitor's request. No caller does this today; don't add one without changing that.
+- **Save callbacks of an update run before the writer's transaction** (in
+  `convertFields()`), as in `DC_Table`, which is not atomic there either. A side effect of
+  a save callback (Consho records old URLs) stays when the write is rolled back afterwards.
+- **A create's save callbacks run after its INSERT** (`runDeferredSaveCallbacks()` from
+  `createVersion(created: true)`): oncreate → field save callbacks with the real ID →
+  onsubmit → first version, as `DC_Table::create()` plus the saved mask. What a callback
+  changes is written back to the row and merged into a model instance still in the
+  registry.
 
 ## Layout modules (v0.16.0)
 
