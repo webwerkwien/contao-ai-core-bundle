@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Webwerkwien\ContaoAiCoreBundle\Command\DcaPaletteCommand;
 use Webwerkwien\ContaoAiCoreBundle\Service\CliUser;
 
 /**
@@ -65,11 +66,16 @@ class DcaCallbacks
         private readonly ?CliUser $cliUser = null,
         private readonly ?TokenStorageInterface $tokens = null,
         ?\Closure $loadLanguageFile = null,
+        ?\Closure $palette = null,
     ) {
         $this->loadLanguageFile = $loadLanguageFile ?? static function (string $name): void {
             System::loadLanguageFile($name);
         };
+        $this->palette = $palette ?? static fn (DataContainer $dc): string => (string) $dc->getPalette();
     }
+
+    /** @var \Closure(DataContainer): string only replaced in tests */
+    private readonly \Closure $palette;
 
     /** @var \Closure(string): void only replaced in tests */
     private readonly \Closure $loadLanguageFile;
@@ -174,6 +180,21 @@ class DcaCallbacks
             ($this->loadLanguageFile)($table);
 
             $dc = RecordDataContainer::create($table, $id, array_replace($record, $fields), $this->connection);
+
+            // Only the fields of the record's palette, as only those are submitted in
+            // the back end. A page create writes language '' for a non-root page, and
+            // tl_page.language's callback refused it — the field is in the root
+            // palette only, so the back end never runs it there (c5, 6.0, 2026-10-10).
+            // Contao's own getPalette() decides, selectors and sub-palettes included.
+            try {
+                $inPalette = DcaPaletteCommand::fieldsOf((string) ($this->palette)($dc));
+            } catch (\Throwable $e) {
+                $this->ran[] = $table . ': no save_callback ran, the palette could not be built on the console (' . $e->getMessage() . ')';
+
+                return $fields;
+            }
+
+            $withCallbacks = array_values(array_intersect($withCallbacks, $inPalette));
 
             foreach ($withCallbacks as $field) {
                 \Closure::bind(static function (DataContainer $dc, string $field): void {

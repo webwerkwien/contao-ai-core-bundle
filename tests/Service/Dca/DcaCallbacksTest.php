@@ -27,6 +27,9 @@ class DcaCallbacksTest extends TestCase
 
     private TokenStorage $tokens;
 
+    /** The palette Contao's getPalette() would build; save callbacks run only for its fields. */
+    private string $palette = '{title_legend},type,headline;{video_legend},youtube;{root_legend},fallback,dns,alias';
+
     /** @var array<string, mixed>|null */
     private ?array $dca = null;
 
@@ -56,7 +59,9 @@ class DcaCallbacksTest extends TestCase
         $connection->method('quoteIdentifier')->willReturnCallback(static fn (string $n): string => '`' . $n . '`');
         $connection->method('fetchAssociative')->willReturn($row);
 
-        return new DcaCallbacks($connection, $this->requests, null, $this->tokens, static function (): void {});
+        $palette = $this->palette;
+
+        return new DcaCallbacks($connection, $this->requests, null, $this->tokens, static function (): void {}, static fn (): string => $palette);
     }
 
     /**
@@ -308,6 +313,44 @@ class DcaCallbacksTest extends TestCase
         $this->assertSame(['alias' => 'neu'], $callbacks->save('tl_page', 7, ['alias' => 'neu'], [], ['alias']));
         $this->assertSame([], $ran);
         $this->assertSame([], $callbacks->drainReport());
+    }
+
+    /**
+     * The back end submits only the fields of the record's palette. tl_page.language is
+     * in the root palette only; a page create writes '' for it on a regular page, and
+     * its callback refused that (c5, 6.0, 2026-10-10).
+     */
+    public function testOnlyFieldsOfThePaletteRunTheirSaveCallbacks(): void
+    {
+        $ran = [];
+        $GLOBALS['TL_DCA']['tl_page']['fields'] = [
+            'language' => ['save_callback' => [static function () use (&$ran) { $ran[] = 'language'; throw new \Exception('invalid'); }]],
+            'dns'      => ['save_callback' => [static function ($v) use (&$ran) { $ran[] = 'dns'; return $v; }]],
+        ];
+
+        $fields = $this->callbacks()->save('tl_page', 0, ['language' => '', 'dns' => 'example.org'], []);
+
+        $this->assertSame(['language' => '', 'dns' => 'example.org'], $fields);
+        $this->assertSame(['dns'], $ran);
+    }
+
+    public function testWithoutAPaletteNoSaveCallbackRunsAndTheReportSaysSo(): void
+    {
+        $GLOBALS['TL_DCA']['tl_page']['fields']['dns']['save_callback'] = [static function (): void {
+            throw new \Exception('must not run');
+        }];
+
+        $schema = $this->createMock(AbstractSchemaManager::class);
+        $schema->method('listTableColumns')->willReturn([]);
+        $connection = $this->createMock(Connection::class);
+        $connection->method('createSchemaManager')->willReturn($schema);
+
+        $callbacks = new DcaCallbacks($connection, $this->requests, null, $this->tokens, static function (): void {}, static function (): string {
+            throw new \RuntimeException('no request');
+        });
+
+        $this->assertSame(['dns' => 'x'], $callbacks->save('tl_page', 0, ['dns' => 'x'], []));
+        $this->assertStringContainsString('the palette could not be built on the console (no request)', $callbacks->drainReport()[0]);
     }
 
     public function testWithoutCallbacksNothingRunsAndNoSessionIsMade(): void
