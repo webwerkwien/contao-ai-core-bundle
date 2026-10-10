@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Tests\Service\Writer;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cache\CacheTagInvalidator;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 use Webwerkwien\ContaoAiCoreBundle\Service\RecordCascadeCollector;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 use Webwerkwien\ContaoAiCoreBundle\Service\Writer\ModelWriter;
@@ -26,14 +27,46 @@ class ModelWriterTest extends TestCase
      * @param array<string, list<int>>              $collected
      * @param array<string, array<string, mixed>>   $rows       keyed "<table>:<id>"
      */
-    private function writer(array $collected, array $rows, ?Connection $connection = null, ?CacheTagInvalidator $cacheTags = null): ModelWriter
+    private function writer(array $collected, array $rows, ?Connection $connection = null, ?CacheTagInvalidator $cacheTags = null, ?DcaCallbacks $callbacks = null): ModelWriter
     {
         $connection ??= $this->connection($rows);
 
         $collector = $this->createMock(RecordCascadeCollector::class);
         $collector->method('collect')->willReturn($collected);
 
-        return new ModelWriter($connection, $this->createMock(VersionManager::class), $collector, $cacheTags);
+        return new ModelWriter($connection, $this->createMock(VersionManager::class), $collector, $cacheTags, $callbacks);
+    }
+
+    /**
+     * DC_Table::delete(): ondelete for the record itself — not its children — after the
+     * undo row, with that row's ID, and before anything is deleted (v1.4.0).
+     */
+    public function testOndeleteRunsForTheRecordBetweenTheUndoEntryAndTheDelete(): void
+    {
+        $order      = [];
+        $connection = $this->connection(['tl_page:5' => ['id' => 5, 'title' => 'Start'], 'tl_article:9' => ['id' => 9, 'pid' => 5]]);
+        $connection->method('insert')->willReturnCallback(static function (string $table) use (&$order): int {
+            $order[] = 'insert ' . $table;
+
+            return 1;
+        });
+        $connection->method('lastInsertId')->willReturn('41');
+        $connection->method('delete')->willReturnCallback(static function (string $table, array $criteria) use (&$order): int {
+            $order[] = 'delete ' . $table . ':' . $criteria['id'];
+
+            return 1;
+        });
+
+        $callbacks = $this->createMock(DcaCallbacks::class);
+        $callbacks->expects($this->once())->method('delete')->willReturnCallback(
+            static function (string $table, int $id, array $row, int $undoId) use (&$order): void {
+                $order[] = \sprintf('ondelete %s:%d undo %d title %s', $table, $id, $undoId, $row['title']);
+            }
+        );
+
+        $this->writer(['tl_page' => [5], 'tl_article' => [9]], [], $connection, null, $callbacks)->delete('tl_page', 5, 'claude', 0);
+
+        $this->assertSame(['insert tl_undo', 'ondelete tl_page:5 undo 41 title Start', 'delete tl_article:9', 'delete tl_page:5'], $order);
     }
 
     /**
@@ -52,6 +85,8 @@ class ModelWriterTest extends TestCase
             }
         );
         $connection->method('delete')->willReturn(1);
+        // The writer runs a delete in one transaction (v1.4.0).
+        $connection->method('transactional')->willReturnCallback(static fn (callable $fn) => $fn());
 
         return $connection;
     }

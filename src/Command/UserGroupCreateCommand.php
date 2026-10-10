@@ -40,7 +40,7 @@ use Symfony\Component\Console\Input\InputOption;
  * simply never granted.
  */
 #[AsCommand(name: 'contao:user-group:create', description: 'Create a back end user group')]
-class UserGroupCreateCommand extends AbstractWriteCommand
+class UserGroupCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(private readonly ContaoFramework $framework)
     {

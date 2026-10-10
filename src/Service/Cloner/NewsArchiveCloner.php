@@ -7,6 +7,7 @@ use Contao\NewsArchiveModel;
 use Contao\NewsModel;
 use Contao\UserModel;
 use Doctrine\DBAL\Connection;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 /**
@@ -37,6 +38,7 @@ class NewsArchiveCloner implements EntityClonerInterface
         private readonly Connection $connection,
         private readonly ContaoFramework $framework,
         private readonly VersionManager $versionManager,
+        private readonly ?DcaCallbacks $dcaCallbacks = null,
     ) {
     }
 
@@ -82,8 +84,12 @@ class NewsArchiveCloner implements EntityClonerInterface
                     // hangs under articles, news and events"), der Klon ließ sie stehen
                     // und meldete trotzdem Erfolg.
                     $contents += $this->cloneContentSubtree((int) $child->id, $newChildId, 'tl_news', $operator);
+                    $this->dcaCallbacks?->copy('tl_news', $newChildId, (int) $child->id);
                 }
             }
+
+            // The root last, as DC_Table::copy() does (v1.4.0).
+            $this->dcaCallbacks?->copy('tl_news_archive', $newArchiveId, $sourceId);
 
             return [
                 'id'    => $newArchiveId,

@@ -33,8 +33,11 @@ interface RecordWriterInterface
     /**
      * Apply values to an existing record.
      *
-     * The version snapshot is taken **before** the save, so it holds the state
-     * being replaced — that is what makes it restorable.
+     * Versioned as DC_Table::edit() does (v1.4.0): the state being replaced is kept
+     * if the record has no version yet, the new state is versioned after the save.
+     * In between the record callbacks run — onsubmit for a field, oncut for a new
+     * parent — and the whole write is one transaction, so a refusing callback leaves
+     * nothing behind.
      *
      * @param array<string, mixed> $fields
      *

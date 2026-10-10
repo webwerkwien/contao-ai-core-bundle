@@ -36,7 +36,7 @@ use Symfony\Component\Console\Input\InputOption;
  * happens to return first.
  */
 #[AsCommand(name: 'contao:form:create', description: 'Create a form')]
-class FormCreateCommand extends AbstractWriteCommand
+class FormCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(
         private readonly ContaoFramework $framework,

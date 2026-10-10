@@ -26,7 +26,7 @@ use Symfony\Component\Console\Input\InputOption;
  * without renumbering; appending follows that rather than inventing a scheme.
  */
 #[AsCommand(name: 'contao:image-size-item:create', description: 'Create a media-query variant under an image size')]
-class ImageSizeItemCreateCommand extends AbstractWriteCommand
+class ImageSizeItemCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(
         private readonly ContaoFramework $framework,

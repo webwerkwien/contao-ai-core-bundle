@@ -61,6 +61,10 @@ trait ClonesContentSubtree
             ++$count;
 
             $count += $this->cloneContentSubtree((int) $source->id, $newId, 'tl_content', $operator);
+
+            // As DC_Table::copyChildren(): oncopy for a copied row once its own
+            // children exist (v1.4.0).
+            $this->dcaCallbacks?->copy('tl_content', $newId, (int) $source->id);
         }
 
         return $count;

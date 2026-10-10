@@ -68,7 +68,7 @@ use Symfony\Component\Console\Input\InputOption;
  * is what asks the question; here the value is simply explicit or absent.
  */
 #[AsCommand(name: 'contao:newsletter-recipient:create', description: 'Add a recipient to a newsletter channel')]
-class NewsletterRecipientCreateCommand extends AbstractWriteCommand
+class NewsletterRecipientCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(private readonly ContaoFramework $framework)
     {

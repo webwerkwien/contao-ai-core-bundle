@@ -22,7 +22,7 @@ use Symfony\Component\Console\Input\InputOption;
  * them. `templates` selects the template subfolder.
  */
 #[AsCommand(name: 'contao:theme:create', description: 'Create a theme')]
-class ThemeCreateCommand extends AbstractWriteCommand
+class ThemeCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(private readonly ContaoFramework $framework)
     {

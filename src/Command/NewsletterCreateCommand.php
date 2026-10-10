@@ -36,7 +36,7 @@ use Symfony\Component\Console\Input\InputOption;
  * not resolve the entry.
  */
 #[AsCommand(name: 'contao:newsletter:create', description: 'Create a newsletter')]
-class NewsletterCreateCommand extends AbstractWriteCommand
+class NewsletterCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(private readonly ContaoFramework $framework)
     {

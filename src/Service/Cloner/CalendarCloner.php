@@ -7,6 +7,7 @@ use Contao\CalendarModel;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\UserModel;
 use Doctrine\DBAL\Connection;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 /**
@@ -27,6 +28,7 @@ class CalendarCloner implements EntityClonerInterface
         private readonly Connection $connection,
         private readonly ContaoFramework $framework,
         private readonly VersionManager $versionManager,
+        private readonly ?DcaCallbacks $dcaCallbacks = null,
     ) {
     }
 
@@ -71,8 +73,12 @@ class CalendarCloner implements EntityClonerInterface
                     // hangs under articles, news and events"), der Klon ließ sie stehen
                     // und meldete trotzdem Erfolg.
                     $contents += $this->cloneContentSubtree((int) $child->id, $newChildId, 'tl_calendar_events', $operator);
+                    $this->dcaCallbacks?->copy('tl_calendar_events', $newChildId, (int) $child->id);
                 }
             }
+
+            // The root last, as DC_Table::copy() does (v1.4.0).
+            $this->dcaCallbacks?->copy('tl_calendar', $newId, $sourceId);
 
             return [
                 'id'    => $newId,

@@ -9,7 +9,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
 
 #[AsCommand(name: 'contao:content:create', description: 'Create a content element')]
-class ContentCreateCommand extends AbstractWriteCommand
+class ContentCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(private readonly ContaoFramework $framework)
     {

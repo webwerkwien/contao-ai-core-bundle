@@ -3,6 +3,7 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
+use Contao\Database;
 use Contao\PageModel;
 use Contao\StringUtil;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -14,7 +15,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageTreeRules;
 use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageUrlGuard;
 
 #[AsCommand(name: 'contao:page:create', description: 'Create a Contao page')]
-class PageCreateCommand extends AbstractWriteCommand
+class PageCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     private ?PageUrlGuard $pageUrlGuard = null;
 
@@ -123,7 +124,15 @@ class PageCreateCommand extends AbstractWriteCommand
             $this->routeConflicts = $this->pageUrlGuard->routeConflicts((int) $page->id);
         }
 
-        $this->outputSuccess(['id' => (int) $page->id, 'title' => $page->title, 'alias' => $page->alias]);
+        // Contao's generateArticleForPage (onsubmit) gives a new page its article — for a
+        // back-end user, so from the chat but not on the console (v1.4.0). Said either
+        // way, so a caller neither adds a second one nor assumes there is one.
+        $articles = array_map('intval', Database::getInstance()
+            ->prepare('SELECT id FROM tl_article WHERE pid=? ORDER BY sorting')
+            ->execute((int) $page->id)
+            ->fetchEach('id'));
+
+        $this->outputSuccess(['id' => (int) $page->id, 'title' => $page->title, 'alias' => $page->alias, 'articles' => $articles]);
         return Command::SUCCESS;
     }
 }

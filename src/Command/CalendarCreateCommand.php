@@ -25,7 +25,7 @@ use Symfony\Component\Console\Input\InputOption;
  * is: every link the module generates would go nowhere.
  */
 #[AsCommand(name: 'contao:calendar:create', description: 'Create a calendar')]
-class CalendarCreateCommand extends AbstractWriteCommand
+class CalendarCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(private readonly ContaoFramework $framework)
     {

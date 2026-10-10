@@ -9,7 +9,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
 
 #[AsCommand(name: 'contao:faq:create', description: 'Create a FAQ entry')]
-class FaqCreateCommand extends AbstractWriteCommand
+class FaqCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(private readonly ContaoFramework $framework)
     {

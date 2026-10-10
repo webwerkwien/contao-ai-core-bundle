@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Writer;
 use Contao\Model;
 use Doctrine\DBAL\Connection;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cache\CacheTagInvalidator;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 use Webwerkwien\ContaoAiCoreBundle\Service\RecordCascadeCollector;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
@@ -26,10 +27,25 @@ class ModelWriter implements RecordWriterInterface
         private readonly VersionManager $versionManager,
         private readonly RecordCascadeCollector $cascadeCollector,
         private readonly ?CacheTagInvalidator $cacheTags = null,
+        private readonly ?DcaCallbacks $callbacks = null,
     ) {
     }
 
+    /** Fields a move writes; the back end changes them by cut and paste, not in the mask. */
+    private const POSITION_FIELDS = ['pid', 'ptable', 'sorting'];
+
     public function update(string $table, int $id, array $fields, string $operator): ?array
+    {
+        // All or nothing: a callback that refuses rolls the save back (v1.4.0).
+        return $this->connection->transactional(fn (): ?array => $this->doUpdate($table, $id, $fields, $operator));
+    }
+
+    /**
+     * @param array<string, mixed> $fields
+     *
+     * @return list<string>|null
+     */
+    private function doUpdate(string $table, int $id, array $fields, string $operator): ?array
     {
         // A move: the old parent listed the record too (a navigation, an article
         // list). Its tags are read now, while the record still names it (v1.2.0).
@@ -47,6 +63,8 @@ class ModelWriter implements RecordWriterInterface
             return null;
         }
 
+        $old = $record->row();
+
         foreach ($fields as $key => $value) {
             $record->$key = $value;
         }
@@ -56,6 +74,18 @@ class ModelWriter implements RecordWriterInterface
         $this->versionManager->initialize($table, $id);
         $record->tstamp = time();
         $record->save();
+
+        // The record callbacks the back end runs, in its order (v1.4.0): a new parent
+        // is a cut (oncut), any other field a save of the mask (onsubmit) — both
+        // before the new version, as in DC_Table.
+        if ($this->moved($old, $fields)) {
+            $this->callbacks?->cut($table, $id);
+        }
+
+        if ([] !== array_diff(array_keys($fields), self::POSITION_FIELDS)) {
+            $this->callbacks?->submit($table, $id);
+        }
+
         $this->versionManager->createVersion($table, $id, $operator);
 
         // After the write, as DC_Table::submit() does — before it, a request in
@@ -72,6 +102,29 @@ class ModelWriter implements RecordWriterInterface
 
     public function delete(string $table, int $id, string $operator, int $undoUserId): array
     {
+        return $this->connection->transactional(fn (): array => $this->doDelete($table, $id, $undoUserId));
+    }
+
+    /**
+     * @param array<string, mixed> $old
+     * @param array<string, mixed> $fields
+     */
+    private function moved(array $old, array $fields): bool
+    {
+        foreach (['pid', 'ptable'] as $key) {
+            if (\array_key_exists($key, $fields) && (string) $fields[$key] !== (string) ($old[$key] ?? '')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array{cascade: array<string, int>, rowsTotal: int}
+     */
+    private function doDelete(string $table, int $id, int $undoUserId): array
+    {
         // 🔴 Collected while the record still exists. DC_Table::delete() invalidates
         // BEFORE its DELETE loop (Contao 5.3, 5.7, 6.0): the sitemap callbacks look
         // the record up, and a page that is already gone has no root. Only the root
@@ -85,7 +138,16 @@ class ModelWriter implements RecordWriterInterface
 
         // One undo entry for the whole set, in the shape DC_Table::undo() expects:
         // [table => [row, ...]].
-        $this->snapshotToUndo($table, $id, $rows, $undoUserId);
+        $undoId = $this->snapshotToUndo($table, $id, $rows, $undoUserId);
+
+        // DC_Table::delete() calls ondelete for the record itself, not its children,
+        // after the undo row and before the DELETE (v1.4.0). The search index entry of
+        // a deleted page goes here, and Consho's facet page clean-up.
+        $row = $this->connection->fetchAssociative('SELECT * FROM ' . $this->connection->quoteIdentifier($table) . ' WHERE id = ?', [$id]);
+
+        if (\is_array($row)) {
+            $this->callbacks?->delete($table, $id, $row, $undoId);
+        }
 
         $rowsTotal = $this->deleteRows($collected);
 
@@ -144,10 +206,13 @@ class ModelWriter implements RecordWriterInterface
     /**
      * @param array<string, list<array<string, mixed>>> $rows
      */
-    private function snapshotToUndo(string $table, int $id, array $rows, int $undoUserId): void
+    /**
+     * @return int the ID of the undo row, 0 when there was nothing to keep
+     */
+    private function snapshotToUndo(string $table, int $id, array $rows, int $undoUserId): int
     {
         if (!$rows) {
-            return;
+            return 0;
         }
 
         $this->connection->insert('tl_undo', [
@@ -158,5 +223,7 @@ class ModelWriter implements RecordWriterInterface
             'affectedRows' => array_sum(array_map('\count', $rows)),
             'data'         => serialize($rows),
         ]);
+
+        return (int) $this->connection->lastInsertId();
     }
 }

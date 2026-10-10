@@ -34,7 +34,7 @@ use Symfony\Component\Console\Input\InputOption;
  * field, so `convertFields()` turns a page ID into the int the column wants.
  */
 #[AsCommand(name: 'contao:newsletter-channel:create', description: 'Create a newsletter channel')]
-class NewsletterChannelCreateCommand extends AbstractWriteCommand
+class NewsletterChannelCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(private readonly ContaoFramework $framework)
     {

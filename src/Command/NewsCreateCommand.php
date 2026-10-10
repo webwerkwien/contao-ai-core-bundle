@@ -10,7 +10,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
 
 #[AsCommand(name: 'contao:news:create', description: 'Create a news entry')]
-class NewsCreateCommand extends AbstractWriteCommand
+class NewsCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(private readonly ContaoFramework $framework)
     {

@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Tests\Service\Writer;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cache\CacheTagInvalidator;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 use Webwerkwien\ContaoAiCoreBundle\Service\RecordCascadeCollector;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 use Webwerkwien\ContaoAiCoreBundle\Service\Writer\ModelWriter;
@@ -28,13 +29,18 @@ class ModelWriterCacheTest extends TestCase
         unset($GLOBALS['TL_MODELS']);
     }
 
-    private function writer(CacheTagInvalidator $cacheTags): ModelWriter
+    private function writer(CacheTagInvalidator $cacheTags, ?DcaCallbacks $callbacks = null, ?VersionManager $versions = null): ModelWriter
     {
+        // The writer runs an update in one transaction (v1.4.0).
+        $connection = $this->createMock(Connection::class);
+        $connection->method('transactional')->willReturnCallback(static fn (callable $fn) => $fn());
+
         return new ModelWriter(
-            $this->createMock(Connection::class),
-            $this->createMock(VersionManager::class),
+            $connection,
+            $versions ?? $this->createMock(VersionManager::class),
             $this->createMock(RecordCascadeCollector::class),
             $cacheTags,
+            $callbacks,
         );
     }
 
@@ -131,6 +137,73 @@ class ModelWriterCacheTest extends TestCase
 
         $this->assertNull($this->writer($cacheTags)->update('tl_page', 404, ['title' => 'Neu'], 'claude'));
     }
+
+    private function loggingCallbacks(): DcaCallbacks
+    {
+        $callbacks = $this->createMock(DcaCallbacks::class);
+        $callbacks->method('submit')->willReturnCallback(static function (string $table, int $id): void {
+            CacheTestRecord::$log[] = 'onsubmit ' . $table . ':' . $id;
+        });
+        $callbacks->method('cut')->willReturnCallback(static function (string $table, int $id): void {
+            CacheTestRecord::$log[] = 'oncut ' . $table . ':' . $id;
+        });
+
+        return $callbacks;
+    }
+
+    private function loggingVersions(): VersionManager
+    {
+        $versions = $this->createMock(VersionManager::class);
+        $versions->method('initialize')->willReturnCallback(static function (): void {
+            CacheTestRecord::$log[] = 'initialize';
+        });
+        $versions->method('createVersion')->willReturnCallback(static function (): void {
+            CacheTestRecord::$log[] = 'version';
+        });
+
+        return $versions;
+    }
+
+    /**
+     * As DC_Table::edit(): the state being replaced is versioned if it has no version,
+     * the record is saved, onsubmit runs, and only then the new version (v1.4.0).
+     */
+    public function testASaveRunsOnsubmitBeforeTheNewVersion(): void
+    {
+        $this->writer($this->createMock(CacheTagInvalidator::class), $this->loggingCallbacks(), $this->loggingVersions())
+            ->update('tl_page', 2, ['title' => 'Neu'], 'claude');
+
+        $this->assertSame(['initialize', 'save tl_page:2 title=Neu', 'onsubmit tl_page:2', 'version'], CacheTestRecord::$log);
+    }
+
+    /**
+     * A new parent is a cut and paste in the back end: oncut, not onsubmit — the mask
+     * was never saved (v1.4.0).
+     */
+    public function testAMoveRunsOncutAndNotOnsubmit(): void
+    {
+        $this->writer($this->createMock(CacheTagInvalidator::class), $this->loggingCallbacks(), $this->loggingVersions())
+            ->update('tl_page', 2, ['pid' => 5, 'sorting' => 128], 'claude');
+
+        $this->assertSame(['initialize', 'save tl_page:2 title=', 'oncut tl_page:2', 'version'], CacheTestRecord::$log);
+    }
+
+    public function testAMoveTogetherWithAFieldRunsBoth(): void
+    {
+        $this->writer($this->createMock(CacheTagInvalidator::class), $this->loggingCallbacks())
+            ->update('tl_page', 2, ['ptable' => 'tl_news', 'title' => 'Neu'], 'claude');
+
+        $this->assertSame(['save tl_page:2 title=Neu', 'oncut tl_page:2', 'onsubmit tl_page:2'], CacheTestRecord::$log);
+    }
+
+    public function testTheSameParentAgainIsNoMove(): void
+    {
+        // CacheTestRecord::row() has pid 1.
+        $this->writer($this->createMock(CacheTagInvalidator::class), $this->loggingCallbacks())
+            ->update('tl_page', 2, ['pid' => '1', 'title' => 'Neu'], 'claude');
+
+        $this->assertSame(['save tl_page:2 title=Neu', 'onsubmit tl_page:2'], CacheTestRecord::$log);
+    }
 }
 
 /**
@@ -161,6 +234,16 @@ final class CacheTestRecord
         $record->id = $id;
 
         return $record;
+    }
+
+    /**
+     * The stored row; the writer compares pid/ptable against it to tell a move (v1.4.0).
+     *
+     * @return array<string, mixed>
+     */
+    public function row(): array
+    {
+        return ['id' => $this->id, 'pid' => 1, 'ptable' => ''];
     }
 
     public function save(): void

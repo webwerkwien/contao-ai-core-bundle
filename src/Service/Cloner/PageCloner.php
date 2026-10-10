@@ -13,6 +13,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageLanguage;
 use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageTreeRules;
 use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageUrlGuard;
 use Webwerkwien\ContaoAiCoreBundle\Service\Sorting;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 /**
@@ -98,6 +99,7 @@ class PageCloner implements EntityClonerInterface
         private readonly VersionManager $versionManager,
         private readonly PageUrlGuard $pageUrlGuard,
         private readonly PageTreeRules $pageTreeRules,
+        private readonly ?DcaCallbacks $dcaCallbacks = null,
     ) {
     }
 
@@ -248,8 +250,11 @@ class PageCloner implements EntityClonerInterface
                             'tl_content',
                             $operator,
                         );
+                        $this->dcaCallbacks?->copy('tl_content', $newContentId, (int) $sourceContent->id);
                     }
                 }
+
+                $this->dcaCallbacks?->copy('tl_article', $newArticleId, (int) $sourceArticle->id);
             }
         }
 
@@ -277,6 +282,11 @@ class PageCloner implements EntityClonerInterface
                 }
             }
         }
+
+        // Last, once articles and subpages exist — DC_Table calls oncopy for the
+        // root after copyChildren(), for each child after its own children (v1.4.0).
+        // changelanguage resets a link here, Consho syncs its shop pages.
+        $this->dcaCallbacks?->copy('tl_page', $newPageId, (int) $source->id);
 
         return $newPageId;
     }

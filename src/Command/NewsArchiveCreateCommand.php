@@ -31,7 +31,7 @@ use Symfony\Component\Console\Input\InputOption;
  * adding a mandatory field to this table is covered without a change here.
  */
 #[AsCommand(name: 'contao:news-archive:create', description: 'Create a news archive')]
-class NewsArchiveCreateCommand extends AbstractWriteCommand
+class NewsArchiveCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(private readonly ContaoFramework $framework)
     {

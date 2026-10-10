@@ -28,7 +28,7 @@ use Symfony\Component\Console\Input\InputOption;
  * `contao:layout:module`.
  */
 #[AsCommand(name: 'contao:layout:create', description: 'Create a page layout under a theme')]
-class LayoutCreateCommand extends AbstractWriteCommand
+class LayoutCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(private readonly ContaoFramework $framework)
     {

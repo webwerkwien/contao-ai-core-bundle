@@ -37,7 +37,7 @@ use Symfony\Component\Console\Input\InputOption;
  * the whole form. Same rule as image size variants.
  */
 #[AsCommand(name: 'contao:form-field:create', description: 'Create a form field')]
-class FormFieldCreateCommand extends AbstractWriteCommand
+class FormFieldCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(
         private readonly ContaoFramework $framework,

@@ -7,6 +7,7 @@ use Contao\FaqCategoryModel;
 use Contao\FaqModel;
 use Contao\UserModel;
 use Doctrine\DBAL\Connection;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 /**
@@ -31,6 +32,7 @@ class FaqCategoryCloner implements EntityClonerInterface
         private readonly Connection $connection,
         private readonly ContaoFramework $framework,
         private readonly VersionManager $versionManager,
+        private readonly ?DcaCallbacks $dcaCallbacks = null,
     ) {
     }
 
@@ -68,8 +70,12 @@ class FaqCategoryCloner implements EntityClonerInterface
                     $newChildId = $this->cloneFaqRow($child, $newId, $authorId);
                     $this->versionManager->createInitialVersion('tl_faq', $newChildId, $operator);
                     ++$count;
+                    $this->dcaCallbacks?->copy('tl_faq', $newChildId, (int) $child->id);
                 }
             }
+
+            // The root last, as DC_Table::copy() does (v1.4.0).
+            $this->dcaCallbacks?->copy('tl_faq_category', $newId, $sourceId);
 
             return [
                 'id'    => $newId,

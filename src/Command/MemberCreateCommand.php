@@ -34,7 +34,7 @@ use Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface;
  * The answer never contains the password or its hash.
  */
 #[AsCommand(name: 'contao:member:create', description: 'Create a front end member (password on stdin)')]
-class MemberCreateCommand extends AbstractWriteCommand
+class MemberCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     use MemberPassword;
 

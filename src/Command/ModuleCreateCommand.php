@@ -32,7 +32,7 @@ use Symfony\Component\Console\Input\InputOption;
  * someone meant is worse than saying which option is missing.
  */
 #[AsCommand(name: 'contao:module:create', description: 'Create a front end module under a theme')]
-class ModuleCreateCommand extends AbstractWriteCommand
+class ModuleCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(private readonly ContaoFramework $framework)
     {

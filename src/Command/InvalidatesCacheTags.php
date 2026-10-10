@@ -4,6 +4,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Symfony\Contracts\Service\Attribute\Required;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cache\CacheTagInvalidator;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 
 /**
  * Cache invalidation for a write command, and what it tells the caller.
@@ -26,6 +27,15 @@ trait InvalidatesCacheTags
         $this->cacheTags = $cacheTags;
     }
 
+    /** The record callbacks the write ran (v1.4.0); nullable like the invalidator. */
+    protected ?DcaCallbacks $dcaCallbacks = null;
+
+    #[Required]
+    public function setDcaCallbacks(DcaCallbacks $dcaCallbacks): void
+    {
+        $this->dcaCallbacks = $dcaCallbacks;
+    }
+
     /**
      * Adds `cacheTags` (what was invalidated) and — only when something went
      * wrong — `cacheWarnings` (why part of the cache may still be stale).
@@ -44,6 +54,12 @@ trait InvalidatesCacheTags
 
         if ([] !== ($report['warnings'] ?? [])) {
             $data['cacheWarnings'] = $report['warnings'];
+        }
+
+        // Which DCA callbacks ran — said, so a caller can see what the write set off
+        // besides itself (a notification mail, a search index entry removed).
+        if ([] !== ($callbacks = $this->dcaCallbacks?->drainReport() ?? [])) {
+            $data['callbacks'] = $callbacks;
         }
 
         return $data;

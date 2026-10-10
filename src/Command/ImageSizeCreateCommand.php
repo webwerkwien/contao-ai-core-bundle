@@ -27,7 +27,7 @@ use Symfony\Component\Console\Input\InputOption;
  * produces. `preserveMetadata` itself fills in from its SQL default.
  */
 #[AsCommand(name: 'contao:image-size:create', description: 'Create an image size under a theme')]
-class ImageSizeCreateCommand extends AbstractWriteCommand
+class ImageSizeCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(private readonly ContaoFramework $framework)
     {

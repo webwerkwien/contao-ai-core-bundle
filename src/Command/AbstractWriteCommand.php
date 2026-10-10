@@ -8,6 +8,7 @@ use Contao\CoreBundle\Monolog\ContaoContext;
 use Contao\StringUtil;
 use Contao\Validator;
 use Contao\Widget;
+use Doctrine\DBAL\Connection;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -56,6 +57,18 @@ abstract class AbstractWriteCommand extends Command
     public function setSystemLog(SystemLog $systemLog): void
     {
         $this->systemLog = $systemLog;
+    }
+
+    /**
+     * For the transaction around a create (CreatesRecord); nullable like the others,
+     * a hand-built command runs without one.
+     */
+    protected ?Connection $transactionConnection = null;
+
+    #[Required]
+    public function setTransactionConnection(Connection $connection): void
+    {
+        $this->transactionConnection = $connection;
     }
 
     /**
@@ -132,6 +145,16 @@ abstract class AbstractWriteCommand extends Command
         $this->output = $output;
 
         $fields = $this->parseSetOptions($input->getOption('set'));
+
+        // A create runs in one transaction: a refusing oncreate/onsubmit callback must
+        // not leave the record behind (v1.4.0). Only creates — an update of many
+        // records keeps the ones that succeeded, and an outer transaction would take
+        // them all down with the first refusal.
+        if ($this instanceof CreatesRecord && null !== $this->transactionConnection) {
+            $connection = $this->transactionConnection;
+
+            return $this->guarded($output, fn (): int => $connection->transactional(fn (): int => $this->doExecute($fields)));
+        }
 
         return $this->guarded($output, fn (): int => $this->doExecute($fields));
     }
@@ -212,6 +235,12 @@ abstract class AbstractWriteCommand extends Command
     protected function createVersion(string $table, int $id, bool $created = false): void
     {
         if ($created) {
+            // DC_Table runs oncreate after the INSERT and onsubmit when the mask is
+            // saved — for a record created complete, both now, before its first
+            // version (v1.4.0). Every create passes here once its record exists.
+            $this->dcaCallbacks?->create($table, $id);
+            $this->dcaCallbacks?->submit($table, $id);
+
             $earlier = $this->versionManager->createInitialVersion($table, $id, $this->resolveOperator());
 
             if ($earlier > 0) {

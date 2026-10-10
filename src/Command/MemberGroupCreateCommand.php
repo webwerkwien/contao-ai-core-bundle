@@ -31,7 +31,7 @@ use Symfony\Component\Console\Input\InputOption;
  * than guess at the shape now.
  */
 #[AsCommand(name: 'contao:member-group:create', description: 'Create a front end member group')]
-class MemberGroupCreateCommand extends AbstractWriteCommand
+class MemberGroupCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(private readonly ContaoFramework $framework)
     {

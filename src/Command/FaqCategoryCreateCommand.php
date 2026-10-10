@@ -29,7 +29,7 @@ use Symfony\Component\Console\Input\InputOption;
  * a public page.
  */
 #[AsCommand(name: 'contao:faq-category:create', description: 'Create an FAQ category')]
-class FaqCategoryCreateCommand extends AbstractWriteCommand
+class FaqCategoryCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(private readonly ContaoFramework $framework)
     {

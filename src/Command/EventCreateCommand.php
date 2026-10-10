@@ -11,7 +11,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Webwerkwien\ContaoAiCoreBundle\Service\Calendar\EventTimes;
 
 #[AsCommand(name: 'contao:event:create', description: 'Create a calendar event')]
-class EventCreateCommand extends AbstractWriteCommand
+class EventCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
     public function __construct(private readonly ContaoFramework $framework)
     {
