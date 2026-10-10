@@ -151,7 +151,7 @@ Every successful write leaves two traces.
 | `func` | the command name, e.g. `contao:page:update` |
 | `text` | command name plus the JSON payload the command returned |
 
-**A version snapshot (`tl_version`)** for the ten tables `VersionManager` covers, restorable
+**A version snapshot (`tl_version`)** for the 24 tables `VersionManager` covers, restorable
 with `contao:version:restore`, plus a `tl_undo` entry for deletions.
 
 Failed commands are not logged — a rejected `--set` changed nothing.

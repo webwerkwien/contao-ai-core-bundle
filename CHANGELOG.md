@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.3.1 - 2026-10-10
+
+### Fixed
+
+- **A typo in a `contao:ai:run` command line no longer lands in the log as CRITICAL.** Since
+  v1.3.0 it answers as a refusal, but it was refused only after `doRun()` had failed — and
+  Symfony's console error listener logs every failed command as `console.CRITICAL` first.
+  The line is now checked against the target's definition before anything runs. A target
+  that ignores validation errors on purpose still gets its line unchecked, as from the
+  console itself.
+
+### Documentation
+
+- The README named "the ten tables" `VersionManager` covers; it covers 24.
+
 ## v1.3.0 - 2026-10-10
 
 **A crash says it is one.** Nothing to change for existing callers: the new field is

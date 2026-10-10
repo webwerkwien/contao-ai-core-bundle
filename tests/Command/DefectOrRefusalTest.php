@@ -88,6 +88,11 @@ class DefectOrRefusalTest extends TestCase
      * Second pre-release review: a typo in the caller's command line reached the
      * boundary as Symfony's Console RuntimeException and was marked a defect.
      */
+    /**
+     * Second pre-release review: a typo in the caller's command line reached the
+     * boundary as a defect. v1.3.1: refused before anything runs, so Symfony's
+     * console error listener — which logs as CRITICAL — never sees it.
+     */
     public function testATypoInAnAiRunCommandLineIsARefusal(): void
     {
         $answer = $this->aiRun('contao:probe --idd=1');
@@ -95,6 +100,27 @@ class DefectOrRefusalTest extends TestCase
         $this->assertSame('error', $answer['status']);
         $this->assertStringContainsString('"--idd" option does not exist', $answer['message']);
         $this->assertArrayNotHasKey('exception', $answer);
+        $this->assertSame(0, $this->consoleErrors, 'no console error event, so no CRITICAL log line');
+        $this->assertFalse($this->targetRan);
+    }
+
+    public function testAMissingArgumentIsARefusalToo(): void
+    {
+        $answer = $this->aiRun('contao:probe-arg');
+
+        $this->assertStringContainsString('Not enough arguments', $answer['message']);
+        $this->assertSame(0, $this->consoleErrors);
+    }
+
+    /**
+     * Command::run() lets such a target take any option; ai:run must not be stricter
+     * than the console itself.
+     */
+    public function testATargetThatIgnoresValidationErrorsGetsItsLine(): void
+    {
+        $answer = $this->aiRun('contao:probe-lenient --anything=1');
+
+        $this->assertSame(['status' => 'ok'], $answer);
     }
 
     public function testACrashInsideTheTargetOfAiRunStaysADefect(): void
@@ -102,31 +128,83 @@ class DefectOrRefusalTest extends TestCase
         $answer = $this->aiRun('contao:probe --id=0');
 
         $this->assertSame('LogicException', $answer['exception']);
+        $this->assertTrue($this->targetRan);
     }
+
+    private int $consoleErrors = 0;
+
+    private bool $targetRan = false;
 
     private function aiRun(string $line): array
     {
-        $target = new class extends \Symfony\Component\Console\Command\Command {
+        $test   = $this;
+        $target = new class ($test) extends \Symfony\Component\Console\Command\Command {
+            public function __construct(private readonly DefectOrRefusalTest $test)
+            {
+                parent::__construct('contao:probe');
+            }
+
             protected function configure(): void
             {
-                $this->setName('contao:probe')->addOption('id', null, \Symfony\Component\Console\Input\InputOption::VALUE_REQUIRED);
+                $this->addOption('id', null, \Symfony\Component\Console\Input\InputOption::VALUE_REQUIRED);
             }
 
             protected function execute(\Symfony\Component\Console\Input\InputInterface $input, \Symfony\Component\Console\Output\OutputInterface $output): int
             {
+                $this->test->markTargetRan();
+
                 throw new \LogicException('a bug in the target');
             }
         };
 
+        $withArgument = new class extends \Symfony\Component\Console\Command\Command {
+            protected function configure(): void
+            {
+                $this->setName('contao:probe-arg')->addArgument('id', \Symfony\Component\Console\Input\InputArgument::REQUIRED);
+            }
+
+            protected function execute(\Symfony\Component\Console\Input\InputInterface $input, \Symfony\Component\Console\Output\OutputInterface $output): int
+            {
+                return self::SUCCESS;
+            }
+        };
+
+        $lenient = new class extends \Symfony\Component\Console\Command\Command {
+            protected function configure(): void
+            {
+                $this->setName('contao:probe-lenient')->ignoreValidationErrors();
+            }
+
+            protected function execute(\Symfony\Component\Console\Input\InputInterface $input, \Symfony\Component\Console\Output\OutputInterface $output): int
+            {
+                $output->writeln('{"status":"ok"}');
+
+                return self::SUCCESS;
+            }
+        };
+
+        $dispatcher = new \Symfony\Component\EventDispatcher\EventDispatcher();
+        $dispatcher->addListener(\Symfony\Component\Console\ConsoleEvents::ERROR, function (): void {
+            ++$this->consoleErrors;
+        });
+
         $application = new \Symfony\Component\Console\Application();
         $application->setAutoExit(false);
+        $application->setDispatcher($dispatcher);
         $application->add($target);
+        $application->add($withArgument);
+        $application->add($lenient);
         $application->add($command = new \Webwerkwien\ContaoAiCoreBundle\Command\AiRunCommand());
 
         $tester = new CommandTester($command);
         $tester->execute(['--command-line' => $line]);
 
         return json_decode(trim($tester->getDisplay()), true);
+    }
+
+    public function markTargetRan(): void
+    {
+        $this->targetRan = true;
     }
 
     public function testEachRecordOfABulkUpdateSaysWhichKindItsFailureWas(): void

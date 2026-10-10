@@ -115,6 +115,17 @@ class AiRunCommand extends AbstractReadCommand
             }
         }
 
+        // A command line that does not bind — an unknown option, a missing
+        // argument — is the caller's mistake, refused before anything runs
+        // (v1.3.1). Inside doRun() Symfony's console error listener would first
+        // log it as CRITICAL, and a typo is not a critical event. A target that
+        // ignores validation errors on purpose gets its line unchecked, as from
+        // the console itself.
+        $refusal = $this->bindingRefusal($application->find($name), $line);
+        if (null !== $refusal) {
+            return $this->outputError($refusal);
+        }
+
         // Before the run, on purpose — see the class docblock.
         $this->recordInvocation($line);
 
@@ -145,6 +156,32 @@ class AiRunCommand extends AbstractReadCommand
         }
 
         return Command::SUCCESS === $exitCode ? Command::SUCCESS : Command::FAILURE;
+    }
+
+    /**
+     * Why $line would not bind to $target, or null when it does (or the target
+     * ignores validation errors, which Command::run() honours as well).
+     */
+    private function bindingRefusal(Command $target, string $line): ?string
+    {
+        $real = $target instanceof LazyCommand ? $target->getCommand() : $target;
+
+        // Command keeps the flag private and offers no getter.
+        $ignores = \Closure::bind(static fn (Command $c): bool => $c->ignoreValidationErrors, null, Command::class);
+        if ($ignores($real)) {
+            return null;
+        }
+
+        try {
+            $real->mergeApplicationDefinition();
+            $input = new StringInput($line);
+            $input->bind($real->getDefinition());
+            $input->validate();
+        } catch (ConsoleRuntimeException $e) {
+            return $e->getMessage();
+        }
+
+        return null;
     }
 
     private function recordInvocation(string $line): void
