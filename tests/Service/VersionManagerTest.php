@@ -208,4 +208,34 @@ class VersionManagerTest extends TestCase
             $this->assertSame($cause, $e->getPrevious());
         }
     }
+
+    /**
+     * Consho refuses to bring back versions of its order tables with an
+     * `onrestore_version` callback (2026-10-10). That is a refusal, not a crash.
+     */
+    public function testARefusingCallbackStaysARefusal(): void
+    {
+        $cause    = new \InvalidArgumentException('Orders are not restored from versions.');
+        $versions = $this->createMock(Versions::class);
+        $versions->method('restore')->willThrowException($cause);
+
+        try {
+            $this->manager($this->restoringConnection(1), $versions)->restore('tl_article', 1, 3);
+            $this->fail('expected a refusal');
+        } catch (\Throwable $e) {
+            $this->assertSame(\InvalidArgumentException::class, $e::class);
+            $this->assertSame('Version 3 of tl_article:1 was not restored, nothing was changed: Orders are not restored from versions.', $e->getMessage());
+            $this->assertSame($cause, $e->getPrevious());
+        }
+    }
+
+    public function testASubclassOfInvalidArgumentExceptionIsStillADefect(): void
+    {
+        $versions = $this->createMock(Versions::class);
+        $versions->method('restore')->willThrowException(new class('broken') extends \InvalidArgumentException {});
+
+        $this->expectException(\RuntimeException::class);
+
+        $this->manager($this->restoringConnection(1), $versions)->restore('tl_article', 1, 3);
+    }
 }

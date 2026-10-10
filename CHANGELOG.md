@@ -23,6 +23,9 @@ API for extensions.
   column added since.
 - **Visible: restoring a version no longer moves a record back** to the parent and
   position it had then. It stays where it is, as in the back end.
+- **An `onrestore_version` callback can refuse a restore:** an exact
+  `\InvalidArgumentException` comes back as a refusal, everything else as an error. In
+  both cases the transaction is rolled back. Consho uses this for its order tables.
 - **Timing as `DC_Table::edit()`:** the state being replaced is kept if the record has no
   version yet, the new state is versioned after the save. The newest version is the
   current state; undoing a write means restoring the one before it.

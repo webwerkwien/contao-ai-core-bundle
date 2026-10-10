@@ -935,7 +935,9 @@ session", which `setUsername()` answers.
   the same method.
 - **Restore** keeps `id`, `pid`, `ptable` and `sorting`, honours `versionize` and `unique`,
   defaults columns added since and runs `onrestore_version` — inside a transaction; its
-  failure path (flash message, reload) cannot work on the console and is caught.
+  failure path (flash message, reload) cannot work on the console and is caught. An
+  exact `\InvalidArgumentException` from a callback stays a refusal (Consho's order
+  tables), anything else becomes a `\RuntimeException`; both roll back.
 - What stays ours: the `created` marker on the first version (`createInitialVersion()`
   overwrites Contao's description for it) and the refusal of versions of an earlier record.
 

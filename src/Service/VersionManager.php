@@ -199,7 +199,8 @@ class VersionManager
      * It also returns silently when it finds nothing to do. The callers check table and
      * version beforehand; the active flag afterwards proves that it really ran.
      *
-     * @throws \RuntimeException when the version was not restored
+     * @throws \InvalidArgumentException when an `onrestore_version` callback refused it
+     * @throws \RuntimeException         when the version was not restored for any other reason
      */
     public function restore(string $table, int $id, int $version): void
     {
@@ -217,11 +218,17 @@ class VersionManager
                 }
             });
         } catch (\Throwable $e) {
-            throw new \RuntimeException(
-                \sprintf('Version %d of %s:%d was not restored, nothing was changed: %s', $version, $table, $id, $e->getMessage()),
-                0,
-                $e,
-            );
+            $message = \sprintf('Version %d of %s:%d was not restored, nothing was changed: %s', $version, $table, $id, $e->getMessage());
+
+            // An exact \InvalidArgumentException from an `onrestore_version` callback is
+            // a refusal ("this version may not come back"), not a defect. It stays one,
+            // so the console answers without an error report. Subclasses are defects of
+            // whatever threw them, as everywhere else (JsonErrorBoundary::defectOf()).
+            if (\InvalidArgumentException::class === $e::class) {
+                throw new \InvalidArgumentException($message, 0, $e);
+            }
+
+            throw new \RuntimeException($message, 0, $e);
         }
     }
 
