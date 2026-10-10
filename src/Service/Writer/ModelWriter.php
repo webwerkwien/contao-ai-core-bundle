@@ -56,24 +56,40 @@ class ModelWriter implements RecordWriterInterface
             ? ($this->cacheTags?->collect($table, $id) ?? [])
             : [];
 
-        $class  = Model::getClassFromTable($table);
-        $record = $class::findById($id);
+        // Contao 5 throws for a table without a registered model rather than guess one.
+        $class = isset($GLOBALS['TL_MODELS'][$table]) ? Model::getClassFromTable($table) : null;
 
-        if (null === $record) {
-            return null;
+        // A table without a model — an extension's, through the public API (v1.4.0) —
+        // is written row by row, as DC_Table writes every table.
+        if (null === $class || !class_exists($class)) {
+            $old = $this->connection->fetchAssociative('SELECT * FROM ' . $this->connection->quoteIdentifier($table) . ' WHERE id = ?', [$id]);
+
+            if (false === $old) {
+                return null;
+            }
+
+            $this->refuseUnknownColumns($table, $fields);
+            $this->versionManager->initialize($table, $id);
+            $this->connection->update($table, $this->quoted(['tstamp' => time()] + $fields), ['id' => $id]);
+        } else {
+            $record = $class::findById($id);
+
+            if (null === $record) {
+                return null;
+            }
+
+            $old = $record->row();
+
+            foreach ($fields as $key => $value) {
+                $record->$key = $value;
+            }
+
+            // As DC_Table::edit(): the state being replaced is kept if the record has
+            // no version yet, the new state is versioned after the save (v1.4.0).
+            $this->versionManager->initialize($table, $id);
+            $record->tstamp = time();
+            $record->save();
         }
-
-        $old = $record->row();
-
-        foreach ($fields as $key => $value) {
-            $record->$key = $value;
-        }
-
-        // As DC_Table::edit(): the state being replaced is kept if the record has no
-        // version yet, the new state is versioned after the save (v1.4.0).
-        $this->versionManager->initialize($table, $id);
-        $record->tstamp = time();
-        $record->save();
 
         // The record callbacks the back end runs, in its order (v1.4.0): a new parent
         // is a cut (oncut), any other field a save of the mask (onsubmit) — both
@@ -100,9 +116,67 @@ class ModelWriter implements RecordWriterInterface
         return array_keys($fields);
     }
 
+    public function create(string $table, array $fields, string $operator): int
+    {
+        return $this->connection->transactional(function () use ($table, $fields, $operator): int {
+            $this->refuseUnknownColumns($table, $fields);
+
+            $this->connection->insert($table, $this->quoted(['tstamp' => time()] + $fields));
+            $id = (int) $this->connection->lastInsertId();
+
+            // As a create in the commands: oncreate and onsubmit before the first
+            // version, which is marked as the record's own (RecordIdReuseTest).
+            $this->callbacks?->create($table, $id);
+            $this->callbacks?->submit($table, $id);
+            $this->versionManager->createInitialVersion($table, $id, $operator);
+            $this->cacheTags?->recordChanged($table, $id);
+
+            return $id;
+        });
+    }
+
     public function delete(string $table, int $id, string $operator, int $undoUserId): array
     {
         return $this->connection->transactional(fn (): array => $this->doDelete($table, $id, $undoUserId));
+    }
+
+    /**
+     * A key that is no column would make the INSERT or UPDATE fail with an SQL error
+     * that names the column but not the reason; this names both.
+     *
+     * @param array<string, mixed> $fields
+     */
+    private function refuseUnknownColumns(string $table, array $fields): void
+    {
+        $columns = array_map(
+            static fn ($column): string => strtolower($column->getName()),
+            $this->connection->createSchemaManager()->listTableColumns($table),
+        );
+
+        $unknown = array_values(array_filter(
+            array_keys($fields),
+            static fn ($field): bool => !\in_array(strtolower((string) $field), $columns, true),
+        ));
+
+        if ([] !== $unknown) {
+            throw new \InvalidArgumentException(\sprintf('Not a column of %s: %s. Nothing was written.', $table, implode(', ', $unknown)));
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $fields
+     *
+     * @return array<string, mixed>
+     */
+    private function quoted(array $fields): array
+    {
+        $quoted = [];
+
+        foreach ($fields as $field => $value) {
+            $quoted[$this->connection->quoteIdentifier((string) $field)] = $value;
+        }
+
+        return $quoted;
     }
 
     /**

@@ -55,6 +55,12 @@ use Webwerkwien\ContaoAiCoreBundle\Service\CliUser;
  * well. An `\Error` is a defect and passes through unchanged. A callback that answers
  * with a response (a redirect) ends the event, as the redirect ends the request in the
  * back end; the write stands.
+ *
+ * Public API for extensions since v1.4.0: save() for the field callbacks before a
+ * write through RecordWriterInterface (which runs the record events itself), and the
+ * event methods for writes an extension makes on its own; drainReport() for what ran.
+ *
+ * @api
  */
 class DcaCallbacks
 {

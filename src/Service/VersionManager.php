@@ -32,6 +32,12 @@ use Webwerkwien\ContaoAiCoreBundle\Command\MissingBundleHint;
  *
  * What stays ours: the `created` marker on the first version of a record this bundle
  * created, and the refusal to restore a version of an earlier record with the same ID.
+ *
+ * Public API for extensions since v1.4.0, like RecordWriterInterface (which uses it):
+ * refusal(), initialize(), createVersion(), createInitialVersion(), restore(),
+ * latestVersion(), belongsToEarlierRecord(), loadVersionData().
+ *
+ * @api
  */
 class VersionManager
 {

@@ -27,9 +27,41 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Writer;
  * a page create takes, how an alias is derived, how an `inputUnit` is serialised —
  * that is per-entity knowledge and belongs in the command that owns the entity.
  * The writer persists what it is handed.
+ *
+ * ## Public API for extensions (v1.4.0)
+ *
+ * An extension's own `#[AiContract]` commands may write through this interface
+ * (autowire `RecordWriterInterface`) and get what the bundle's commands get: a version
+ * per write through Contao's Versions class, the record callbacks of the DCA run as
+ * DC_Table runs them, an undo entry with the cascade on delete, cache invalidation,
+ * one transaction per write. Decided with the maintainer on 2026-10-10; changes to
+ * these signatures need a major version.
+ *
+ * Values are handed over in their stored form. Field save_callbacks are the caller's
+ * to run first, through DcaCallbacks::save(), because which fields count as set on
+ * purpose is the caller's knowledge.
+ *
+ * @api
  */
 interface RecordWriterInterface
 {
+    /**
+     * Insert a record (v1.4.0).
+     *
+     * `tstamp` is set; a key that is no column is refused before anything is written.
+     * Then, as a create of the bundle's own commands: oncreate and onsubmit, the
+     * record's first version (marked as its own, so versions of an earlier record with
+     * the same ID are told apart), cache invalidation — one transaction, so a refusing
+     * callback leaves no record behind.
+     *
+     * @param array<string, mixed> $fields stored values, without `id`
+     *
+     * @return int the new record's ID
+     *
+     * @throws \InvalidArgumentException a key is not a column, or a callback refused
+     */
+    public function create(string $table, array $fields, string $operator): int;
+
     /**
      * Apply values to an existing record.
      *

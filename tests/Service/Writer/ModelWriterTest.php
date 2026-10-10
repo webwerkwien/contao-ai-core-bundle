@@ -38,6 +38,89 @@ class ModelWriterTest extends TestCase
     }
 
     /**
+     * @param list<string> $columns
+     */
+    private function connectionWithColumns(array $columns): Connection
+    {
+        $schema = $this->createMock(\Doctrine\DBAL\Schema\AbstractSchemaManager::class);
+        $schema->method('listTableColumns')->willReturn(array_map(
+            static fn (string $c): \Doctrine\DBAL\Schema\Column => new \Doctrine\DBAL\Schema\Column($c, new \Doctrine\DBAL\Types\StringType()),
+            $columns,
+        ));
+
+        $connection = $this->createMock(Connection::class);
+        $connection->method('createSchemaManager')->willReturn($schema);
+        $connection->method('quoteIdentifier')->willReturnCallback(static fn (string $n): string => '`' . $n . '`');
+        $connection->method('transactional')->willReturnCallback(static fn (callable $fn) => $fn());
+
+        return $connection;
+    }
+
+    /**
+     * The public API's create (v1.4.0): insert, oncreate, onsubmit, then the first
+     * version — the order of the bundle's own creates.
+     */
+    public function testCreateInsertsRunsTheCreateCallbacksThenTheFirstVersion(): void
+    {
+        $order      = [];
+        $connection = $this->connectionWithColumns(['id', 'tstamp', 'title']);
+        $connection->method('insert')->willReturnCallback(static function (string $table, array $row) use (&$order): int {
+            $order[] = 'insert ' . $table . ' ' . implode(',', array_keys($row));
+
+            return 1;
+        });
+        $connection->method('lastInsertId')->willReturn('42');
+
+        $callbacks = $this->createMock(DcaCallbacks::class);
+        $callbacks->method('create')->willReturnCallback(static function (string $t, int $id) use (&$order): void { $order[] = 'oncreate ' . $id; });
+        $callbacks->method('submit')->willReturnCallback(static function (string $t, int $id) use (&$order): void { $order[] = 'onsubmit ' . $id; });
+
+        $versions = $this->createMock(VersionManager::class);
+        $versions->method('createInitialVersion')->willReturnCallback(static function (string $t, int $id) use (&$order): int { $order[] = 'version ' . $id; return 0; });
+
+        $writer = new ModelWriter($connection, $versions, $this->createMock(RecordCascadeCollector::class), null, $callbacks);
+
+        $this->assertSame(42, $writer->create('tl_consho_shop', ['title' => 'Laden'], 'claude'));
+        $this->assertSame(['insert tl_consho_shop `tstamp`,`title`', 'oncreate 42', 'onsubmit 42', 'version 42'], $order);
+    }
+
+    public function testCreateRefusesAKeyThatIsNoColumnBeforeWriting(): void
+    {
+        $connection = $this->connectionWithColumns(['id', 'tstamp', 'title']);
+        $connection->expects($this->never())->method('insert');
+
+        $writer = new ModelWriter($connection, $this->createMock(VersionManager::class), $this->createMock(RecordCascadeCollector::class));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Not a column of tl_consho_shop: titel. Nothing was written.');
+
+        $writer->create('tl_consho_shop', ['titel' => 'Laden'], 'claude');
+    }
+
+    /**
+     * An extension's table has no Contao model; it is written row by row (v1.4.0).
+     */
+    public function testATableWithoutAModelIsUpdatedRowByRow(): void
+    {
+        $order      = [];
+        $connection = $this->connectionWithColumns(['id', 'tstamp', 'title']);
+        $connection->method('fetchAssociative')->willReturn(['id' => 3, 'title' => 'Alt']);
+        $connection->method('update')->willReturnCallback(static function (string $table, array $data, array $criteria) use (&$order): int {
+            $order[] = 'update ' . $table . ':' . $criteria['id'] . ' ' . implode(',', array_keys($data));
+
+            return 1;
+        });
+
+        $callbacks = $this->createMock(DcaCallbacks::class);
+        $callbacks->method('submit')->willReturnCallback(static function (string $t, int $id) use (&$order): void { $order[] = 'onsubmit ' . $id; });
+
+        $writer = new ModelWriter($connection, $this->createMock(VersionManager::class), $this->createMock(RecordCascadeCollector::class), null, $callbacks);
+
+        $this->assertSame(['title'], $writer->update('tl_contao_ai_no_model', 3, ['title' => 'Neu'], 'claude'));
+        $this->assertSame(['update tl_contao_ai_no_model:3 `tstamp`,`title`', 'onsubmit 3'], $order);
+    }
+
+    /**
      * DC_Table::delete(): ondelete for the record itself — not its children — after the
      * undo row, with that row's ID, and before anything is deleted (v1.4.0).
      */
