@@ -6,6 +6,7 @@ use Contao\CoreBundle\Exception\ResponseException;
 use Contao\CoreBundle\Session\Attribute\ArrayAttributeBag;
 use Contao\DataContainer;
 use Doctrine\DBAL\Connection;
+use Webwerkwien\ContaoAiCoreBundle\Service\CliUser;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Session\Session;
@@ -39,9 +40,9 @@ use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
  * the user's real session is used; on the console a throw-away one, with Contao's two
  * attribute bags. What a callback leaves in it is discarded.
  *
- * **A user is not.** Callbacks that need a back-end user (`generateArticleForPage`,
- * the 5.3 `adjustPermissions`) do nothing on the console, as they do nothing for an
- * anonymous request in Contao. In the chat they see the logged-in editor.
+ * **A user too.** Contao's callbacks assume one (`generateArticleForPage`, the record
+ * preview, the 5.3 `adjustPermissions`). On the console they see `contao-ai`, an admin
+ * that cannot log in (CliUser); in the chat the logged-in editor.
  *
  * **Failures.** A callback that throws an `\Exception` refuses the write: it comes
  * back as `\InvalidArgumentException` naming the callback, and the caller's
@@ -58,6 +59,7 @@ class DcaCallbacks
     public function __construct(
         private readonly Connection $connection,
         private readonly RequestStack $requestStack,
+        private readonly ?CliUser $cliUser = null,
     ) {
     }
 
@@ -192,7 +194,7 @@ class DcaCallbacks
         $request = $this->requestStack->getCurrentRequest();
 
         if (null !== $request && $request->hasSession()) {
-            return $work($request);
+            return $this->asUser(static fn () => $work($request));
         }
 
         $session = new Session(new MockArraySessionStorage());
@@ -211,10 +213,25 @@ class DcaCallbacks
         $this->requestStack->push($request);
 
         try {
-            return $work($request);
+            return $this->asUser(static fn () => $work($request));
         } finally {
             $this->requestStack->pop();
         }
+    }
+
+    /**
+     * On the console the callbacks see `contao-ai`; where someone is logged in, that
+     * someone (CliUser).
+     *
+     * @template T
+     *
+     * @param \Closure(): T $work
+     *
+     * @return T
+     */
+    private function asUser(\Closure $work): mixed
+    {
+        return null === $this->cliUser ? $work() : $this->cliUser->asCurrentUser($work);
     }
 
     private static function label(mixed $callback): string
