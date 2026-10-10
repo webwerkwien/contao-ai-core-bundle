@@ -6,11 +6,12 @@ use Contao\CoreBundle\Exception\ResponseException;
 use Contao\CoreBundle\Session\Attribute\ArrayAttributeBag;
 use Contao\DataContainer;
 use Doctrine\DBAL\Connection;
-use Webwerkwien\ContaoAiCoreBundle\Service\CliUser;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Webwerkwien\ContaoAiCoreBundle\Service\CliUser;
 
 /**
  * The record callbacks of a DCA, called where `DC_Table` calls them (v1.4.0).
@@ -60,6 +61,7 @@ class DcaCallbacks
         private readonly Connection $connection,
         private readonly RequestStack $requestStack,
         private readonly ?CliUser $cliUser = null,
+        private readonly ?TokenStorageInterface $tokens = null,
     ) {
     }
 
@@ -75,17 +77,15 @@ class DcaCallbacks
     {
         $set ??= $this->row($table, $id);
 
-        $real = (bool) $this->requestStack->getCurrentRequest()?->hasSession();
-
-        $this->withSession(function (Request $request) use ($table, $id, $set, $real): void {
+        $this->withSession(function (Request $request) use ($table, $id, $set): void {
             $bag = $request->getSession()->getBag('contao_backend');
 
-            // Only in a real session, the chat's, where a back-end user goes with it. The
-            // 5.3 adjustPermissions callbacks act on a record listed there and read the
-            // user's groups — on the console BackendUser::getInstance() is an empty user,
-            // and the query built from its groups was a syntax error (c5, 5.3,
+            // Only while a user is logged in — the editor in the chat, contao-ai on the
+            // console. The 5.3 adjustPermissions callbacks act on a record listed there
+            // and read the user's groups; for nobody, BackendUser::getInstance() is an
+            // empty user and the query built from its groups was a syntax error (c5, 5.3,
             // 2026-10-10). Unlisted, they return early, as for a record they never saw.
-            if ($real && $bag instanceof ArrayAttributeBag) {
+            if (null !== $this->tokens?->getToken() && $bag instanceof ArrayAttributeBag) {
                 $new = (array) $bag->get('new_records');
                 $new[$table][] = $id;
                 $bag->set('new_records', $new);

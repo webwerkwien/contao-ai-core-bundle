@@ -12,6 +12,9 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
+use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+use Symfony\Component\Security\Core\User\InMemoryUser;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 
 /**
@@ -22,6 +25,8 @@ class DcaCallbacksTest extends TestCase
 {
     private RequestStack $requests;
 
+    private TokenStorage $tokens;
+
     /** @var array<string, mixed>|null */
     private ?array $dca = null;
 
@@ -29,6 +34,7 @@ class DcaCallbacksTest extends TestCase
     {
         $this->dca      = $GLOBALS['TL_DCA'] ?? null;
         $this->requests = new RequestStack();
+        $this->tokens   = new TokenStorage();
     }
 
     protected function tearDown(): void
@@ -50,7 +56,7 @@ class DcaCallbacksTest extends TestCase
         $connection->method('quoteIdentifier')->willReturnCallback(static fn (string $n): string => '`' . $n . '`');
         $connection->method('fetchAssociative')->willReturn($row);
 
-        return new DcaCallbacks($connection, $this->requests);
+        return new DcaCallbacks($connection, $this->requests, null, $this->tokens);
     }
 
     /**
@@ -126,12 +132,28 @@ class DcaCallbacksTest extends TestCase
         $request = Request::create('/contao/ai');
         $request->setSession($session);
         $this->requests->push($request);
+        $this->tokens->setToken(new UsernamePasswordToken(new InMemoryUser('editor', null), 'contao_backend'));
 
         $this->callbacks()->create('tl_page', 7, ['id' => 7]);
         $this->callbacks()->create('tl_page', 8, ['id' => 8]);
 
         $this->assertSame(['tl_page' => [7, 8]], $bag->get('new_records'));
         $this->assertSame($request, $this->requests->getCurrentRequest());
+    }
+
+    public function testWithoutAUserNothingIsListedAsNew(): void
+    {
+        // The 5.3 adjustPermissions callbacks read the groups of the user of a listed
+        // record; for nobody that was a syntax error (c5, 5.3).
+        $requests = $this->requests;
+        $listed   = 'not read';
+        $this->on('oncreate_callback', [static function () use ($requests, &$listed): void {
+            $listed = $requests->getCurrentRequest()?->getSession()->getBag('contao_backend')->get('new_records');
+        }]);
+
+        $this->callbacks()->create('tl_page', 7, ['id' => 7]);
+
+        $this->assertNull($listed);
     }
 
     public function testAThrowingCallbackRefusesTheWriteAndNamesItself(): void
