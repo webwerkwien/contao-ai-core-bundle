@@ -19,7 +19,9 @@ additive, `code` and the exit stay 1.
   exactly that class, as every deliberate one in this bundle already was; anything else is
   marked, Symfony's own subclasses for programming errors included. The same
   holds for `contao:record:clone`, which catches what its cloner throws, and for each
-  entry in `errors` of a bulk update with `--ids`.
+  entry in `errors` of a bulk update with `--ids`. A `contao:ai:run` command line that
+  does not bind (an unknown option, a missing argument) is the caller's mistake and
+  answers as a refusal.
 
 ### Changed
 

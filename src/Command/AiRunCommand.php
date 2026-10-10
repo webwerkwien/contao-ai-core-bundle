@@ -6,6 +6,7 @@ use Contao\CoreBundle\Monolog\ContaoContext;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Command\LazyCommand;
+use Symfony\Component\Console\Exception\RuntimeException as ConsoleRuntimeException;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\StringInput;
@@ -131,7 +132,17 @@ class AiRunCommand extends AbstractReadCommand
         // The target writes to the same output. Its shape is its own: this
         // command promises to run it and to have said so, not to normalise what
         // it answers.
-        $exitCode = $application->doRun(new StringInput($line), $this->output);
+        //
+        // A command line that does not bind — an unknown option, a missing
+        // argument — is the caller's mistake: a refusal (v1.3.0), not a defect,
+        // which JsonErrorBoundary would mark it as. Only binding: Symfony throws
+        // its Console RuntimeException there; one of its InvalidArgumentException
+        // subclasses out of the target's own code stays a defect.
+        try {
+            $exitCode = $application->doRun(new StringInput($line), $this->output);
+        } catch (ConsoleRuntimeException $e) {
+            throw new \InvalidArgumentException($e->getMessage(), 0, $e);
+        }
 
         return Command::SUCCESS === $exitCode ? Command::SUCCESS : Command::FAILURE;
     }

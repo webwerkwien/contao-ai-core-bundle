@@ -84,6 +84,51 @@ class DefectOrRefusalTest extends TestCase
         $this->assertSame('InvalidArgumentException', $answer['exception']);
     }
 
+    /**
+     * Second pre-release review: a typo in the caller's command line reached the
+     * boundary as Symfony's Console RuntimeException and was marked a defect.
+     */
+    public function testATypoInAnAiRunCommandLineIsARefusal(): void
+    {
+        $answer = $this->aiRun('contao:probe --idd=1');
+
+        $this->assertSame('error', $answer['status']);
+        $this->assertStringContainsString('"--idd" option does not exist', $answer['message']);
+        $this->assertArrayNotHasKey('exception', $answer);
+    }
+
+    public function testACrashInsideTheTargetOfAiRunStaysADefect(): void
+    {
+        $answer = $this->aiRun('contao:probe --id=0');
+
+        $this->assertSame('LogicException', $answer['exception']);
+    }
+
+    private function aiRun(string $line): array
+    {
+        $target = new class extends \Symfony\Component\Console\Command\Command {
+            protected function configure(): void
+            {
+                $this->setName('contao:probe')->addOption('id', null, \Symfony\Component\Console\Input\InputOption::VALUE_REQUIRED);
+            }
+
+            protected function execute(\Symfony\Component\Console\Input\InputInterface $input, \Symfony\Component\Console\Output\OutputInterface $output): int
+            {
+                throw new \LogicException('a bug in the target');
+            }
+        };
+
+        $application = new \Symfony\Component\Console\Application();
+        $application->setAutoExit(false);
+        $application->add($target);
+        $application->add($command = new \Webwerkwien\ContaoAiCoreBundle\Command\AiRunCommand());
+
+        $tester = new CommandTester($command);
+        $tester->execute(['--command-line' => $line]);
+
+        return json_decode(trim($tester->getDisplay()), true);
+    }
+
     public function testEachRecordOfABulkUpdateSaysWhichKindItsFailureWas(): void
     {
         $command = new class ($this->createMock(ContaoFramework::class)) extends PageUpdateCommand {
