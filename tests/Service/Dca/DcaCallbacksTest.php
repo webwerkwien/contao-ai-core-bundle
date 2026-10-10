@@ -56,7 +56,7 @@ class DcaCallbacksTest extends TestCase
         $connection->method('quoteIdentifier')->willReturnCallback(static fn (string $n): string => '`' . $n . '`');
         $connection->method('fetchAssociative')->willReturn($row);
 
-        return new DcaCallbacks($connection, $this->requests, null, $this->tokens);
+        return new DcaCallbacks($connection, $this->requests, null, $this->tokens, static function (): void {});
     }
 
     /**

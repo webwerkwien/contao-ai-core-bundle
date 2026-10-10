@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Dca;
 use Contao\CoreBundle\Exception\ResponseException;
 use Contao\CoreBundle\Session\Attribute\ArrayAttributeBag;
 use Contao\DataContainer;
+use Contao\System;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -62,8 +63,15 @@ class DcaCallbacks
         private readonly RequestStack $requestStack,
         private readonly ?CliUser $cliUser = null,
         private readonly ?TokenStorageInterface $tokens = null,
+        ?\Closure $loadLanguageFile = null,
     ) {
+        $this->loadLanguageFile = $loadLanguageFile ?? static function (string $name): void {
+            System::loadLanguageFile($name);
+        };
     }
+
+    /** @var \Closure(string): void only replaced in tests */
+    private readonly \Closure $loadLanguageFile;
 
     /**
      * After a record was inserted. Registers it as new in the session, as
@@ -147,6 +155,12 @@ class DcaCallbacks
         if (!\is_array($callbacks) || [] === $callbacks) {
             return;
         }
+
+        // The labels the back end has loaded before DC_Table runs: `default` and the
+        // table's own. On the console nothing is loaded, and the record preview of a
+        // deleted page warned "Undefined array key selectNode" (c5, 6.0, 2026-10-10).
+        ($this->loadLanguageFile)('default');
+        ($this->loadLanguageFile)($table);
 
         $dc   = RecordDataContainer::create($table, $id, $row, $this->connection);
         $args = $arguments($dc);
