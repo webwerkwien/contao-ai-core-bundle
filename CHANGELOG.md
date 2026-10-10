@@ -11,9 +11,12 @@ This file was reconstructed from the git history on 2026-08-13, so entries befor
 - **A typo in a `contao:ai:run` command line no longer lands in the log as CRITICAL.** Since
   v1.3.0 it answers as a refusal, but it was refused only after `doRun()` had failed — and
   Symfony's console error listener logs every failed command as `console.CRITICAL` first.
-  The line is now checked against the target's definition before anything runs. A target
-  that ignores validation errors on purpose still gets its line unchecked, as from the
-  console itself.
+  The line is now checked against the target's definition before anything runs, the way
+  `Command::run()` checks it: a target that ignores validation errors still takes unknown
+  options, but not a missing required argument. Two side effects: a refused line no longer
+  leaves an "ai:run started" entry in the system log (it never started), and a target that
+  would have asked for a missing argument interactively is refused up front — over SSH
+  without input that prompt could not have been answered anyway.
 
 ### Documentation
 

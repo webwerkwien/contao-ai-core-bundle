@@ -86,10 +86,6 @@ class DefectOrRefusalTest extends TestCase
 
     /**
      * Second pre-release review: a typo in the caller's command line reached the
-     * boundary as Symfony's Console RuntimeException and was marked a defect.
-     */
-    /**
-     * Second pre-release review: a typo in the caller's command line reached the
      * boundary as a defect. v1.3.1: refused before anything runs, so Symfony's
      * console error listener — which logs as CRITICAL — never sees it.
      */
@@ -121,6 +117,29 @@ class DefectOrRefusalTest extends TestCase
         $answer = $this->aiRun('contao:probe-lenient --anything=1');
 
         $this->assertSame(['status' => 'ok'], $answer);
+    }
+
+    /**
+     * A container command comes back from find() as a LazyCommand, whose own flag
+     * is always false — the production path.
+     */
+    public function testALazyTargetThatIgnoresValidationErrorsGetsItsLineToo(): void
+    {
+        $answer = $this->aiRun('contao:probe-lazy --anything=1');
+
+        $this->assertSame(['status' => 'ok'], $answer);
+    }
+
+    /**
+     * ignoreValidationErrors() suppresses only the binding error; Command::run()
+     * still validates. A missing required argument is a refusal, not CRITICAL.
+     */
+    public function testALenientTargetStillNeedsItsRequiredArgument(): void
+    {
+        $answer = $this->aiRun('contao:probe-lenient-arg');
+
+        $this->assertStringContainsString('Not enough arguments', $answer['message']);
+        $this->assertSame(0, $this->consoleErrors);
     }
 
     public function testACrashInsideTheTargetOfAiRunStaysADefect(): void
@@ -194,6 +213,20 @@ class DefectOrRefusalTest extends TestCase
         $application->add($target);
         $application->add($withArgument);
         $application->add($lenient);
+        $application->add(new \Symfony\Component\Console\Command\LazyCommand('contao:probe-lazy', [], '', false, static fn () => (clone $lenient)->setName('contao:probe-lazy')));
+        $application->add((new class extends \Symfony\Component\Console\Command\Command {
+            protected function configure(): void
+            {
+                $this->setName('contao:probe-lenient-arg')
+                    ->addArgument('id', \Symfony\Component\Console\Input\InputArgument::REQUIRED)
+                    ->ignoreValidationErrors();
+            }
+
+            protected function execute(\Symfony\Component\Console\Input\InputInterface $input, \Symfony\Component\Console\Output\OutputInterface $output): int
+            {
+                return self::SUCCESS;
+            }
+        }));
         $application->add($command = new \Webwerkwien\ContaoAiCoreBundle\Command\AiRunCommand());
 
         $tester = new CommandTester($command);

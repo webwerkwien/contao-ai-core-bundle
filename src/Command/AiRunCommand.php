@@ -6,6 +6,7 @@ use Contao\CoreBundle\Monolog\ContaoContext;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Command\LazyCommand;
+use Symfony\Component\Console\Exception\ExceptionInterface as ConsoleExceptionInterface;
 use Symfony\Component\Console\Exception\RuntimeException as ConsoleRuntimeException;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -104,10 +105,11 @@ class AiRunCommand extends AbstractReadCommand
         // A declared #[AiContract] opens the door because that permission comes
         // from the *author*, which is the one thing a prefix cannot say. See
         // AiRunGuard for why the namespace alone was the wrong measure.
+        $target = $application->find($name);
+
         if (!AiRunGuard::isAllowed($name)) {
-            $command  = $application->find($name);
             $declared = null !== ContractReader::read(
-                $command instanceof LazyCommand ? $command->getCommand()::class : $command::class,
+                $target instanceof LazyCommand ? $target->getCommand()::class : $target::class,
             );
 
             if (!$declared) {
@@ -118,10 +120,9 @@ class AiRunCommand extends AbstractReadCommand
         // A command line that does not bind — an unknown option, a missing
         // argument — is the caller's mistake, refused before anything runs
         // (v1.3.1). Inside doRun() Symfony's console error listener would first
-        // log it as CRITICAL, and a typo is not a critical event. A target that
-        // ignores validation errors on purpose gets its line unchecked, as from
-        // the console itself.
-        $refusal = $this->bindingRefusal($application->find($name), $line);
+        // log it as CRITICAL, and a typo is not a critical event. The check
+        // mirrors Command::run(), including a target that ignores binding errors.
+        $refusal = $this->bindingRefusal($target, $line);
         if (null !== $refusal) {
             return $this->outputError($refusal);
         }
@@ -159,29 +160,51 @@ class AiRunCommand extends AbstractReadCommand
     }
 
     /**
-     * Why $line would not bind to $target, or null when it does (or the target
-     * ignores validation errors, which Command::run() honours as well).
+     * Why $line would not bind to $target, or null when Command::run() would take it.
+     *
+     * Mirrors run(): a binding error counts unless the target ignores validation
+     * errors — which suppresses only that one — and validate() runs either way
+     * (pre-release review 2026-10-10). Nothing foreign runs in here, so every
+     * Console exception is the line's fault.
+     * A LazyCommand is unwrapped: it is what find() returns for a container
+     * command, and its own flag is always false.
      */
     private function bindingRefusal(Command $target, string $line): ?string
     {
         $real = $target instanceof LazyCommand ? $target->getCommand() : $target;
 
-        // Command keeps the flag private and offers no getter.
-        $ignores = \Closure::bind(static fn (Command $c): bool => $c->ignoreValidationErrors, null, Command::class);
-        if ($ignores($real)) {
-            return null;
-        }
-
         try {
             $real->mergeApplicationDefinition();
             $input = new StringInput($line);
-            $input->bind($real->getDefinition());
+
+            try {
+                $input->bind($real->getDefinition());
+            } catch (ConsoleExceptionInterface $e) {
+                if (!self::ignoresValidationErrors($real)) {
+                    throw $e;
+                }
+            }
+
             $input->validate();
-        } catch (ConsoleRuntimeException $e) {
+        } catch (ConsoleExceptionInterface $e) {
             return $e->getMessage();
         }
 
         return null;
+    }
+
+    /**
+     * Command keeps the flag private and offers no getter; Symfony's own
+     * TraceableCommand reads it the same way. Should the property ever go, this
+     * answers false — the strict check v1.3.0 had.
+     */
+    private static function ignoresValidationErrors(Command $command): bool
+    {
+        if (!property_exists(Command::class, 'ignoreValidationErrors')) {
+            return false;
+        }
+
+        return (bool) \Closure::bind(static fn (Command $c): mixed => $c->ignoreValidationErrors, null, Command::class)($command);
     }
 
     private function recordInvocation(string $line): void
