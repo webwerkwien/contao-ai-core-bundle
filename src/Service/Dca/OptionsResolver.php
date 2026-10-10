@@ -77,6 +77,15 @@ class OptionsResolver
         }
 
         try {
+            // The labels the back end has loaded before it builds a widget's options.
+            // changelanguage's master options format theirs from tl_news_archive's
+            // language file, and sprintf() got null on the console (c5, 5.3,
+            // 2026-10-10). Without a booted kernel (unit tests) there is nothing to load.
+            if (null !== System::getContainer()) {
+                System::loadLanguageFile('default');
+                System::loadLanguageFile($table);
+            }
+
             $dc     = RecordDataContainer::create($table, $id, $activeRecord);
             $result = \is_array($callback)
                 ? System::importStatic($callback[0])->{$callback[1]}($dc)
