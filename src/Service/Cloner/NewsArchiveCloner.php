@@ -53,7 +53,7 @@ class NewsArchiveCloner implements EntityClonerInterface
 
         $source = NewsArchiveModel::findById($sourceId);
         if (null === $source) {
-            throw new \RuntimeException(\sprintf('News-Archiv %d nicht gefunden.', $sourceId));
+            throw new \InvalidArgumentException(\sprintf('News-Archiv %d nicht gefunden.', $sourceId));
         }
 
         ['accepted' => $filteredMods, 'ignored' => $ignoredMods] = $this->partitionModifications(

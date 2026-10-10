@@ -47,7 +47,7 @@ class FaqCategoryCloner implements EntityClonerInterface
 
         $source = FaqCategoryModel::findById($sourceId);
         if (null === $source) {
-            throw new \RuntimeException(\sprintf('FAQ-Kategorie %d nicht gefunden.', $sourceId));
+            throw new \InvalidArgumentException(\sprintf('FAQ-Kategorie %d nicht gefunden.', $sourceId));
         }
 
         ['accepted' => $filteredMods, 'ignored' => $ignoredMods] = $this->partitionModifications(

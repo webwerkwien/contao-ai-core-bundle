@@ -33,7 +33,8 @@ interface EntityClonerInterface
      *   caller can distinguish an applied override from a discarded one. Before 2026-08-29 refused keys vanished
      *   silently, which is how two pages meant to stay unpublished went live.
      *
-     * @throws \RuntimeException on missing source, transaction failure, or DCA violation
+     * @throws \InvalidArgumentException on a missing source or a page tree rule (refusals)
+     * @throws \RuntimeException         on a transaction failure
      */
     public function clone(int $sourceId, array $modifications, string $operator, array $options = []): array;
 }

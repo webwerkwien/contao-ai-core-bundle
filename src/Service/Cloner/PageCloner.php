@@ -112,7 +112,7 @@ class PageCloner implements EntityClonerInterface
 
         $source = PageModel::findById($sourceId);
         if (null === $source) {
-            throw new \RuntimeException(\sprintf('Page %d nicht gefunden.', $sourceId));
+            throw new \InvalidArgumentException(\sprintf('Page %d nicht gefunden.', $sourceId));
         }
 
         $isRoot = 'root' === $source->type;

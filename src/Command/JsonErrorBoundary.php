@@ -44,6 +44,20 @@ use Symfony\Component\Console\Output\OutputInterface;
  * `DriverException: An exception occurred while executing a query: …` rather
  * than the message alone. The class name is the one piece that says which
  * *layer* failed, and it is free.
+ *
+ * ## A defect says so: `exception` (v1.3.0)
+ *
+ * The boundary catches two different things: a refusal the bundle throws on
+ * purpose ("a website root belongs at the top level") and a defect nobody
+ * planned for (DBAL, a TypeError). Both answered alike, so a caller had to treat
+ * a refusal like a crash or a crash like a refusal — the chat of the backend
+ * bundle showed both as a refusal and never offered a bug report.
+ *
+ * The convention this rests on: **refusals are `\InvalidArgumentException`.**
+ * Every deliberate one in this bundle is; the clone sources that are not found
+ * were `\RuntimeException` until v1.3.0 and were changed to match. Anything else
+ * gets `"exception": "<ShortClassName>"` added. `code` and the exit stay 1 —
+ * one answer to "did it work", and a field nobody reads breaks nobody.
  */
 trait JsonErrorBoundary
 {
@@ -62,17 +76,30 @@ trait JsonErrorBoundary
                 throw $e;
             }
 
-            $output->writeln(json_encode([
+            $answer = [
                 'status'  => 'error',
-                'message' => \sprintf(
-                    '%s: %s',
-                    (new \ReflectionClass($e))->getShortName(),
-                    $e->getMessage(),
-                ),
+                'message' => \sprintf('%s: %s', (new \ReflectionClass($e))->getShortName(), $e->getMessage()),
                 'code'    => 1,
-            ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
+            ] + self::defectOf($e);
+
+            $output->writeln(json_encode($answer, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
 
             return Command::FAILURE;
         }
+    }
+
+    /**
+     * `['exception' => <ShortClassName>]` for a defect, `[]` for a refusal.
+     *
+     * A refusal is thrown as \InvalidArgumentException throughout this bundle (the
+     * page tree rules, input checks, a missing clone source). Shared with the two
+     * places that catch \Throwable themselves and answer for it: a clone, and each
+     * record of a bulk update.
+     *
+     * @return array{exception?: string}
+     */
+    protected static function defectOf(\Throwable $e): array
+    {
+        return $e instanceof \InvalidArgumentException ? [] : ['exception' => (new \ReflectionClass($e))->getShortName()];
     }
 }

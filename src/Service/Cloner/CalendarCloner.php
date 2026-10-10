@@ -43,7 +43,7 @@ class CalendarCloner implements EntityClonerInterface
 
         $source = CalendarModel::findById($sourceId);
         if (null === $source) {
-            throw new \RuntimeException(\sprintf('Calendar %d nicht gefunden.', $sourceId));
+            throw new \InvalidArgumentException(\sprintf('Calendar %d nicht gefunden.', $sourceId));
         }
 
         ['accepted' => $filteredMods, 'ignored' => $ignoredMods] = $this->partitionModifications(

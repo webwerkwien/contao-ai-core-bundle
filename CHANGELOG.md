@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.3.0 - 2026-10-10
+
+**A crash says it is one.** Nothing to change for existing callers: the new field is
+additive, `code` and the exit stay 1.
+
+### Added
+
+- **`exception` in an error answer that comes from a defect** — `"exception":
+  "DriverException"` next to `message`. `JsonErrorBoundary` caught refusals and crashes
+  alike and answered both the same way, so a caller could not tell "a website root belongs
+  at the top level" from a failed query; the chat of contao-ai-backend-bundle showed both as
+  a refusal and never offered a bug report. A refusal is an `\InvalidArgumentException`,
+  as every deliberate one in this bundle already was; anything else is marked. The same
+  holds for `contao:record:clone`, which catches what its cloner throws, and for each
+  entry in `errors` of a bulk update with `--ids`.
+
+### Changed
+
+- **A clone source that is not found is a refusal** (`\InvalidArgumentException` instead of
+  `\RuntimeException`) in the page, news archive, calendar and FAQ category cloners and in
+  the shared row copier. The message is unchanged.
+
 ## v1.2.0 - 2026-10-09
 
 **Moving pages, articles and content elements — and the page tree keeps Contao's

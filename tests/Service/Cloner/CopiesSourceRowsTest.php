@@ -75,7 +75,8 @@ class CopiesSourceRowsTest extends TestCase
         );
         $connection->method('fetchAssociative')->willReturn(false);
 
-        $this->expectException(\RuntimeException::class);
+        // A refusal, not a defect: JsonErrorBoundary::defectOf() tells them apart by this (v1.3.0).
+        $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('tl_page');
 
         $this->subject($connection)->readRow('tl_page', 4711);

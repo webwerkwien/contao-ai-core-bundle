@@ -105,7 +105,7 @@ class RecordCloneCommand extends Command
             try {
                 $result = $cloner->clone($sourceId, $modifications, $operator, $clonerOptions);
             } catch (\Throwable $e) {
-                return $this->error($output, $e->getMessage());
+                return $this->error($output, $e->getMessage(), self::defectOf($e));
             }
 
             // A clone is a finished record in one step; the back end only gets
@@ -135,10 +135,13 @@ class RecordCloneCommand extends Command
         );
     }
 
-    private function error(OutputInterface $output, string $message): int
+    /**
+     * @param array{exception?: string} $defect
+     */
+    private function error(OutputInterface $output, string $message, array $defect = []): int
     {
         $output->writeln(json_encode(
-            ['status' => 'error', 'message' => $message],
+            ['status' => 'error', 'message' => $message] + $defect,
             JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE
         ));
         return Command::FAILURE;

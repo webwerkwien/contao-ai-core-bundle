@@ -142,7 +142,7 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
             try {
                 $updated = $this->applyToRecord($id, $fields);
             } catch (\Throwable $e) {
-                $failed[] = ['id' => $id, 'message' => $e->getMessage()];
+                $failed[] = ['id' => $id, 'message' => $e->getMessage()] + self::defectOf($e);
                 continue;
             }
 

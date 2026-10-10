@@ -44,7 +44,7 @@ trait CopiesSourceRows
      *
      * @return array<string, mixed> The row exactly as stored
      *
-     * @throws \RuntimeException when the record no longer exists
+     * @throws \InvalidArgumentException when the record no longer exists (a refusal, see JsonErrorBoundary)
      */
     protected function fetchSourceRow(string $table, int $id): array
     {
@@ -54,7 +54,7 @@ trait CopiesSourceRows
         );
 
         if (!\is_array($row)) {
-            throw new \RuntimeException(\sprintf('Datensatz %d in %s nicht gefunden.', $id, $table));
+            throw new \InvalidArgumentException(\sprintf('Datensatz %d in %s nicht gefunden.', $id, $table));
         }
 
         return $row;

@@ -74,6 +74,39 @@ class JsonErrorBoundaryTest extends TestCase
     }
 
     /**
+     * v1.3.0: a defect says so. The chat of the backend bundle showed a crash as a
+     * refusal and never offered a bug report, because both answered alike.
+     */
+    public function testADefectNamesItsException(): void
+    {
+        $output = new BufferedOutput();
+        $code   = $this->subject()->run($output, function (): int {
+            throw new \TypeError('Argument #1 must be of type int, string given');
+        });
+
+        $decoded = json_decode(trim($output->fetch()), true);
+        $this->assertSame('TypeError', $decoded['exception']);
+        $this->assertSame(1, $decoded['code'], 'code and exit stay 1');
+        $this->assertSame(1, $code);
+    }
+
+    /**
+     * Refusals are \InvalidArgumentException throughout the bundle (page tree
+     * rules, input checks, a missing clone source) — they carry no `exception`.
+     */
+    public function testARefusalCarriesNoException(): void
+    {
+        $output = new BufferedOutput();
+        $this->subject()->run($output, function (): int {
+            throw new \InvalidArgumentException('A website root belongs at the top level.');
+        });
+
+        $decoded = json_decode(trim($output->fetch()), true);
+        $this->assertArrayNotHasKey('exception', $decoded);
+        $this->assertSame('InvalidArgumentException: A website root belongs at the top level.', $decoded['message'], 'the message is unchanged');
+    }
+
+    /**
      * Exit 1, not 255 — the same code as every other error here. The exit code
      * answers "did it work"; telling a database error from a usage error is what
      * the message is for.
