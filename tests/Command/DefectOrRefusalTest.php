@@ -50,6 +50,40 @@ class DefectOrRefusalTest extends TestCase
         $this->assertSame('RuntimeException', $answer['exception']);
     }
 
+    /**
+     * Pre-release review 2026-10-10: only the row copier had a test. Turning a cloner
+     * back to \RuntimeException left the whole suite green — and "Page 9 nicht
+     * gefunden" would reach the chat as a crash with a bug report.
+     */
+    public function testEveryCloneSourceNotFoundIsThrownAsARefusal(): void
+    {
+        $found = [];
+        foreach (glob(__DIR__ . '/../../src/Service/Cloner/*.php') ?: [] as $file) {
+            preg_match_all('/throw new \\\\(\w+)\(\\\\sprintf\(\'([^\']*)\'/', (string) file_get_contents($file), $m, PREG_SET_ORDER);
+            foreach ($m as [, $class, $message]) {
+                $found[basename($file) . ': ' . $message] = $class;
+            }
+        }
+
+        $notFound = array_filter($found, static fn (string $key): bool => str_contains($key, 'nicht gefunden'), ARRAY_FILTER_USE_KEY);
+        $this->assertCount(5, $notFound, 'the five clone sources the scan has to see');
+        $this->assertSame(array_fill_keys(array_keys($notFound), 'InvalidArgumentException'), $notFound);
+
+        // The known non-match: a page that vanishes inside the clone is a defect.
+        $this->assertSame('RuntimeException', $found['PageCloner.php: Cloned page %d vanished before its alias could be saved.'] ?? null);
+    }
+
+    /**
+     * Symfony extends \InvalidArgumentException for programming errors — an option
+     * name with a typo, a missing service. Those are defects, not refusals.
+     */
+    public function testAFrameworkSubclassOfInvalidArgumentExceptionIsADefect(): void
+    {
+        $answer = $this->clone(new \Symfony\Component\Console\Exception\InvalidArgumentException('The "tippfehler" option does not exist.'));
+
+        $this->assertSame('InvalidArgumentException', $answer['exception']);
+    }
+
     public function testEachRecordOfABulkUpdateSaysWhichKindItsFailureWas(): void
     {
         $command = new class ($this->createMock(ContaoFramework::class)) extends PageUpdateCommand {

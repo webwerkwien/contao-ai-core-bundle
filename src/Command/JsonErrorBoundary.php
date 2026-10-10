@@ -92,14 +92,18 @@ trait JsonErrorBoundary
      * `['exception' => <ShortClassName>]` for a defect, `[]` for a refusal.
      *
      * A refusal is thrown as \InvalidArgumentException throughout this bundle (the
-     * page tree rules, input checks, a missing clone source). Shared with the two
-     * places that catch \Throwable themselves and answer for it: a clone, and each
-     * record of a bulk update.
+     * page tree rules, input checks, a missing clone source). Shared with a clone
+     * and with each record of a bulk update, which catch \Throwable themselves and
+     * answer with the exception's own message.
+     *
+     * Exactly that class, not its subclasses: Symfony's Console, DependencyInjection
+     * and Finder extend it for programming errors (an option name with a typo, a
+     * missing service), and those are defects (pre-release review 2026-10-10).
      *
      * @return array{exception?: string}
      */
     protected static function defectOf(\Throwable $e): array
     {
-        return $e instanceof \InvalidArgumentException ? [] : ['exception' => (new \ReflectionClass($e))->getShortName()];
+        return \InvalidArgumentException::class === $e::class ? [] : ['exception' => (new \ReflectionClass($e))->getShortName()];
     }
 }

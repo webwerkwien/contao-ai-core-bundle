@@ -15,8 +15,9 @@ additive, `code` and the exit stay 1.
   "DriverException"` next to `message`. `JsonErrorBoundary` caught refusals and crashes
   alike and answered both the same way, so a caller could not tell "a website root belongs
   at the top level" from a failed query; the chat of contao-ai-backend-bundle showed both as
-  a refusal and never offered a bug report. A refusal is an `\InvalidArgumentException`,
-  as every deliberate one in this bundle already was; anything else is marked. The same
+  a refusal and never offered a bug report. A refusal is an `\InvalidArgumentException` —
+  exactly that class, as every deliberate one in this bundle already was; anything else is
+  marked, Symfony's own subclasses for programming errors included. The same
   holds for `contao:record:clone`, which catches what its cloner throws, and for each
   entry in `errors` of a bulk update with `--ids`.
 

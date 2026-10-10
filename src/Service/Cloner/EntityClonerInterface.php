@@ -34,7 +34,7 @@ interface EntityClonerInterface
      *   silently, which is how two pages meant to stay unpublished went live.
      *
      * @throws \InvalidArgumentException on a missing source or a page tree rule (refusals)
-     * @throws \RuntimeException         on a transaction failure
+     * @throws \RuntimeException|\Doctrine\DBAL\Exception on a failed write inside the transaction (defects)
      */
     public function clone(int $sourceId, array $modifications, string $operator, array $options = []): array;
 }

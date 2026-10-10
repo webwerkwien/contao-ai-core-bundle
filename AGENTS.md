@@ -77,15 +77,19 @@ touching the implementation. Do not edit test files while making the fix.
   translating command output.)
 - Every scanning test needs a counter and at least one known non-match. A search
   that finds nothing passes exactly like one that finds everything.
-- **A refusal is thrown as `\InvalidArgumentException`** — a page tree rule, an input
-  check, a record that is not there. Every other exception counts as a defect: where it
-  is caught and answered (`JsonErrorBoundary`, a clone, each record of a bulk update), the
-  answer carries `"exception": "<ShortClassName>"` next to `message`, `code` and the exit
-  staying 1 (v1.3.0). The backend bundle turns that field into a bug report instead of
-  showing the crash as a refusal. So throw a new refusal as `\InvalidArgumentException`,
-  or it reads as a crash; `JsonErrorBoundary::defectOf()` is the one place that decides.
-  Answers that explain a partial success themselves ("deleted, but tl_files could not be
-  updated — run contao:filesync") stay without the field.
+- **A refusal is thrown as `\InvalidArgumentException`** — exactly that class, not a
+  subclass — for a page tree rule, an input check, a record that is not there. Every
+  other exception counts as a defect, Symfony's own `InvalidArgumentException` subclasses
+  (Console, DependencyInjection, Finder) included: they mean a programming error. Where
+  an exception is caught and answered with its own message (`JsonErrorBoundary`, a clone,
+  each record of a bulk update), the answer carries `"exception": "<ShortClassName>"`
+  next to `message`, `code` and the exit staying 1 (v1.3.0). The backend bundle turns that
+  field into a bug report, the CLI too. So throw a new refusal as
+  `\InvalidArgumentException`, or it reads as a crash; `JsonErrorBoundary::defectOf()` is
+  the one place that decides. Commands that catch a failure and explain it in their own
+  words stay without the field — a partial success ("deleted, but tl_files could not be
+  updated — run contao:filesync") as well as `undo:restore`, `dca:palette` and
+  `news:repair-headlines`.
 
 ## What `--set` refuses
 
