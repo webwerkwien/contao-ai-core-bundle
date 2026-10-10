@@ -414,8 +414,29 @@ abstract class AbstractWriteCommand extends Command
 
         // Last on purpose: the three above leave empty values alone, and this
         // one turns them into something that is no longer the empty string.
-        return $this->convertEmptyValues($table, $fields);
+        $fields = $this->convertEmptyValues($table, $fields);
+
+        // The fields' save_callbacks, on the values as they will be stored — where
+        // DC_Table::save() runs them (v1.4.0). A new record has no ID yet; Contao's
+        // own create-time helpers (ContaoAlias) treat it the same way.
+        return null === $this->dcaCallbacks
+            ? $fields
+            : $this->dcaCallbacks->save($table, (int) $excludeId, $fields, $this->storedRow($table, $excludeId), self::OWN_SAVE_PATHS[$table] ?? []);
     }
+
+    /**
+     * Fields whose save_callbacks run on a path of their own and must not run twice:
+     * the password is hashed and its callbacks called by MemberPassword (tl_user takes
+     * no password through --set at all), the page alias belongs to PageUrlGuard, which
+     * also reports route conflicts.
+     *
+     * @var array<string, list<string>>
+     */
+    private const OWN_SAVE_PATHS = [
+        'tl_member' => ['password'],
+        'tl_user'   => ['password'],
+        'tl_page'   => ['alias'],
+    ];
 
     /**
      * Refuse a `--set` field that is not a column of this table.

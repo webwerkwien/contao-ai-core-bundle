@@ -43,4 +43,23 @@ final class CallbackInvoker
 
         return false;
     }
+
+    /**
+     * A callback whose return value is the result — a save_callback returns the value
+     * to store. An entry that is neither form hands $passThrough back unchanged.
+     *
+     * @param list<mixed> $arguments
+     */
+    public static function call(mixed $callback, array $arguments, mixed $passThrough): mixed
+    {
+        if (\is_array($callback)) {
+            return System::importStatic($callback[0])->{$callback[1]}(...$arguments);
+        }
+
+        if (\is_callable($callback)) {
+            return $callback(...$arguments);
+        }
+
+        return $passThrough;
+    }
 }

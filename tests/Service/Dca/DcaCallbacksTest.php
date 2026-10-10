@@ -257,6 +257,59 @@ class DcaCallbacksTest extends TestCase
         $this->assertSame([], $callbacks->drainReport());
     }
 
+    public function testSaveCallbacksRunAsDcTableSaveRunsThem(): void
+    {
+        $seen = [];
+        $GLOBALS['TL_DCA']['tl_content']['fields'] = [
+            // DCA order, not the order of the given fields.
+            'youtube' => ['save_callback' => [static function ($value, DataContainer $dc) use (&$seen) {
+                $seen[] = ['youtube', $dc->field, $dc->inputName, $dc->getActiveRecord()['type']];
+
+                return 'dQw4w9WgXcQ';
+            }]],
+            'type'    => ['save_callback' => [static function ($value, DataContainer $dc) use (&$seen) {
+                // The previous field is saved in the active record object already, as
+                // DC_Table::save() keeps it (the deprecated `$dc->activeRecord`).
+                $active = (fn () => $this->objActiveRecord)->call($dc);
+                $seen[] = ['type', $dc->field, $active->youtube];
+
+                return $value;
+            }]],
+            'headline' => [],
+        ];
+
+        $fields = $this->callbacks()->save('tl_content', 12, ['type' => 'youtube', 'youtube' => 'https://youtu.be/dQw4w9WgXcQ', 'headline' => 'x'], ['id' => 12, 'type' => 'text']);
+
+        $this->assertSame(['type' => 'youtube', 'youtube' => 'dQw4w9WgXcQ', 'headline' => 'x'], $fields);
+        $this->assertSame([['youtube', 'youtube', 'youtube', 'youtube'], ['type', 'type', 'dQw4w9WgXcQ']], $seen);
+    }
+
+    public function testASaveCallbackThatThrowsRefusesWithItsOwnMessage(): void
+    {
+        $GLOBALS['TL_DCA']['tl_page']['fields']['fallback']['save_callback'] = [static function (): void {
+            throw new \Exception('Es darf nur eine Fallback-Seite pro Domain geben.');
+        }];
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('tl_page.fallback refused by closure in ' . self::class . ': Es darf nur eine Fallback-Seite pro Domain geben. Nothing was written.');
+
+        $this->callbacks()->save('tl_page', 0, ['fallback' => '1'], []);
+    }
+
+    public function testFieldsOnTheirOwnPathAreSkippedAndUntouchedFieldsToo(): void
+    {
+        $ran = [];
+        $GLOBALS['TL_DCA']['tl_page']['fields'] = [
+            'alias' => ['save_callback' => [static function ($v) use (&$ran) { $ran[] = 'alias'; return $v; }]],
+            'dns'   => ['save_callback' => [static function ($v) use (&$ran) { $ran[] = 'dns'; return $v; }]],
+        ];
+
+        $callbacks = $this->callbacks();
+        $this->assertSame(['alias' => 'neu'], $callbacks->save('tl_page', 7, ['alias' => 'neu'], [], ['alias']));
+        $this->assertSame([], $ran);
+        $this->assertSame([], $callbacks->drainReport());
+    }
+
     public function testWithoutCallbacksNothingRunsAndNoSessionIsMade(): void
     {
         $GLOBALS['TL_DCA']['tl_page']['config'] = [];

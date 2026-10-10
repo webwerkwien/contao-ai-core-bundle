@@ -47,6 +47,20 @@ class DcaCallbacksWiringTest extends TestCase
         $this->assertTrue($create < $submit && $submit < $version, 'oncreate, then onsubmit, then the first version');
     }
 
+    public function testTheFieldsOfEveryCreateAndUpdatePassTheirSaveCallbacksLast(): void
+    {
+        $source = (string) file_get_contents(self::SRC . 'Command/AbstractWriteCommand.php');
+        $start  = (int) strpos($source, 'protected function convertFields(');
+        $end    = (int) strpos($source, "\n    }\n", $start);
+        $body   = substr($source, $start, $end - $start);
+
+        $empty = strpos($body, 'convertEmptyValues(');
+        $save  = strpos($body, '->save($table');
+
+        $this->assertNotFalse($save, 'convertFields() must run the save_callbacks');
+        $this->assertTrue($empty < $save, 'on the values as they will be stored, after every conversion');
+    }
+
     public function testEveryClonerCallsOncopyForEveryTableItCopies(): void
     {
         foreach (glob(self::SRC . 'Service/Cloner/*.php') as $file) {

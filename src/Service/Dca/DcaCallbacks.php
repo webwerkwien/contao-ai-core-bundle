@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Dca;
 use Contao\CoreBundle\Exception\ResponseException;
 use Contao\CoreBundle\Session\Attribute\ArrayAttributeBag;
 use Contao\DataContainer;
+use Contao\StringUtil;
 use Contao\System;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\HttpFoundation\Request;
@@ -132,6 +133,85 @@ class DcaCallbacks
     public function delete(string $table, int $id, array $row, int $undoId): void
     {
         $this->withSession(fn () => $this->run($table, 'ondelete_callback', $id, $row, static fn (DataContainer $dc): array => [$dc, $undoId]));
+    }
+
+    /**
+     * The save_callbacks of the fields about to be written, as `DC_Table::save()` runs
+     * them (v1.4.0): field by field in DCA order, with `($value, $dc)`, the returned
+     * value replacing the given one, and the data container's `field`, `inputName` and
+     * active record set as the back end sets them — the active record takes each saved
+     * value before the next field.
+     *
+     * The values arrive in their stored form (timestamps, serialized lists), which is
+     * what DC_Table hands its callbacks too. A callback that throws refuses the write
+     * with its own message, as the mask shows it under the field. Fields in $skip are
+     * left alone: their callbacks already run on their own path (the password hash, the
+     * page alias).
+     *
+     * @param array<string, mixed> $fields the values to write
+     * @param array<string, mixed> $record the stored record, empty for a new one
+     * @param list<string>         $skip
+     *
+     * @return array<string, mixed> the values to write after the callbacks
+     */
+    public function save(string $table, int $id, array $fields, array $record, array $skip = []): array
+    {
+        $definitions = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
+        $withCallbacks = array_filter(
+            array_keys($definitions),
+            static fn (string $field): bool => \array_key_exists($field, $fields)
+                && !\in_array($field, $skip, true)
+                && \is_array($definitions[$field]['save_callback'] ?? null)
+                && [] !== $definitions[$field]['save_callback'],
+        );
+
+        if ([] === $withCallbacks) {
+            return $fields;
+        }
+
+        return $this->withSession(function () use ($table, $id, $fields, $record, $definitions, $withCallbacks): array {
+            ($this->loadLanguageFile)('default');
+            ($this->loadLanguageFile)($table);
+
+            $dc = RecordDataContainer::create($table, $id, array_replace($record, $fields), $this->connection);
+
+            foreach ($withCallbacks as $field) {
+                \Closure::bind(static function (DataContainer $dc, string $field): void {
+                    $dc->strField     = $field;
+                    $dc->strInputName = $field;
+                }, null, DataContainer::class)($dc, $field);
+
+                $value = $fields[$field];
+
+                foreach ($definitions[$field]['save_callback'] as $callback) {
+                    $label = self::label($callback);
+
+                    try {
+                        // In Contao's coercive mode, see CallbackInvoker.
+                        $value = CallbackInvoker::call($callback, [$value, $dc], $value);
+                    } catch (ResponseException) {
+                        $this->ran[] = $table . '.' . $field . '.save: ' . $label . ' (answered with a redirect; ignored)';
+
+                        continue;
+                    } catch (\Exception $e) {
+                        throw new \InvalidArgumentException(\sprintf('%s.%s refused by %s: %s Nothing was written.', $table, $field, $label, $e->getMessage()), 0, $e);
+                    }
+
+                    $this->ran[] = $table . '.' . $field . '.save: ' . $label;
+                }
+
+                $fields[$field] = $value;
+
+                // As DC_Table::save(): the next field's callbacks see this one saved.
+                \Closure::bind(static function (DataContainer $dc, string $field, mixed $value): void {
+                    if (\is_object($dc->objActiveRecord)) {
+                        $dc->objActiveRecord->{$field} = StringUtil::deserialize($value);
+                    }
+                }, null, DataContainer::class)($dc, $field, $value);
+            }
+
+            return $fields;
+        });
     }
 
     /**
