@@ -78,7 +78,9 @@ API for extensions.
   `create()`, `DcaCallbacks` and `VersionManager`. An extension's own `#[AiContract]`
   command gets versions, callbacks, undo and cache invalidation like this bundle's own.
   `update()` also writes tables without a registered model. `create()` and `update()`
-  refuse a key that is no column.
+  refuse a key that is no column, and run the fields' save_callbacks when asked to
+  (`$saveCallbacks`): on a create between `oncreate` and `onsubmit`, as `DC_Table` does
+  — an extension's onsubmit listener sees the values they produce.
 
 ### Fixed
 
