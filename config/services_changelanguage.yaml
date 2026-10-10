@@ -1,0 +1,10 @@
+# Geladen von ContaoAiCoreBundle::loadExtension() nur wenn
+# terminal42/contao-changelanguage installiert ist (v1.4.0).
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    Webwerkwien\ContaoAiCoreBundle\Service\Language\ChangeLanguageLinks: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\LanguageLinkCommand: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\LanguageCheckCommand: ~

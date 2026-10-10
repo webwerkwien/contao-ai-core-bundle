@@ -48,6 +48,16 @@ class PluginCommandRegistrationTest extends TestCase
         'newsletter' => ['NewsletterChannelModel', 'NewsletterRecipientsModel', 'NewsletterDenyListModel', 'NewsletterModel'],
     ];
 
+    /**
+     * Not Contao bundles but packages the core reaches into (v1.4.0), found by the
+     * namespaces a command uses: the package's own, or the core's service built on it.
+     *
+     * @var array<string, list<string>> services file suffix => namespace prefixes
+     */
+    private const PLUGIN_NAMESPACES = [
+        'changelanguage' => ['Terminal42\\ChangeLanguage\\', 'Service\\Language\\'],
+    ];
+
     private function commandDir(): string
     {
         return __DIR__ . '/../../src/Command';
@@ -100,6 +110,15 @@ class PluginCommandRegistrationTest extends TestCase
             foreach (self::PLUGIN_MODELS as $suffix => $models) {
                 foreach ($models as $model) {
                     if (str_contains($source, 'Contao\\' . $model)) {
+                        $found[basename($file)] = $suffix;
+                        continue 3;
+                    }
+                }
+            }
+
+            foreach (self::PLUGIN_NAMESPACES as $suffix => $prefixes) {
+                foreach ($prefixes as $prefix) {
+                    if (str_contains($source, $prefix)) {
                         $found[basename($file)] = $suffix;
                         continue 3;
                     }

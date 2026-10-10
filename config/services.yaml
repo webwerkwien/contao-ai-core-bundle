@@ -36,6 +36,9 @@ services:
             # newsletter-bundle, nicht am news-bundle, und würden sonst still
             # durchfallen, sobald das News-Muster je enger gefasst wird.
             - ../src/Command/Newsletter*.php
+            # Am Paket terminal42/contao-changelanguage, siehe services_changelanguage.yaml.
+            - ../src/Command/Language*.php
+            - ../src/Service/Language
             # Cloner sind plugin-bedingt und werden in services_<plugin>.yaml registriert.
             - ../src/Service/Cloner/EntityClonerInterface.php
             - ../src/Service/Cloner/News*.php

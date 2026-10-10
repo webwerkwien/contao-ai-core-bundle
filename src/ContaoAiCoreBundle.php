@@ -47,5 +47,11 @@ class ContaoAiCoreBundle extends AbstractBundle
         if (class_exists(NewsletterChannelModel::class)) {
             $containerConfigurator->import('../config/services_newsletter.yaml');
         }
+        // Not a Contao bundle but the one extension the core reaches into (v1.4.0):
+        // translation links are fields on tables the core writes anyway, and the
+        // commands use the package's own PageFinder.
+        if (class_exists(\Terminal42\ChangeLanguage\PageFinder::class)) {
+            $containerConfigurator->import('../config/services_changelanguage.yaml');
+        }
     }
 }
