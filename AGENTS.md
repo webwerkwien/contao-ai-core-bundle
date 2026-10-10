@@ -384,34 +384,78 @@ elsewhere either way.
 >
 > `optionsTarget` is what lets a caller run the check itself where it wants one.
 
-### The sentence that bounds all five rules
+### The sentence that bounds all five rules — and since v1.4.0 the callbacks
 
-> **What is checked is what the DCA *declares* — not what an extension checks in
-> a `save_callback`.**
+> **What the five rules check is what the DCA *declares*. What an extension checks in a
+> `save_callback` runs since v1.4.0 as the callback itself** (next sections).
 
-This write path goes through Contao's model layer, not `DC_Table`, so callbacks
-do not run — with one narrow exception, cache tags (next section). That is deliberate: the model layer is what produces the
-`tl_version`, `tl_undo` and system-log entries this bundle exists for. But it
-means the five rules cover the declared surface and nothing beyond it.
+Until v1.4.0 this write path ran no DCA callback at all. Reported from the Consho bundle
+on 2026-09-11: `page update --set conshoPathTemplate={category}/{alias}` was stored — the
+back end refuses `{category}` in a `save_callback` — and the same callback's recording of
+the old product URLs never happened. Both run now.
 
-Reported from the Consho bundle on 2026-09-11, and worth quoting because it
-shows both halves of the cost:
+⚠️ **What stays an instruction for an agent:** a callback that depends on the request —
+POST fields, `FORM_SUBMIT`, `SUBMIT_TYPE`, the edit mask's virtual fields — does nothing on
+the console, because the console has no such request (it gets a throw-away one). Consho
+names its own (2026-10-10): locks on finished payments and deliveries, stock bookings,
+price conversion, translation fields. Where an extension acts that way, drive the field
+through its own command (`ext run`, see `#[AiContract]`) or the back end — not through
+`--set`.
 
-- `page update --set conshoPathTemplate={category}/{alias}` was **stored**.
-  The back end refuses it — `{category}` is not a valid placeholder — but that
-  check lives in a `save_callback`. Over the CLI it answered `"status": "ok"`.
-- The same callback **records the old product URLs so they can be redirected**.
-  Changed through `--set`, no recording happens: the old addresses break, and
-  nothing fails while it happens.
+## Callbacks run as in `DC_Table` (v1.4.0)
 
-So a rule in a callback is invisible here, and a *side effect* in a callback is
-invisible here too — and the second is the one that leaves no trace.
+`Service\Dca\DcaCallbacks` calls the DCA's callbacks with `DC_Table`'s signatures and timing
+(identical in 5.3, 5.7 and 6.0):
 
-⚠️ **For an agent this is an instruction, not trivia.** Where an extension is
-known to validate or to act in a callback, drive that field through the
-extension's own command (`ext run`, see `#[AiContract]`) or through the back
-end — not through `--set`. Where no such command exists, the extension has not
-said how it wants to be operated, and `--set` is a guess.
+| Event | Where in this bundle | Called with |
+|---|---|---|
+| `oncreate`, `onsubmit` | every create (`createVersion(created: true)`, `RecordWriterInterface::create()`), before the first version | `$table, $id, $set, $dc` / `$dc` |
+| `onsubmit` | `ModelWriter::update()` when a field other than `pid`/`ptable`/`sorting` changed, before the new version | `$dc` |
+| `oncut` | `ModelWriter::update()` when `pid` or `ptable` changed (moves) | `$dc` |
+| `ondelete` | `ModelWriter::delete()`, after the undo row, before the DELETE, for the record itself | `$dc, $undoId` |
+| `oncopy` | every cloner, per copied row after its children, the root last | `$newId, $dc` (the source) |
+| field `save_callback` | `convertFields()`, last, on the stored values, in DCA order | `$value, $dc` |
+
+What holds for all of them:
+
+- **Coercive mode.** `CallbackInvoker` is the one file without `strict_types`: Contao calls
+  from `DC_Table`, which has none, and hands e.g. a string undo ID to
+  `RecordPreviewListener::storePrecompiledRecordPreview(DataContainer, string $undoId)`.
+  From a strict file that was a TypeError on the first page delete.
+- **A session and a user.** The console gets one throw-away session for the run (so that
+  oncreate's `new_records` entry is still there for onsubmit's `generateArticleForPage`)
+  and the user `contao-ai` (`Service\CliUser`, see below). In the chat both are real.
+- **The back end's labels:** `default` and the table's language file are loaded first.
+- **Failures.** An `\Exception` refuses: `\InvalidArgumentException` naming the callback,
+  and the write rolls back — updates and deletes are transactions in the writer, creates
+  (`CreatesRecord`) in `AbstractWriteCommand::execute()`. Not around the whole of other
+  commands: a bulk update keeps the records that succeeded. An `\Error` is a defect. A
+  response (redirect) ends the event; the write stands.
+- **save_callbacks and the palette.** The back end submits only the fields of the record's
+  palette. Fields set on purpose (`--set`, the field of `language link`) always run their
+  callbacks — a package may add a field to the palette only in its onload callback for the
+  edit mask (changelanguage's `languageMain`). Fields a command adds itself run theirs only
+  where Contao's `getPalette()` shows them: `tl_page.language` is in the root palette only,
+  and its callback refused the `''` a page create writes for a regular page. After the
+  callbacks an empty value becomes the column's empty value (`Widget::getEmptyValueByFieldType`).
+  Fields with a path of their own are skipped: `tl_member.password` (MemberPassword),
+  `tl_page.alias` (PageUrlGuard).
+- Answers name what ran under `callbacks`.
+
+**Hand-made counterparts that stay, on purpose:** the deny list check of newsletter
+recipients and `EventTimes` refuse or derive with more explanation than Contao's callbacks;
+those run as well and change nothing twice.
+
+### The user `contao-ai` (v1.4.0)
+
+Contao's callbacks assume a logged-in user; on the console `BackendUser::getInstance()` is an
+empty one (RecordPreviewListener warned on every delete, the 5.3 `adjustPermissions` built a
+query from no groups). `CliUserMigration` creates `contao-ai`: admin, `disable` set, no
+password — both checked only by the UserChecker at login, which it never goes through.
+`CliUser` puts it into the token storage for a callback run and takes it out again; an
+empty `BackendUser::$objInstance` cached earlier is dropped first. `CliUserProtectionListener`
+hides it from the user list and refuses edit, delete, copy, toggle and cut (a voter cannot:
+Contao decides affirmatively). **The commands' rights do not change** — they check none.
 
 ### The one kind of callback that does run: cache tags (v0.10.0)
 
@@ -424,8 +468,8 @@ The tags are `DataContainer::invalidateCacheTags()`'s, identical in Contao 5.3,
 the table's **`oninvalidate_cache_tags_callback`s** add. Those callbacks are the
 only source of `contao.sitemap.<root>` — in tl_page, tl_news, tl_calendar and in
 every extension with addresses of its own in the sitemap. So they run; they are
-declared in the DCA and only hand back a list of tags. `save_callback`,
-`onsubmit_callback` and `ondelete_callback` still do not (decided 2026-09-13).
+declared in the DCA and only hand back a list of tags. The other callbacks run since
+v1.4.0 (above); this section is about the cache.
 
 What a caller sees in a successful answer:
 
@@ -702,6 +746,7 @@ Used by:
 | `OptionsResolver`, `contao:dca:options` | a field's `options_callback` | page types from the `PageRegistry` (`#[AsPage]`), templates per element type |
 | `contao:dca:palette` | `DataContainer::getPalette()` | mandatory fields of one kind of record (selectors, sub-palettes, `onpalette_callback`) |
 | `ContaoAlias` | the alias field's `generateAlias` save callback | aliases of new records as Contao makes them |
+| `DcaCallbacks` (v1.4.0) | record callbacks and field `save_callback`s | every write, see "Callbacks run as in `DC_Table`" |
 
 A callback that needs more (a request, a user) throws and is reported as unresolvable; the
 image size list returns `[]` on the console — "not known", not "none".
@@ -750,8 +795,9 @@ Both share `MemberPassword` (trait):
   else `minPasswordLength`; not equal to the username. Hash from the `FrontendUser` hasher
   (the widget asks for `BackendUser`'s; under `Contao\User: auto` both are the same).
   On a terminal the input is not hidden — the flag is for piping.
-- **`tl_member.password`'s save callbacks run** with a `RecordDataContainer` — the one field
-  where this write path runs save callbacks, so `setNewPassword` hooks see the change. Create:
+- **`tl_member.password`'s save callbacks run** with a `RecordDataContainer` — on this path
+  of their own, after hashing, so `setNewPassword` hooks see the change (the general field
+  callbacks since v1.4.0 skip this field). Create:
   after the save and the version (the row exists, as in the back end — but it already holds
   the new hash); a throwing callback is reported with the member's id, which then exists.
   Password: before the write, and what the callback returns is stored. `CreateCommandConversionTest` lists the create case as its
@@ -873,9 +919,47 @@ out again — on c5 routinely. `belongsToEarlierRecord()` drives the refusal in 
 restore` and `before_creation` in `version list`; a create answers `earlierVersions`.
 `tl_undo` could not tell: it is purged after the undo period.
 
-**`VersionManager::ALLOWED_TABLES` must contain every table the code versions** —
-`VersionAllowListTest` scans `src/` and fails otherwise. It held the ten tables of the
-April audit while 22 were versioned.
+## Versions through Contao (v1.4.0)
+
+`VersionManager` hands creating and restoring to Contao's `Versions` class — `create()`,
+`initialize()`, `restore()` are the same code in 5.3, 5.7 and 6.0. Username, user ID and the
+edit URL (`contao?do=…&table=…&act=edit&id=…`, as the back end stores it) are set from
+outside: the class was dropped in April 2026 because it "requires an authenticated
+session", which `setUsername()` answers.
+
+- **Timing as `DC_Table::edit()`:** `initialize()` before a write, `create()` after. The
+  newest version is the current state. A move, a template reset and a file write follow
+  the same pattern.
+- **Which tables:** every table whose DCA keeps versions (`refusal()` names why not). The
+  fixed list of 24 is gone; `VersionAllowListTest` now checks that create and restore ask
+  the same method.
+- **Restore** keeps `id`, `pid`, `ptable` and `sorting`, honours `versionize` and `unique`,
+  defaults columns added since and runs `onrestore_version` — inside a transaction; its
+  failure path (flash message, reload) cannot work on the console and is caught.
+- What stays ours: the `created` marker on the first version (`createInitialVersion()`
+  overwrites Contao's description for it) and the refusal of versions of an earlier record.
+
+## Translation links: changelanguage (v1.4.0)
+
+`contao:language:link --table --id --main` and `contao:language:check [--root]`, registered
+(services_changelanguage.yaml) only where `Terminal42\ChangeLanguage\PageFinder` exists.
+`Service\Language\ChangeLanguageLinks` answers the two questions the back end answers with
+its widgets: which field (`languageMain`, `master` on the three archive tables,
+`languageRoot` on a fallback root) and which targets — the package's own options callbacks
+through `OptionsResolver`, its `PageFinder` for the tree of the main language. The write
+goes through `convertFields()` and the record writer, so the package's own save callbacks
+refuse a duplicate. The package's rules on copy, cut and delete run as its callbacks.
+
+⚠️ changelanguage finds associated pages **only when they and their roots are published**:
+on an unpublished test tree the article options are empty, in the back end as well.
+
+## Public write API (v1.4.0)
+
+`RecordWriterInterface` (with `create()` since v1.4.0), `DcaCallbacks` and `VersionManager`
+are marked `@api`, decided with the maintainer on 2026-10-10 for Consho Connect: an
+extension's `#[AiContract]` commands write through them. **A signature change needs a major
+version.** `ModelWriter::update()` writes a table without a registered model row by row —
+Contao 5's `Model::getClassFromTable()` throws for one instead of guessing.
 
 ## Layout modules (v0.16.0)
 

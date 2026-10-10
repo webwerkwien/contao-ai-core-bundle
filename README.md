@@ -54,6 +54,7 @@ All commands output JSON and follow a consistent `{"status":"ok", ...}` / `{"sta
 | Comments | `contao:comment:delete` `contao:comment:publish` |
 | Layout | `contao:layout:read` |
 | Versions | `contao:version:list` `contao:version:read` `contao:version:create` `contao:version:restore` |
+| Translation links (since v1.4.0, with [terminal42/contao-changelanguage](https://github.com/terminal42/contao-changelanguage) installed) | `contao:language:link` `contao:language:check` |
 | Search | `contao:search:query` |
 | Schema / Config | `contao:dca:schema` `contao:listing:config` |
 | Macros (since v0.2.0) | `contao:record:list` `contao:record:clone` |
@@ -151,10 +152,47 @@ Every successful write leaves two traces.
 | `func` | the command name, e.g. `contao:page:update` |
 | `text` | command name plus the JSON payload the command returned |
 
-**A version snapshot (`tl_version`)** for the 24 tables `VersionManager` covers, restorable
-with `contao:version:restore`, plus a `tl_undo` entry for deletions.
+**A version (`tl_version`)**, written by Contao's own `Versions` class (since v1.4.0) for
+every table whose DCA keeps versions, restorable with `contao:version:restore`, plus a
+`tl_undo` entry for deletions.
 
 Failed commands are not logged — a rejected `--set` changed nothing.
+
+### Callbacks run as in the back end (v1.4.0)
+
+A write runs the DCA's record callbacks where `DC_Table` runs them — `oncreate`,
+`onsubmit`, `oncut`, `ondelete`, `oncopy` — and the `save_callback`s of the fields it
+writes. A callback that throws refuses the write, and nothing is written. Answers list the
+callbacks that ran under `callbacks`. On the console they see the back-end user
+`contao-ai`, which a migration creates: an admin that cannot log in, hidden and locked in
+the back end, in place only while callbacks run. What a callback does with a request it
+does not get on the console (POST data, `FORM_SUBMIT`) it does not do there.
+
+## Writing from your own extension (v1.4.0)
+
+An extension that ships its own `#[AiContract]` commands can write through this bundle's
+building blocks and get what its commands get — versions, the DCA callbacks, an undo entry
+with the cascade, cache invalidation, one transaction per write. They are public API:
+changes to them need a major version.
+
+```php
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
+use Webwerkwien\ContaoAiCoreBundle\Service\Writer\RecordWriterInterface;
+
+// autowired in your command
+$fields = $callbacks->save('tl_acme_item', 0, ['title' => $title], [], [], ['title']);
+$id     = $writer->create('tl_acme_item', $fields, $operator);
+$writer->update('tl_acme_item', $id, ['published' => 1], $operator);
+$writer->delete('tl_acme_item', $id, $operator, 0);
+```
+
+- `RecordWriterInterface::create()`, `update()`, `delete()` — values in their stored form;
+  tables without a registered model are written row by row.
+- `DcaCallbacks::save()` — the field `save_callback`s, before a write; the last argument
+  names the fields your command sets on purpose.
+- `VersionManager` — versions directly, if you need them.
+
+The writer checks no permissions; that is your command's part.
 
 ## Error reports
 

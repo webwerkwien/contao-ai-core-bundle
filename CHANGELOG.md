@@ -4,6 +4,84 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.4.0 - 2026-10-10
+
+**Writes behave like the back end: Contao's versions, Contao's callbacks.** Until now
+this bundle wrote past Contao in two places it should not have — its own version code
+had drifted from Contao's, and no DCA callback ran on a write. Both now go through
+Contao. Nothing to change for callers of the commands; what changes is what a write
+does around itself, listed below. New: translation links of changelanguage, and a write
+API for extensions.
+
+### Changed — versions
+
+- **Versions are written and restored by Contao's own `Versions` class.** The bundle's
+  copy had drifted in five places: no `oncreate_version`/`onrestore_version` callbacks
+  (Consho keeps the translations of a version there — a CLI version had none, a restore
+  left them as they were), a restore that also overwrote `pid`, `ptable` and `sorting`,
+  no `versionize: false`, no reset of a `unique` value taken by now, no default for a
+  column added since.
+- **Visible: restoring a version no longer moves a record back** to the parent and
+  position it had then. It stays where it is, as in the back end.
+- **Timing as `DC_Table::edit()`:** the state being replaced is kept if the record has no
+  version yet, the new state is versioned after the save. The newest version is the
+  current state; undoing a write means restoring the one before it.
+- **Any table whose DCA keeps versions** (`enableVersioning`) can be versioned and
+  restored, extensions' tables included — not a fixed list of 24. The refusal names the
+  reason (no DCA, versioning off, no table).
+- `version create` reports when Contao wrote nothing (record missing or never saved) and
+  answers the version number; `version restore` runs in a transaction and reports any
+  failure as one error. Versions carry the user ID and the back end's edit URL.
+
+### Changed — callbacks
+
+- **The record callbacks of the DCA run where `DC_Table` runs them:** `oncreate` and
+  `onsubmit` on create, `onsubmit` on a field change, `oncut` on a new parent, `ondelete`
+  after the undo entry, `oncopy` per copied row after its children. Measured in 5.3, 5.7
+  and 6.0: 121 callbacks of Contao and 10 of Consho on the tables this bundle writes had
+  been skipped — deleted pages stayed in the website search, a comment freed through the
+  CLI sent no notification, Consho's shop sync and facet clean-up on `tl_page` never ran.
+- **The save_callbacks of the written fields run** on create and `--set`, on the values as
+  they will be stored, with Contao's message as the refusal (*"You can only define one
+  website root page per domain as the language fallback"*). Fields set on purpose always
+  run theirs; fields a command adds itself only where the record's palette shows them,
+  as the back end submits only those.
+- **A callback that throws refuses the write and rolls it back** (creates run in one
+  transaction for this). An `\Error` stays a defect.
+- Answers list the callbacks that ran under `callbacks`.
+- **On the console the callbacks see the back-end user `contao-ai`**, created by a
+  migration: an admin that cannot log in (disabled, no password), hidden from the user
+  list and locked against editing in the back end. It is put in place for a callback run
+  only; the commands check no permissions, as before. In the back end's chat the
+  callbacks see the logged-in editor.
+- **`page create` answers `articles`:** Contao's `generateArticleForPage` now gives a new
+  page its article where the layout has an article column, as in the back end.
+
+### Added
+
+- **`contao:language:link` and `contao:language:check`** for
+  `terminal42/contao-changelanguage`, registered only where the package is installed.
+  `link` writes `languageMain`, `master` (archives) or `languageRoot` (fallback roots),
+  checks the target against what the back end offers — the package's own options and its
+  `PageFinder` — and writes through the record writer, so the package's duplicate check
+  runs. `--main 0` removes a link. `check` reports unlinked, invalid and duplicate links
+  per root of another language, unlinked articles, archives without `master` and their
+  unlinked entries.
+- **Public write API for extensions** (`@api`): `RecordWriterInterface` with the new
+  `create()`, `DcaCallbacks` and `VersionManager`. An extension's own `#[AiContract]`
+  command gets versions, callbacks, undo and cache invalidation like this bundle's own.
+  `update()` also writes tables without a registered model.
+
+### Fixed
+
+- Callbacks are called in Contao's coercive mode (`CallbackInvoker`, the one file without
+  `strict_types`): Contao hands a string undo ID, and a strict caller made the first page
+  delete a TypeError.
+- An empty value after the save_callbacks becomes the empty value of its column, as in
+  `DC_Table::save()`.
+- Options callbacks and record callbacks run with `default` and the table's language file
+  loaded, as in the back end.
+
 ## v1.3.1 - 2026-10-10
 
 ### Fixed
