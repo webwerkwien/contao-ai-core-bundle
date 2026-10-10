@@ -5,7 +5,6 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Dca;
 use Contao\CoreBundle\Exception\ResponseException;
 use Contao\CoreBundle\Session\Attribute\ArrayAttributeBag;
 use Contao\DataContainer;
-use Contao\System;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -148,11 +147,8 @@ class DcaCallbacks
             $label = self::label($callback);
 
             try {
-                if (\is_array($callback)) {
-                    System::importStatic($callback[0])->{$callback[1]}(...$args);
-                } elseif (\is_callable($callback)) {
-                    $callback(...$args);
-                } else {
+                // In Contao's coercive mode, see CallbackInvoker.
+                if (!CallbackInvoker::invoke($callback, $args)) {
                     continue;
                 }
             } catch (ResponseException) {

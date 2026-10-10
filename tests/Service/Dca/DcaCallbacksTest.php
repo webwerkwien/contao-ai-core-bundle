@@ -153,6 +153,28 @@ class DcaCallbacksTest extends TestCase
         }
     }
 
+    /**
+     * Contao calls in coercive mode (DC_Table has no strict_types): RecordPreviewListener
+     * types `string $undoId`, an extension may type `int $insertId`. From a strict caller
+     * both were TypeErrors — the first delete on c5 (6.0) on 2026-10-10 (CallbackInvoker).
+     */
+    public function testCallbacksAreCalledInContaosCoerciveMode(): void
+    {
+        $seen = [];
+        $this->on('ondelete_callback', [static function (DataContainer $dc, string $undoId) use (&$seen): void {
+            $seen[] = $undoId;
+        }]);
+        $this->on('oncopy_callback', [static function (string $newId, DataContainer $dc) use (&$seen): void {
+            $seen[] = $newId;
+        }]);
+
+        $callbacks = $this->callbacks();
+        $callbacks->delete('tl_page', 7, ['id' => 7], 41);
+        $callbacks->copy('tl_page', 9, 7);
+
+        $this->assertSame(['41', '9'], $seen);
+    }
+
     public function testAnErrorInACallbackIsADefectAndPassesThrough(): void
     {
         $this->on('ondelete_callback', [static function (): void {
