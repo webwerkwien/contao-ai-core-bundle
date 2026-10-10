@@ -141,6 +141,25 @@ class DcaCallbacksTest extends TestCase
         $this->assertSame($request, $this->requests->getCurrentRequest());
     }
 
+    public function testOnTheConsoleOneSessionSpansTheEventsOfARun(): void
+    {
+        // oncreate lists the page, onsubmit's generateArticleForPage reads the list.
+        $this->tokens->setToken(new UsernamePasswordToken(new InMemoryUser('contao-ai', null), 'contao_backend'));
+
+        $requests = $this->requests;
+        $listed   = null;
+        $this->on('onsubmit_callback', [static function () use ($requests, &$listed): void {
+            $listed = $requests->getCurrentRequest()?->getSession()->getBag('contao_backend')->get('new_records');
+        }]);
+
+        $callbacks = $this->callbacks();
+        $callbacks->create('tl_page', 7, ['id' => 7]);
+        $callbacks->submit('tl_page', 7);
+
+        $this->assertSame(['tl_page' => [7]], $listed);
+        $this->assertNull($this->requests->getCurrentRequest());
+    }
+
     public function testWithoutAUserNothingIsListedAsNew(): void
     {
         // The 5.3 adjustPermissions callbacks read the groups of the user of a listed

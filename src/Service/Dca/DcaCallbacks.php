@@ -73,6 +73,9 @@ class DcaCallbacks
     /** @var \Closure(string): void only replaced in tests */
     private readonly \Closure $loadLanguageFile;
 
+    /** The throw-away session of a console run, see withSession(). */
+    private ?Session $consoleSession = null;
+
     /**
      * After a record was inserted. Registers it as new in the session, as
      * `DC_Table::create()` does — `generateArticleForPage` only acts on a page listed
@@ -211,16 +214,21 @@ class DcaCallbacks
             return $this->asUser(static fn () => $work($request));
         }
 
-        $session = new Session(new MockArraySessionStorage());
+        // One for the whole run, as the back end has one: oncreate lists the new page in
+        // new_records, onsubmit's generateArticleForPage looks for it there. With a fresh
+        // session per event the list was gone by then (c5, 6.0, 2026-10-10).
+        if (null === $this->consoleSession) {
+            $this->consoleSession = new Session(new MockArraySessionStorage());
 
-        foreach (['contao_backend' => '_contao_be_attributes', 'contao_frontend' => '_contao_fe_attributes'] as $bagName => $storageKey) {
-            $bag = new ArrayAttributeBag($storageKey);
-            $bag->setName($bagName);
-            $session->registerBag($bag);
+            foreach (['contao_backend' => '_contao_be_attributes', 'contao_frontend' => '_contao_fe_attributes'] as $bagName => $storageKey) {
+                $bag = new ArrayAttributeBag($storageKey);
+                $bag->setName($bagName);
+                $this->consoleSession->registerBag($bag);
+            }
         }
 
         $request = Request::create('/');
-        $request->setSession($session);
+        $request->setSession($this->consoleSession);
         // The scope the back end runs in; a callback may ask the scope matcher.
         $request->attributes->set('_scope', 'backend');
 
