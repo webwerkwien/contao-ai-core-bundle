@@ -4,7 +4,6 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\CoreBundle\Monolog\ContaoContext;
-use Doctrine\DBAL\Connection;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -30,7 +29,6 @@ class VersionRestoreCommand extends Command
     public function __construct(
         private readonly ContaoFramework $framework,
         private readonly VersionManager $versionManager,
-        private readonly Connection $connection,
     ) {
         parent::__construct();
     }
@@ -73,12 +71,13 @@ class VersionRestoreCommand extends Command
             return Command::FAILURE;
         }
 
-        if (!$this->versionManager->isAllowedTable($table)) {
-            $output->writeln(json_encode(['status' => 'error', 'message' => "Table not allowed: {$table}"], JSON_UNESCAPED_UNICODE));
+        // The DCA decides whether a table keeps versions, so it is loaded first.
+        $this->framework->initialize();
+
+        if (null !== ($refusal = $this->versionManager->refusal($table))) {
+            $output->writeln(json_encode(['status' => 'error', 'message' => $refusal], JSON_UNESCAPED_UNICODE));
             return Command::FAILURE;
         }
-
-        $this->framework->initialize();
 
         // A version from before this record was created belongs to an earlier record
         // that had the same ID — restoring it would write that record's data onto
@@ -99,18 +98,12 @@ class VersionRestoreCommand extends Command
             return Command::FAILURE;
         }
 
-        unset($data['id']);
-
-        // Restrict to columns that currently exist — prevents "Unknown column" after schema migrations
-        $existingColumns = array_keys($this->connection->createSchemaManager()->listTableColumns($table));
-        $data = array_intersect_key(array_change_key_case($data, CASE_LOWER), array_flip($existingColumns));
-
-        $quotedData = [];
-        foreach ($data as $col => $val) {
-            $quotedData[$this->connection->quoteIdentifier($col)] = $val;
-        }
-        $this->connection->update('`' . $table . '`', $quotedData, ['id' => $id]);
-        $this->versionManager->markActiveVersion($table, $id, $version);
+        // Contao's Versions::restore(), as the back end runs it (v1.4.0): it keeps id,
+        // pid, ptable and sorting, honours versionize and unique, defaults columns added
+        // since, and calls onrestore_version — where an extension restores what belongs
+        // to the version but not to the row. Until then this wrote the row itself and
+        // moved a record back to its old parent.
+        $this->versionManager->restore($table, $id, $version);
 
         // DC_Table::edit() invalidates right after restoring a version.
         $this->cacheTags?->recordChanged($table, $id);

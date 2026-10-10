@@ -59,17 +59,31 @@ class VersionCreateCommand extends Command
             return Command::FAILURE;
         }
 
-        if (!$this->versionManager->isAllowedTable($table)) {
-            $output->writeln(json_encode(['status' => 'error', 'message' => "Table not allowed: {$table}"], JSON_UNESCAPED_UNICODE));
+        // The DCA decides whether a table keeps versions, so it is loaded first.
+        $this->framework->initialize();
+
+        if (null !== ($refusal = $this->versionManager->refusal($table))) {
+            $output->writeln(json_encode(['status' => 'error', 'message' => $refusal], JSON_UNESCAPED_UNICODE));
             return Command::FAILURE;
         }
 
-        $this->framework->initialize();
+        $before = $this->versionManager->latestVersion($table, $id);
         $this->versionManager->createVersion($table, $id, '' !== $operator ? $operator : null);
+        $version = $this->versionManager->latestVersion($table, $id);
 
-        // Contao logs "Version X of record ... has been created" whenever its own
-        // Versions class runs. VersionManager writes tl_version directly, so that
-        // line has to come from here.
+        // Contao's create() returns silently for a record that does not exist or was
+        // never saved (tstamp 0). Until v1.4.0 this answered "ok" either way.
+        if ($version <= $before) {
+            $output->writeln(json_encode([
+                'status'  => 'error',
+                'message' => "No version written: {$table}:{$id} does not exist or has never been saved.",
+            ], JSON_UNESCAPED_UNICODE));
+
+            return Command::FAILURE;
+        }
+
+        // Contao logs "Version X of record ... has been created" itself, but without a
+        // user on the console; this line carries the operator.
         $this->systemLog?->write(
             sprintf('%s %s', $this->getName(), json_encode(
                 ['table' => $table, 'id' => $id],
@@ -80,9 +94,10 @@ class VersionCreateCommand extends Command
         );
 
         $output->writeln(json_encode([
-            'status' => 'ok',
-            'table'  => $table,
-            'id'     => $id,
+            'status'  => 'ok',
+            'table'   => $table,
+            'id'      => $id,
+            'version' => $version,
         ], JSON_UNESCAPED_UNICODE));
 
         return Command::SUCCESS;

@@ -134,8 +134,9 @@ class FileWriteCommand extends AbstractWriteCommand
 
         $filesModel = FilesModel::findByPath($path);
         if ($filesModel !== null) {
-            // Snapshot the record before overwrite — Contao convention: version = pre-change state
-            $this->versionManager->createVersion('tl_files', (int) $filesModel->id, $this->resolveOperator());
+            // As DC_Folder::source(): initialize() before the write, create() after the
+            // new hash is saved (v1.4.0; until then one version of the old state).
+            $this->versionManager->initialize('tl_files', (int) $filesModel->id);
         }
 
         if (file_put_contents($absPath, $content) === false) {
@@ -162,6 +163,7 @@ class FileWriteCommand extends AbstractWriteCommand
             $filesModel->tstamp = time();
             $filesModel->hash   = (new File($path))->hash;
             $filesModel->save();
+            $this->versionManager->createVersion('tl_files', (int) $filesModel->id, $this->resolveOperator());
 
             // A folder's hash is built from its children's, so it changed too.
             // Until v0.26.0 only the file's hash was stored and every parent

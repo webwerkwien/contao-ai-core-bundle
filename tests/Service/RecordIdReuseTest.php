@@ -2,6 +2,7 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Tests\Service;
 
+use Contao\Versions;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
@@ -23,24 +24,45 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
  */
 class RecordIdReuseTest extends TestCase
 {
+    private function manager(Connection $connection): VersionManager
+    {
+        return new VersionManager(
+            $connection,
+            '/contao',
+            fn (): Versions => $this->createMock(Versions::class),
+            static function (): void {},
+        );
+    }
+
     public function testTheFirstVersionOfACreatedRecordIsMarkedAndEarlierOnesCounted(): void
     {
-        $inserted   = null;
+        $marked     = null;
         $connection = $this->createMock(Connection::class);
-        $connection->method('fetchAssociative')->willReturn(['id' => 25, 'name' => 'ConpAI']);
-        $connection->method('fetchOne')->willReturn(3);
-        $connection->method('transactional')->willReturnCallback(static fn (callable $fn) => $fn());
-        $connection->method('insert')->willReturnCallback(static function (string $table, array $data) use (&$inserted): int {
-            $inserted = $data;
+        // latest before, the user's ID, latest after Contao wrote the version
+        $connection->method('fetchOne')->willReturnOnConsecutiveCalls(3, 0, 4);
+        $connection->method('executeStatement')->willReturnCallback(static function (string $sql, array $params) use (&$marked): int {
+            $marked = [$sql, $params];
 
             return 1;
         });
 
-        $earlier = (new VersionManager($connection))->createInitialVersion('tl_layout', 25, 'cli');
+        $earlier = $this->manager($connection)->createInitialVersion('tl_layout', 25, 'cli');
 
         $this->assertSame(3, $earlier);
-        $this->assertSame(4, $inserted['version']);
-        $this->assertSame(VersionManager::CREATED, $inserted['description']);
+        $this->assertSame(
+            ['UPDATE tl_version SET description = ? WHERE fromTable = ? AND pid = ? AND version = ?', [VersionManager::CREATED, 'tl_layout', 25, 4]],
+            $marked,
+        );
+    }
+
+    public function testNothingIsMarkedWhenContaoWroteNoVersion(): void
+    {
+        // A table without versioning, or a row without tstamp: create() returns silently.
+        $connection = $this->createMock(Connection::class);
+        $connection->method('fetchOne')->willReturnOnConsecutiveCalls(3, 0, 3);
+        $connection->expects($this->never())->method('executeStatement');
+
+        $this->assertSame(3, $this->manager($connection)->createInitialVersion('tl_layout', 25, 'cli'));
     }
 
     /**

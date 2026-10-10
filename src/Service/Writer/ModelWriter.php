@@ -51,10 +51,12 @@ class ModelWriter implements RecordWriterInterface
             $record->$key = $value;
         }
 
-        // Snapshot first: the version has to hold the state being replaced.
-        $this->versionManager->createVersion($table, $id, $operator);
+        // As DC_Table::edit(): the state being replaced is kept if the record has no
+        // version yet, the new state is versioned after the save (v1.4.0).
+        $this->versionManager->initialize($table, $id);
         $record->tstamp = time();
         $record->save();
+        $this->versionManager->createVersion($table, $id, $operator);
 
         // After the write, as DC_Table::submit() does — before it, a request in
         // between would cache the old state again.

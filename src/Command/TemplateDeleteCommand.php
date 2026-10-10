@@ -169,6 +169,7 @@ class TemplateDeleteCommand extends AbstractWriteCommand
         try {
             foreach ($ids as $id) {
                 \assert(null !== $reference);
+                $this->initializeVersion($reference['table'], $id);
                 $this->connection->update($reference['table'], ['customTpl' => '', 'tstamp' => time()], ['id' => $id]);
                 $this->createVersion($reference['table'], $id);
                 $migrated[] = $id;

@@ -48,8 +48,7 @@ class OperatorOptionTest extends TestCase
             )],
             'version:restore' => [static fn () => new VersionRestoreCommand(
                 self::mockOf(ContaoFramework::class),
-                self::mockOf(VersionManager::class),
-                self::mockOf(Connection::class)
+                self::mockOf(VersionManager::class)
             )],
             'template:write'  => [static fn () => new TemplateWriteCommand('/tmp')],
             'record:clone'    => [static fn () => new RecordCloneCommand()],

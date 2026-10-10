@@ -194,6 +194,17 @@ abstract class AbstractWriteCommand extends Command
     }
 
     /**
+     * Before a write that does not go through the record writer: keep the state being
+     * replaced if the record has no version yet (Contao's `initialize()`, v1.4.0).
+     */
+    protected function initializeVersion(string $table, int $id): void
+    {
+        $this->versionManager->initialize($table, $id);
+    }
+
+    /**
+     * After a write: version the new state.
+     *
      * @param bool $created true right after creating the record: its first version is
      *                      marked, so versions of an earlier record with the same ID can
      *                      be told apart (v0.16.0, RecordIdReuseTest)

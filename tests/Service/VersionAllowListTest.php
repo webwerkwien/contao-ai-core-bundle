@@ -2,43 +2,31 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Tests\Service;
 
-use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
-use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 /**
- * Every table this bundle writes versions for can have them restored.
+ * Creating and restoring a version ask the same question about a table.
  *
  * 🟡 **Measured on 2026-09-16 on c5:** `version restore --table tl_image_size` answered
  * *"Table not allowed"*, although `image-size create` and `update` write versions for
- * that table. The allow-list dates from the security audit of 2026-04-23 — ten tables,
- * the ones versioned then. It never grew: the bundle versions 22 tables now, and for 12
- * of them (modules, forms, themes, image sizes, archives, …) a version was written that
- * could never be restored.
+ * that table. The allow-list of the security audit of 2026-04-23 never grew with what
+ * the bundle versioned; this test used to keep the two in step.
  *
- * The list stays explicit — it guards a table name that goes into SQL. This test keeps
- * it in step with what the code versions.
+ * Since v1.4.0 there is no list: a table qualifies when its DCA keeps versions
+ * (`VersionManager::refusal()`), which is also when Contao's `Versions::create()` writes
+ * one. Both commands have to ask that one method — a second, private answer would be
+ * the drift of September again.
  */
 class VersionAllowListTest extends TestCase
 {
-    public function testEveryVersionedTableIsRestorable(): void
+    public function testCreateAndRestoreAskTheSameQuestion(): void
     {
-        $sources = '';
-        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(__DIR__ . '/../../src')) as $file) {
-            if ($file->isFile() && 'php' === $file->getExtension()) {
-                $sources .= file_get_contents($file->getPathname());
-            }
+        $src = __DIR__ . '/../../src/';
+
+        foreach (['VersionCreateCommand', 'VersionRestoreCommand'] as $command) {
+            $this->assertStringContainsString('->refusal($table)', (string) file_get_contents($src . 'Command/' . $command . '.php'), $command);
         }
 
-        preg_match_all("/(?:createVersion|createInitialVersion)\\('(tl_[a-z_]+)'/", $sources, $matches);
-        $versioned = array_values(array_unique($matches[1]));
-        sort($versioned);
-
-        $this->assertNotEmpty($versioned);
-
-        $manager    = new VersionManager($this->createMock(Connection::class));
-        $notAllowed = array_values(array_filter($versioned, static fn (string $t): bool => !$manager->isAllowedTable($t)));
-
-        $this->assertSame([], $notAllowed, 'versions are written for these tables but cannot be restored');
+        $this->assertStringNotContainsString('ALLOWED_TABLES', (string) file_get_contents($src . 'Service/VersionManager.php'));
     }
 }

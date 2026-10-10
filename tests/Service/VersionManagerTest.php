@@ -2,44 +2,116 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Tests\Service;
 
+use Contao\Versions;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use PHPUnit\Framework\TestCase;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
+/**
+ * The manager hands creating and restoring to Contao's `Versions` (v1.4.0); these
+ * tests pin what it passes in and what it checks around it.
+ */
 class VersionManagerTest extends TestCase
 {
-    public function testAllowedTableAcceptsKnownTable(): void
+    /** @var array<string, mixed> */
+    private array $globals = [];
+
+    protected function setUp(): void
     {
-        $vm = new VersionManager($this->createMock(Connection::class));
-        $this->assertTrue($vm->isAllowedTable('tl_article'));
-        $this->assertTrue($vm->isAllowedTable('tl_page'));
-        $this->assertTrue($vm->isAllowedTable('tl_user'));
+        $this->globals = ['TL_DCA' => $GLOBALS['TL_DCA'] ?? null, 'BE_MOD' => $GLOBALS['BE_MOD'] ?? null];
+
+        $GLOBALS['TL_DCA'] = [
+            'tl_article'        => ['config' => ['enableVersioning' => true]],
+            'tl_consho_product' => ['config' => ['enableVersioning' => true]],
+            'tl_search'         => ['config' => []],
+        ];
+        $GLOBALS['BE_MOD'] = [
+            'content' => [
+                'article' => ['tables' => ['tl_article', 'tl_content']],
+            ],
+        ];
     }
 
-    public function testAllowedTableRejectsArbitraryTable(): void
+    protected function tearDown(): void
     {
-        $vm = new VersionManager($this->createMock(Connection::class));
-        $this->assertFalse($vm->isAllowedTable("tl_user; DROP TABLE tl_user"));
-        $this->assertFalse($vm->isAllowedTable('information_schema.tables'));
-        $this->assertFalse($vm->isAllowedTable(''));
-        $this->assertFalse($vm->isAllowedTable('tl_unknown_table'));
+        foreach ($this->globals as $key => $value) {
+            if (null === $value) {
+                unset($GLOBALS[$key]);
+            } else {
+                $GLOBALS[$key] = $value;
+            }
+        }
+    }
+
+    private function manager(Connection $connection, ?Versions $versions = null): VersionManager
+    {
+        return new VersionManager(
+            $connection,
+            '/contao',
+            null === $versions ? null : static fn (): Versions => $versions,
+            static function (): void {},
+        );
+    }
+
+    private function connectionWithTables(bool $exists): Connection
+    {
+        $schema = $this->createMock(AbstractSchemaManager::class);
+        $schema->method('tablesExist')->willReturn($exists);
+
+        $connection = $this->createMock(Connection::class);
+        $connection->method('createSchemaManager')->willReturn($schema);
+
+        return $connection;
+    }
+
+    public function testAnyTableWhoseDcaKeepsVersionsIsAllowed(): void
+    {
+        $vm = $this->manager($this->connectionWithTables(true));
+
+        $this->assertNull($vm->refusal('tl_article'));
+        // An extension's table, which the fixed list of 24 refused until v1.4.0.
+        $this->assertNull($vm->refusal('tl_consho_product'));
+    }
+
+    /**
+     * @dataProvider refusals
+     */
+    public function testRefusalNamesTheReason(string $table, bool $exists, string $expected): void
+    {
+        $vm = $this->manager($this->connectionWithTables($exists));
+
+        $this->assertStringContainsString($expected, (string) $vm->refusal($table));
+        $this->assertFalse($vm->isAllowedTable($table));
+    }
+
+    /**
+     * @return array<string, array{string, bool, string}>
+     */
+    public static function refusals(): array
+    {
+        return [
+            'SQL in the name'      => ['tl_user; DROP TABLE tl_user', true, 'Invalid table name'],
+            'a schema-qualified'   => ['information_schema.tables', true, 'Invalid table name'],
+            'empty'                => ['', true, 'Invalid table name'],
+            'no DCA'               => ['tl_unknown_table', true, 'has no DCA'],
+            'versioning off'       => ['tl_search', true, 'enableVersioning is off'],
+            'DCA without a table'  => ['tl_consho_product', false, 'no database table'],
+        ];
     }
 
     public function testLoadVersionDataReturnsFalseOnMissing(): void
     {
         $conn = $this->createMock(Connection::class);
         $conn->method('fetchAssociative')->willReturn(false);
-        $vm = new VersionManager($conn);
-        $this->assertFalse($vm->loadVersionData('tl_article', 1, 99));
+        $this->assertFalse($this->manager($conn)->loadVersionData('tl_article', 1, 99));
     }
 
     public function testLoadVersionDataReturnsArrayOnValidData(): void
     {
         $conn = $this->createMock(Connection::class);
-        $payload = serialize(['id' => 1, 'title' => 'Test']);
-        $conn->method('fetchAssociative')->willReturn(['data' => $payload]);
-        $vm = new VersionManager($conn);
-        $result = $vm->loadVersionData('tl_article', 1, 1);
+        $conn->method('fetchAssociative')->willReturn(['data' => serialize(['id' => 1, 'title' => 'Test'])]);
+        $result = $this->manager($conn)->loadVersionData('tl_article', 1, 1);
         $this->assertIsArray($result);
         $this->assertSame('Test', $result['title']);
     }
@@ -47,91 +119,93 @@ class VersionManagerTest extends TestCase
     public function testLoadVersionDataRejectsMaliciousObjects(): void
     {
         $conn = $this->createMock(Connection::class);
-        // Serialized stdClass object -- should not be returned as stdClass
-        $malicious = serialize(new \stdClass());
-        $conn->method('fetchAssociative')->willReturn(['data' => $malicious]);
-        $vm = new VersionManager($conn);
-        // stdClass serializes to object, not array -> returns false
-        $result = $vm->loadVersionData('tl_article', 1, 1);
-        $this->assertFalse($result);
+        // A serialised object comes back as __PHP_Incomplete_Class, never an array.
+        $conn->method('fetchAssociative')->willReturn(['data' => serialize(new \stdClass())]);
+        $this->assertFalse($this->manager($conn)->loadVersionData('tl_article', 1, 1));
     }
 
-    public function testCreateVersionInsertsAndDeactivatesPrevious(): void
+    public function testCreateVersionNamesTheUserAndTheEditUrlAndLetsContaoWrite(): void
     {
         $conn = $this->createMock(Connection::class);
+        $conn->method('fetchOne')->with('SELECT id FROM tl_user WHERE username = ?', ['j.wilson'])->willReturn('5');
 
-        $conn->expects($this->once())
-            ->method('fetchAssociative')
-            ->willReturn(['id' => 1, 'title' => 'Test']);
-
-        // transactional() must invoke the given callback so inner expectations run
-        $conn->expects($this->once())
-            ->method('transactional')
-            ->willReturnCallback(fn(callable $fn) => $fn());
-
-        $conn->expects($this->once())
-            ->method('fetchOne')
-            ->with(
-                'SELECT MAX(version) FROM tl_version WHERE fromTable = ? AND pid = ?',
-                ['tl_article', 1]
-            )
-            ->willReturn('1');
-
-        $conn->expects($this->once())
-            ->method('executeStatement')
-            ->with(
-                'UPDATE tl_version SET active = 0 WHERE fromTable = ? AND pid = ?',
-                ['tl_article', 1]
-            );
-
-        $conn->expects($this->once())
-            ->method('insert')
-            ->with(
-                'tl_version',
-                $this->callback(static function (array $data): bool {
-                    return $data['active'] === 1
-                        && $data['version'] === 2
-                        && $data['fromTable'] === 'tl_article'
-                        && $data['pid'] === 1
-                        && $data['username'] === 'j.wilson'
-                        && is_string($data['data']);
-                })
-            );
-
-        $vm = new VersionManager($conn);
+        $versions = $this->createMock(Versions::class);
         // Operator passed explicitly: without it the username falls back to
-        // $_SERVER[USER]/[USERNAME], which makes the assertion depend on the
-        // machine running the suite (it read the developer's login on Windows, and would
-        // read the CI user on Linux).
-        $vm->createVersion('tl_article', 1, 'j.wilson');
+        // $_SERVER[USER]/[USERNAME], which depends on the machine running the suite.
+        $versions->expects($this->once())->method('setUsername')->with('j.wilson');
+        $versions->expects($this->once())->method('setUserId')->with(5);
+        // Not the module's first table, so `table=` — the form the back end stores.
+        $versions->expects($this->once())->method('setEditUrl')->with('contao?do=article&table=tl_content&act=edit&id=1');
+        $versions->expects($this->once())->method('create');
+
+        $this->manager($conn, $versions)->createVersion('tl_content', 1, 'j.wilson');
     }
 
-    public function testMarkActiveVersionCallsExecuteStatementTwice(): void
+    public function testTheEditUrlLeavesOutTheTableOfAModulesFirstTableAndIsEmptyWithoutAModule(): void
+    {
+        $urls     = [];
+        $versions = $this->createMock(Versions::class);
+        $versions->method('setEditUrl')->willReturnCallback(static function (string $url) use (&$urls): void {
+            $urls[] = $url;
+        });
+
+        $vm = $this->manager($this->createMock(Connection::class), $versions);
+        $vm->createVersion('tl_article', 7, 'cli');
+        $vm->createVersion('tl_consho_product', 3, 'cli');
+
+        $this->assertSame(['contao?do=article&act=edit&id=7', ''], $urls);
+    }
+
+    public function testInitializeIsContaosInitialize(): void
+    {
+        $versions = $this->createMock(Versions::class);
+        $versions->expects($this->once())->method('initialize');
+        $versions->expects($this->never())->method('create');
+
+        $this->manager($this->createMock(Connection::class), $versions)->initialize('tl_article', 1);
+    }
+
+    private function restoringConnection(int|false $active): Connection
     {
         $conn = $this->createMock(Connection::class);
+        $conn->expects($this->once())->method('transactional')->willReturnCallback(static fn (callable $fn) => $fn());
+        $conn->method('fetchOne')->willReturn($active);
 
-        $calls = [];
-        $conn->expects($this->exactly(2))
-            ->method('executeStatement')
-            ->willReturnCallback(function (string $sql, array $params) use (&$calls): int {
-                $calls[] = ['sql' => $sql, 'params' => $params];
-                return 1;
-            });
+        return $conn;
+    }
 
-        $vm = new VersionManager($conn);
-        $vm->markActiveVersion('tl_article', 1, 2);
+    public function testRestoreRunsContaosRestoreAndChecksTheActiveFlag(): void
+    {
+        $versions = $this->createMock(Versions::class);
+        $versions->expects($this->once())->method('restore')->with(3);
 
-        $this->assertCount(2, $calls);
-        $this->assertSame(
-            'UPDATE tl_version SET active = 0 WHERE fromTable = ? AND pid = ?',
-            $calls[0]['sql']
-        );
-        $this->assertSame(['tl_article', 1], $calls[0]['params']);
+        $this->manager($this->restoringConnection(1), $versions)->restore('tl_article', 1, 3);
+    }
 
-        $this->assertSame(
-            'UPDATE tl_version SET active = 1 WHERE fromTable = ? AND pid = ? AND version = ?',
-            $calls[1]['sql']
-        );
-        $this->assertSame(['tl_article', 1, 2], $calls[1]['params']);
+    public function testRestoreThatContaoSkippedSilentlyIsAnError(): void
+    {
+        $versions = $this->createMock(Versions::class);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Version 3 of tl_article:1 was not restored, nothing was changed: Contao did not restore it.');
+
+        $this->manager($this->restoringConnection(0), $versions)->restore('tl_article', 1, 3);
+    }
+
+    public function testWhatRestoreThrowsComesBackAsOneErrorNamingTheVersion(): void
+    {
+        // On the console the failure path of Versions::restore() dies on the flash
+        // message (there is no session); in the chat it throws a redirect. Either way.
+        $cause    = new \LogicException('There is currently no session available.');
+        $versions = $this->createMock(Versions::class);
+        $versions->method('restore')->willThrowException($cause);
+
+        try {
+            $this->manager($this->restoringConnection(1), $versions)->restore('tl_article', 1, 3);
+            $this->fail('expected an exception');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Version 3 of tl_article:1 was not restored', $e->getMessage());
+            $this->assertSame($cause, $e->getPrevious());
+        }
     }
 }

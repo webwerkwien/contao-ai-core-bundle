@@ -54,7 +54,7 @@ class VersionCommandTest extends TestCase
     public function testCreateRequiresId(): void
     {
         $vm = $this->vm();
-        $vm->method('isAllowedTable')->willReturn(true);
+        $vm->method('refusal')->willReturn(null);
         $cmd = new VersionCreateCommand($this->fw(), $vm);
         $tester = new CommandTester($cmd);
         $tester->execute(['--table' => 'tl_content']);
@@ -66,13 +66,14 @@ class VersionCommandTest extends TestCase
     public function testCreateRejectsDisallowedTable(): void
     {
         $vm = $this->vm();
-        $vm->method('isAllowedTable')->willReturn(false);
+        $vm->method('refusal')->willReturn('tl_evil has no DCA, so it has no versions.');
+        $vm->expects($this->never())->method('createVersion');
         $cmd = new VersionCreateCommand($this->fw(), $vm);
         $tester = new CommandTester($cmd);
         $tester->execute(['--table' => 'tl_evil', '--id' => '1']);
         $out = json_decode($tester->getDisplay(), true);
         $this->assertSame('error', $out['status']);
-        $this->assertStringContainsStringIgnoringCase('allowed', $out['message']);
+        $this->assertSame('tl_evil has no DCA, so it has no versions.', $out['message']);
     }
 
     // --- VersionListCommand ---
@@ -128,7 +129,7 @@ class VersionCommandTest extends TestCase
 
     public function testRestoreRequiresTable(): void
     {
-        $cmd = new VersionRestoreCommand($this->fw(), $this->vm(), $this->conn());
+        $cmd = new VersionRestoreCommand($this->fw(), $this->vm());
         $cmd->setLogger($this->logger());
         $tester = new CommandTester($cmd);
         $tester->execute([]);
@@ -139,7 +140,7 @@ class VersionCommandTest extends TestCase
 
     public function testRestoreRequiresIdAndVer(): void
     {
-        $cmd = new VersionRestoreCommand($this->fw(), $this->vm(), $this->conn());
+        $cmd = new VersionRestoreCommand($this->fw(), $this->vm());
         $cmd->setLogger($this->logger());
         $tester = new CommandTester($cmd);
         $tester->execute(['--table' => 'tl_content']);
@@ -150,19 +151,20 @@ class VersionCommandTest extends TestCase
     public function testRestoreRejectsDisallowedTable(): void
     {
         $vm = $this->vm();
-        $vm->method('isAllowedTable')->willReturn(false);
-        $cmd = new VersionRestoreCommand($this->fw(), $vm, $this->conn());
+        $vm->method('refusal')->willReturn('tl_evil has no DCA, so it has no versions.');
+        $vm->expects($this->never())->method('restore');
+        $cmd = new VersionRestoreCommand($this->fw(), $vm);
         $cmd->setLogger($this->logger());
         $tester = new CommandTester($cmd);
         $tester->execute(['--table' => 'tl_evil', '--id' => '1', '--ver' => '2']);
         $out = json_decode($tester->getDisplay(), true);
         $this->assertSame('error', $out['status']);
-        $this->assertStringContainsStringIgnoringCase('allowed', $out['message']);
+        $this->assertSame('tl_evil has no DCA, so it has no versions.', $out['message']);
     }
 
     public function testRestoreCommandName(): void
     {
-        $cmd = new VersionRestoreCommand($this->fw(), $this->vm(), $this->conn());
+        $cmd = new VersionRestoreCommand($this->fw(), $this->vm());
         $this->assertSame('contao:version:restore', $cmd->getName());
     }
 }

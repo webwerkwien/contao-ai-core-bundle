@@ -45,23 +45,15 @@ class RestoreAndCloneCacheTest extends TestCase
         $log = [];
 
         $versions = $this->createMock(VersionManager::class);
-        $versions->method('isAllowedTable')->willReturn(true);
+        $versions->method('refusal')->willReturn(null);
         $versions->method('loadVersionData')->willReturn(['id' => 2, 'title' => 'Alt']);
-
-        $schema = $this->createMock(AbstractSchemaManager::class);
-        $schema->method('listTableColumns')->willReturn(['id' => null, 'title' => null]);
-
-        $connection = $this->createMock(Connection::class);
-        $connection->method('createSchemaManager')->willReturn($schema);
-        $connection->method('quoteIdentifier')->willReturnCallback(static fn (string $n): string => '`' . $n . '`');
-        $connection->method('update')->willReturnCallback(
-            static function (string $table, array $data, array $criteria) use (&$log): int {
-                $log[] = 'update ' . trim($table, '`') . ':' . $criteria['id'];
-                return 1;
+        $versions->method('restore')->willReturnCallback(
+            static function (string $table, int $id, int $version) use (&$log): void {
+                $log[] = 'restore ' . $table . ':' . $id . ' v' . $version;
             }
         );
 
-        $command = new VersionRestoreCommand($this->createMock(ContaoFramework::class), $versions, $connection);
+        $command = new VersionRestoreCommand($this->createMock(ContaoFramework::class), $versions);
         $command->setLogger($this->createMock(LoggerInterface::class));
         $command->setCacheTagInvalidator($this->cacheTags($log));
 
@@ -69,7 +61,7 @@ class RestoreAndCloneCacheTest extends TestCase
         $tester->execute(['--table' => 'tl_page', '--id' => '2', '--ver' => '3']);
         $answer = json_decode($tester->getDisplay(), true);
 
-        $this->assertSame(['update tl_page:2', 'invalidate tl_page:2'], $log);
+        $this->assertSame(['restore tl_page:2 v3', 'invalidate tl_page:2'], $log);
         $this->assertSame(['contao.sitemap.1'], $answer['cacheTags']);
     }
 
