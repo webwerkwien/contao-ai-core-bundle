@@ -73,10 +73,17 @@ class DcaCallbacks
     {
         $set ??= $this->row($table, $id);
 
-        $this->withSession(function (Request $request) use ($table, $id, $set): void {
+        $real = (bool) $this->requestStack->getCurrentRequest()?->hasSession();
+
+        $this->withSession(function (Request $request) use ($table, $id, $set, $real): void {
             $bag = $request->getSession()->getBag('contao_backend');
 
-            if ($bag instanceof ArrayAttributeBag) {
+            // Only in a real session, the chat's, where a back-end user goes with it. The
+            // 5.3 adjustPermissions callbacks act on a record listed there and read the
+            // user's groups — on the console BackendUser::getInstance() is an empty user,
+            // and the query built from its groups was a syntax error (c5, 5.3,
+            // 2026-10-10). Unlisted, they return early, as for a record they never saw.
+            if ($real && $bag instanceof ArrayAttributeBag) {
                 $new = (array) $bag->get('new_records');
                 $new[$table][] = $id;
                 $bag->set('new_records', $new);
