@@ -15,6 +15,9 @@ use Webwerkwien\ContaoAiCoreBundle\Service\CliUser;
  */
 class CliUserTest extends TestCase
 {
+    /**
+     * @return UserProviderInterface<BackendUser>
+     */
     private function provider(?BackendUser $user): UserProviderInterface
     {
         $provider = $this->createMock(UserProviderInterface::class);
