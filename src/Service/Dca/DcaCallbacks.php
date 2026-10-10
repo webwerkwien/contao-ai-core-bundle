@@ -7,6 +7,7 @@ use Contao\CoreBundle\Session\Attribute\ArrayAttributeBag;
 use Contao\DataContainer;
 use Contao\StringUtil;
 use Contao\System;
+use Contao\Widget;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -229,6 +230,14 @@ class DcaCallbacks
                     }
 
                     $this->ran[] = $table . '.' . $field . '.save: ' . $label;
+                }
+
+                // As DC_Table::save() after its callbacks: an empty value becomes the
+                // empty value of the column type. 5.3's tl_page::checkFallback returns ''
+                // for an unchecked box, and '' in its integer column was an SQL error (c5,
+                // 5.3, 2026-10-10).
+                if (!\is_array($value) && '' === (string) $value) {
+                    $value = Widget::getEmptyValueByFieldType($definitions[$field]['sql'] ?? []);
                 }
 
                 $fields[$field] = $value;

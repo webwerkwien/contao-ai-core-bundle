@@ -85,7 +85,7 @@ class ChangeLanguageLinks
 
         $hint = match (true) {
             [] !== $values      => 'Valid targets: ' . implode(', ', \array_slice($values, 0, 20)) . (\count($values) > 20 ? ', …' : '') . '.',
-            'tl_article' === $table => 'There are none: the article\'s page has to be linked to its page in the main language first (language link --table tl_page).',
+            'tl_article' === $table => 'There are none: the article\'s page has to be linked to its page in the main language first (language link --table tl_page), and changelanguage finds that page only when both pages and their roots are published.',
             'master' === $field => 'There are none: the archive\'s jumpTo page has to be linked to a page in the main language, and the archive there must not be the master of another one already.',
             default             => 'There are none: the archive has to be linked to its archive in the main language first (language link --table ' . array_search($table, self::ARCHIVES, true) . ').',
         };

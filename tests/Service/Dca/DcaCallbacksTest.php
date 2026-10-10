@@ -376,6 +376,23 @@ class DcaCallbacksTest extends TestCase
         $this->assertStringContainsString('the palette could not be built on the console (no request)', $callbacks->drainReport()[0]);
     }
 
+    /**
+     * 5.3's tl_page::checkFallback returns '' for an unchecked box; DC_Table turns that
+     * into the empty value of the column, and '' in an integer column was an SQL error.
+     */
+    public function testAnEmptyValueBecomesTheEmptyValueOfItsColumn(): void
+    {
+        $GLOBALS['TL_DCA']['tl_page']['fields']['fallback'] = [
+            'sql'           => ['type' => 'boolean', 'default' => false],
+            'save_callback' => [static fn () => ''],
+        ];
+
+        $fields = $this->callbacks()->save('tl_page', 7, ['fallback' => '0'], ['id' => 7]);
+
+        $this->assertNotSame('', $fields['fallback']);
+        $this->assertFalse((bool) $fields['fallback']);
+    }
+
     public function testWithoutCallbacksNothingRunsAndNoSessionIsMade(): void
     {
         $GLOBALS['TL_DCA']['tl_page']['config'] = [];
