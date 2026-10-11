@@ -50,7 +50,9 @@ class ModelWriter implements RecordWriterInterface
         // On both paths: Model::save() drops a key that is no column without a word,
         // and the answer would name it as written (pre-release review M4). The
         // commands check beforehand; an extension through the public API may not.
-        $this->refuseUnknownColumns($table, $fields);
+        // A DCA field without a column may pass on to an onbeforesubmit_callback
+        // (v1.5.0); what is still no column after it is refused in beforeSubmit().
+        $this->refuseUnknownKeys($table, $fields);
 
         // A move: the old parent listed the record too (a navigation, an article
         // list). Its tags are read now, while the record still names it (v1.2.0).
@@ -74,6 +76,7 @@ class ModelWriter implements RecordWriterInterface
             }
 
             $fields = $this->withSaveCallbacks($saveCallbacks, $table, $id, $fields, $old);
+            $fields = $this->beforeSubmit($table, $id, $fields, $old);
 
             $this->versionManager->initialize($table, $id);
             $this->connection->update($table, $this->quoted(['tstamp' => time()] + $fields), ['id' => $id]);
@@ -86,6 +89,7 @@ class ModelWriter implements RecordWriterInterface
 
             $old    = $record->row();
             $fields = $this->withSaveCallbacks($saveCallbacks, $table, $id, $fields, $old);
+            $fields = $this->beforeSubmit($table, $id, $fields, $old);
 
             foreach ($fields as $key => $value) {
                 $record->$key = $value;
@@ -120,27 +124,35 @@ class ModelWriter implements RecordWriterInterface
             $this->cacheTags->invalidate($before);
         }
 
-        return array_keys($fields);
+        // What was written, including what an onbeforesubmit_callback added — but not
+        // the tstamp it carries, which every write sets.
+        return array_values(array_filter(array_map('strval', array_keys($fields)), static fn (string $field): bool => 'tstamp' !== $field));
     }
 
     public function create(string $table, array $fields, string $operator, bool $saveCallbacks = false): int
     {
         return $this->connection->transactional(function () use ($table, $fields, $operator, $saveCallbacks): int {
-            $this->refuseUnknownColumns($table, $fields);
+            $this->refuseUnknownKeys($table, $fields);
 
-            $this->connection->insert($table, $this->quoted(['tstamp' => time()] + $fields));
+            // A DCA field without a column waits for the callbacks below; it cannot be
+            // inserted (v1.5.0).
+            $columns  = $this->columns($table);
+            $inserted = array_filter($fields, static fn ($field): bool => \in_array(strtolower((string) $field), $columns, true), \ARRAY_FILTER_USE_KEY);
+
+            $this->connection->insert($table, $this->quoted(['tstamp' => time()] + $inserted));
             $id = (int) $this->connection->lastInsertId();
 
             // As a create in the commands: oncreate, the fields' save_callbacks on the
-            // record that now exists, onsubmit, then the first version, which is
-            // marked as the record's own (RecordIdReuseTest). DC_Table::create() plus
-            // the saved mask.
+            // record that now exists, onbeforesubmit, onsubmit, then the first version,
+            // which is marked as the record's own (RecordIdReuseTest). DC_Table::create()
+            // plus the saved mask.
             $this->callbacks?->create($table, $id);
 
-            if ($saveCallbacks && null !== $this->callbacks) {
+            if (null !== $this->callbacks) {
                 $row     = $this->connection->fetchAssociative('SELECT * FROM ' . $this->connection->quoteIdentifier($table) . ' WHERE id = ?', [$id]) ?: [];
-                $saved   = $this->withSaveCallbacks(true, $table, $id, $fields, $row);
-                $changed = array_filter($saved, static fn ($value, $field): bool => !\array_key_exists($field, $fields) || $fields[$field] !== $value, \ARRAY_FILTER_USE_BOTH);
+                $saved   = $this->withSaveCallbacks($saveCallbacks, $table, $id, $fields, $row);
+                $saved   = $this->beforeSubmit($table, $id, $saved, $row);
+                $changed = array_filter($saved, static fn ($value, $field): bool => !\array_key_exists($field, $inserted) || $inserted[$field] !== $value, \ARRAY_FILTER_USE_BOTH);
 
                 if ([] !== $changed) {
                     $this->connection->update($table, $this->quoted($changed), ['id' => $id]);
@@ -175,36 +187,89 @@ class ModelWriter implements RecordWriterInterface
             return $fields;
         }
 
-        $saved = $this->callbacks->save($table, $id, $fields, $row, [], array_map('strval', array_keys($fields)));
+        // A callback answers for its own field; it adds none (DcaCallbacks::save()
+        // replaces values). Columns are checked after onbeforesubmit, in beforeSubmit().
+        return $this->callbacks->save($table, $id, $fields, $row, [], array_map('strval', array_keys($fields)));
+    }
 
-        // A callback answers for its own field; it cannot add a column the caller
-        // did not hand over (DcaCallbacks::save() replaces values, it adds none).
-        $this->refuseUnknownColumns($table, $saved);
+    /**
+     * The table's onbeforesubmit_callbacks, where DC_Table::submit() runs them: after
+     * the save_callbacks, before the write, and not for a move (v1.5.0). They run on
+     * every write, as onsubmit does — the record callbacks are the table's rules, not
+     * an option of the caller; $saveCallbacks covers the fields' callbacks only.
+     *
+     * What is no column afterwards is refused by name: a DCA field without one that no
+     * callback consumed would otherwise be dropped while the answer names it as written.
+     *
+     * @param array<string, mixed> $fields
+     * @param array<string, mixed> $row the stored record (for a create: as inserted)
+     *
+     * @return array<string, mixed>
+     */
+    private function beforeSubmit(string $table, int $id, array $fields, array $row): array
+    {
+        if (null !== $this->callbacks && [] !== array_diff(array_keys($fields), self::POSITION_FIELDS)) {
+            $fields = $this->callbacks->beforeSubmit($table, $id, $fields, $row);
+        }
 
-        return $saved;
+        $unknown = $this->notColumns($table, $fields);
+
+        if ([] !== $unknown) {
+            throw new \InvalidArgumentException(\sprintf(
+                'Not a column of %s: %s — no onbeforesubmit_callback took it over, so it would not be stored. Nothing was written.',
+                $table,
+                implode(', ', $unknown),
+            ));
+        }
+
+        return $fields;
     }
 
     /**
      * A key that is no column would make the INSERT or UPDATE fail with an SQL error
-     * that names the column but not the reason; this names both.
+     * that names the column but not the reason; this names both. A field the DCA
+     * declares without a column passes when the table has onbeforesubmit_callbacks
+     * to take it over — a virtual field, like a gross amount stored as net (v1.5.0).
      *
      * @param array<string, mixed> $fields
      */
-    private function refuseUnknownColumns(string $table, array $fields): void
+    private function refuseUnknownKeys(string $table, array $fields): void
     {
-        $columns = array_map(
-            static fn ($column): string => strtolower($column->getName()),
-            $this->connection->createSchemaManager()->listTableColumns($table),
-        );
+        $unknown = $this->notColumns($table, $fields);
 
-        $unknown = array_values(array_filter(
-            array_keys($fields),
-            static fn ($field): bool => !\in_array(strtolower((string) $field), $columns, true),
-        ));
+        if ([] !== $unknown && null !== $this->callbacks && [] !== ($GLOBALS['TL_DCA'][$table]['config']['onbeforesubmit_callback'] ?? [])) {
+            $unknown = array_values(array_filter($unknown, static fn (string $field): bool => !isset($GLOBALS['TL_DCA'][$table]['fields'][$field])));
+        }
 
         if ([] !== $unknown) {
             throw new \InvalidArgumentException(\sprintf('Not a column of %s: %s. Nothing was written.', $table, implode(', ', $unknown)));
         }
+    }
+
+    /**
+     * @param array<string, mixed> $fields
+     *
+     * @return list<string>
+     */
+    private function notColumns(string $table, array $fields): array
+    {
+        $columns = $this->columns($table);
+
+        return array_values(array_filter(
+            array_map('strval', array_keys($fields)),
+            static fn (string $field): bool => !\in_array(strtolower($field), $columns, true),
+        ));
+    }
+
+    /**
+     * @return list<string> lower case
+     */
+    private function columns(string $table): array
+    {
+        return array_values(array_map(
+            static fn ($column): string => strtolower($column->getName()),
+            $this->connection->createSchemaManager()->listTableColumns($table),
+        ));
     }
 
     /**

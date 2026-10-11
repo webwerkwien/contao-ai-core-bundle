@@ -72,6 +72,8 @@ class ModelWriterTest extends TestCase
         $connection->method('lastInsertId')->willReturn('42');
 
         $callbacks = $this->createMock(DcaCallbacks::class);
+        // onbeforesubmit (v1.5.0) hands the values back unchanged unless a test says otherwise.
+        $callbacks->method('beforeSubmit')->willReturnArgument(2);
         $callbacks->method('create')->willReturnCallback(static function (string $t, int $id) use (&$order): void { $order[] = 'oncreate ' . $id; });
         $callbacks->method('submit')->willReturnCallback(static function (string $t, int $id) use (&$order): void { $order[] = 'onsubmit ' . $id; });
 
@@ -103,6 +105,8 @@ class ModelWriterTest extends TestCase
         });
 
         $callbacks = $this->createMock(DcaCallbacks::class);
+        // onbeforesubmit (v1.5.0) hands the values back unchanged unless a test says otherwise.
+        $callbacks->method('beforeSubmit')->willReturnArgument(2);
         $callbacks->method('create')->willReturnCallback(static function (string $t, int $id) use (&$order): void { $order[] = 'oncreate ' . $id; });
         $callbacks->method('save')->willReturnCallback(static function (string $t, int $id, array $fields, array $row, array $skip, array $requested) use (&$order): array {
             $order[] = \sprintf('save %d row=%s requested=%s', $id, $row['title'], implode(',', $requested));
@@ -133,6 +137,8 @@ class ModelWriterTest extends TestCase
         $connection->method('lastInsertId')->willReturn('42');
 
         $callbacks = $this->createMock(DcaCallbacks::class);
+        // onbeforesubmit (v1.5.0) hands the values back unchanged unless a test says otherwise.
+        $callbacks->method('beforeSubmit')->willReturnArgument(2);
         $callbacks->expects($this->never())->method('save');
 
         (new ModelWriter($connection, $this->createMock(VersionManager::class), $this->createMock(RecordCascadeCollector::class), null, $callbacks))
@@ -147,6 +153,8 @@ class ModelWriterTest extends TestCase
         $connection->method('update')->willReturnCallback(static function (string $table, array $data) use (&$written): int { $written = $data; return 1; });
 
         $callbacks = $this->createMock(DcaCallbacks::class);
+        // onbeforesubmit (v1.5.0) hands the values back unchanged unless a test says otherwise.
+        $callbacks->method('beforeSubmit')->willReturnArgument(2);
         $callbacks->expects($this->once())->method('save')
             ->with('tl_contao_ai_no_model', 3, ['title' => 'neu'], ['id' => 3, 'title' => 'Alt'], [], ['title'])
             ->willReturn(['title' => 'Neu']);
@@ -185,6 +193,8 @@ class ModelWriterTest extends TestCase
         });
 
         $callbacks = $this->createMock(DcaCallbacks::class);
+        // onbeforesubmit (v1.5.0) hands the values back unchanged unless a test says otherwise.
+        $callbacks->method('beforeSubmit')->willReturnArgument(2);
         $callbacks->method('submit')->willReturnCallback(static function (string $t, int $id) use (&$order): void { $order[] = 'onsubmit ' . $id; });
 
         $writer = new ModelWriter($connection, $this->createMock(VersionManager::class), $this->createMock(RecordCascadeCollector::class), null, $callbacks);
@@ -214,6 +224,8 @@ class ModelWriterTest extends TestCase
         });
 
         $callbacks = $this->createMock(DcaCallbacks::class);
+        // onbeforesubmit (v1.5.0) hands the values back unchanged unless a test says otherwise.
+        $callbacks->method('beforeSubmit')->willReturnArgument(2);
         $callbacks->expects($this->once())->method('delete')->willReturnCallback(
             static function (string $table, int $id, array $row, int $undoId) use (&$order): void {
                 $order[] = \sprintf('ondelete %s:%d undo %d title %s', $table, $id, $undoId, $row['title']);

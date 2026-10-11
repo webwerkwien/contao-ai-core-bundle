@@ -402,4 +402,67 @@ class DcaCallbacksTest extends TestCase
 
         $this->assertSame([], $callbacks->drainReport());
     }
+
+    /**
+     * onbeforesubmit as DC_Table::submit() runs it (v1.5.0): ($values, $dc), the values
+     * carry tstamp, the return value replaces them — a callback may change, add and
+     * remove fields (Consho converts a virtual gross amount into net and drops it).
+     */
+    public function testBeforeSubmitHandsOverTheValuesAndTakesWhatItReturns(): void
+    {
+        $seen = null;
+        $this->on('onbeforesubmit_callback', [
+            static function (array $values, DataContainer $dc) use (&$seen): array {
+                $seen = [isset($values['tstamp']), $values['amount'], $dc->id, $dc->getCurrentRecord()['title']];
+                $values['net'] = $values['amount'] / 1.2;
+                unset($values['amount']);
+
+                return $values;
+            },
+            static fn (array $values): array => $values + ['currency' => 'EUR'],
+        ]);
+
+        $callbacks = $this->callbacks();
+        $values    = $callbacks->beforeSubmit('tl_page', 7, ['amount' => 12.0], ['id' => 7, 'title' => 'Alt']);
+
+        $this->assertSame([true, 12.0, 7, 'Alt'], $seen);
+        $this->assertSame(['tstamp', 'net', 'currency'], array_keys($values));
+        $this->assertEqualsWithDelta(10.0, $values['net'], 0.0001);
+        $this->assertCount(2, $callbacks->drainReport());
+    }
+
+    public function testBeforeSubmitRunsForNothingWhenThereAreNoValues(): void
+    {
+        // DC_Table: `if (!$this->noReload && !empty($arrValues))` — an update that
+        // only versions the record does not submit anything.
+        $this->on('onbeforesubmit_callback', [static fn (): array => throw new \LogicException('must not run')]);
+
+        $this->assertSame([], $this->callbacks()->beforeSubmit('tl_page', 7, [], ['id' => 7]));
+    }
+
+    public function testABeforeSubmitCallbackThatThrowsRefusesTheWrite(): void
+    {
+        // Contao's StartStopValidationListener throws a RuntimeException for a stop
+        // before the start; the mask shows it as an error and saves nothing.
+        $this->on('onbeforesubmit_callback', [static fn (): array => throw new \RuntimeException('Das Ende liegt vor dem Beginn.')]);
+
+        try {
+            $this->callbacks()->beforeSubmit('tl_page', 7, ['stop' => '1'], ['id' => 7]);
+            $this->fail('expected a refusal');
+        } catch (\InvalidArgumentException $e) {
+            $this->assertSame(\InvalidArgumentException::class, $e::class);
+            $this->assertStringContainsString('tl_page.onbeforesubmit of tl_page:7 refused by', $e->getMessage());
+            $this->assertStringContainsString('Das Ende liegt vor dem Beginn. Nothing was written.', $e->getMessage());
+        }
+    }
+
+    public function testABeforeSubmitCallbackThatReturnsNoArrayIsADefect(): void
+    {
+        $this->on('onbeforesubmit_callback', [static function (array $values): void {}]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('must return the values');
+
+        $this->callbacks()->beforeSubmit('tl_page', 7, ['title' => 'x'], ['id' => 7]);
+    }
 }

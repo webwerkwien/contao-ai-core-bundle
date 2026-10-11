@@ -34,6 +34,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\CliUser;
  * | Event      | Called with                      | When                                         |
  * |------------|----------------------------------|----------------------------------------------|
  * | `oncreate` | `$table, $id, $set, $dc`         | right after the INSERT                       |
+ * | `onbeforesubmit` | `$values, $dc`, returns the values | after the save_callbacks, before the UPDATE (v1.5.0) |
  * | `onsubmit` | `$dc`                            | after the UPDATE, before the new version     |
  * | `oncopy`   | `$newId, $dc` (dc = the source)  | per child after its INSERT, the root last    |
  * | `oncut`    | `$dc`                            | after the UPDATE of pid/sorting              |
@@ -117,6 +118,65 @@ class DcaCallbacks
             }
 
             $this->run($table, 'oncreate_callback', $id, $set, fn (DataContainer $dc): array => [$table, $id, $set, $dc]);
+        });
+    }
+
+    /**
+     * Before the record is saved, after the fields' save_callbacks — where
+     * `DC_Table::submit()` runs `onbeforesubmit` (v1.5.0). Each callback gets
+     * `($values, $dc)` and returns the values to write: it may change, add or remove
+     * fields. Contao's StartStopValidationListener refuses a stop before the start here
+     * (tl_page, tl_article, tl_content, tl_member, tl_user and their groups).
+     *
+     * As in DC_Table, the values carry `tstamp`, and nothing runs for empty values.
+     * The data container's current record is the stored one, the state being replaced
+     * (for a create: the row as inserted).
+     *
+     * @param array<string, mixed> $values the values about to be written
+     * @param array<string, mixed> $record the stored record
+     *
+     * @return array<string, mixed> the values to write after the callbacks
+     */
+    public function beforeSubmit(string $table, int $id, array $values, array $record): array
+    {
+        $callbacks = $GLOBALS['TL_DCA'][$table]['config']['onbeforesubmit_callback'] ?? null;
+
+        if ([] === $values || !\is_array($callbacks) || [] === $callbacks) {
+            return $values;
+        }
+
+        return $this->withSession(function () use ($table, $id, $values, $record, $callbacks): array {
+            ($this->loadLanguageFile)('default');
+            ($this->loadLanguageFile)($table);
+
+            $values['tstamp'] = time();
+            $dc               = RecordDataContainer::create($table, $id, $record, $this->connection);
+            $name             = $table . '.onbeforesubmit';
+
+            foreach ($callbacks as $callback) {
+                $label = self::label($callback);
+
+                try {
+                    // In Contao's coercive mode, see CallbackInvoker.
+                    $result = CallbackInvoker::call($callback, [$values, $dc], $values);
+                } catch (ResponseException) {
+                    $this->ran[] = $name . ': ' . $label . ' (answered with a redirect; the remaining callbacks did not run)';
+
+                    return $values;
+                } catch (\Exception $e) {
+                    throw new \InvalidArgumentException(\sprintf('%s of %s:%d refused by %s: %s Nothing was written.', $name, $table, $id, $label, $e->getMessage()), 0, $e);
+                }
+
+                // Contao's own words for the same defect.
+                if (!\is_array($result)) {
+                    throw new \RuntimeException(\sprintf('The onbeforesubmit_callback must return the values! (%s)', $label));
+                }
+
+                $values      = $result;
+                $this->ran[] = $name . ': ' . $label;
+            }
+
+            return $values;
         });
     }
 

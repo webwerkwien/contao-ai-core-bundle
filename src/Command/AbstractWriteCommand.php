@@ -482,10 +482,17 @@ abstract class AbstractWriteCommand extends Command
         $fields = $this->deferredSaveFields[$table];
         unset($this->deferredSaveFields[$table]);
 
-        $saved   = $this->dcaCallbacks->save($table, $id, $fields, $this->storedRow($table, $id), self::OWN_SAVE_PATHS[$table] ?? [], $this->requestedFields);
+        $row   = $this->storedRow($table, $id);
+        $saved = $this->dcaCallbacks->save($table, $id, $fields, $row, self::OWN_SAVE_PATHS[$table] ?? [], $this->requestedFields);
+        // Then onbeforesubmit, as the saved mask runs it (v1.5.0): Contao's start/stop
+        // check, an extension's derived fields. An update gets it in the record writer.
+        $saved   = $this->dcaCallbacks->beforeSubmit($table, $id, $saved, $row);
         $changed = array_filter($saved, static fn ($value, $field): bool => !\array_key_exists($field, $fields) || $fields[$field] !== $value, \ARRAY_FILTER_USE_BOTH);
 
         if ([] !== $changed) {
+            // A field a callback added has to be a column, or the UPDATE fails without
+            // saying why; the create's transaction takes the record back.
+            $this->refuseUnknownFields($table, $changed);
             $this->writeBack($table, $id, $changed);
         }
     }

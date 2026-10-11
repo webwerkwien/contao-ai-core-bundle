@@ -43,6 +43,8 @@ class DeferredSaveCallbacksTest extends TestCase
     private function callbacks(array $returns = []): DcaCallbacks
     {
         $callbacks = $this->createMock(DcaCallbacks::class);
+        // onbeforesubmit (v1.5.0) hands the values back unchanged unless a test says otherwise.
+        $callbacks->method('beforeSubmit')->willReturnArgument(2);
         $callbacks->method('create')->willReturnCallback(static function (string $t, int $id): void { self::$log[] = 'oncreate ' . $id; });
         $callbacks->method('submit')->willReturnCallback(static function (string $t, int $id): void { self::$log[] = 'onsubmit ' . $id; });
         $callbacks->method('save')->willReturnCallback(static function (string $t, int $id, array $fields, array $record) use ($returns): array {
@@ -104,6 +106,35 @@ class DeferredSaveCallbacksTest extends TestCase
         $command->created('tl_probe', 7);
 
         $this->assertSame([['tl_probe', 7, ['title' => 'Neu (DE)']]], $command->writtenBack);
+    }
+
+    /**
+     * onbeforesubmit after the save_callbacks and before onsubmit, on the row as
+     * inserted; what it adds or changes is written back (v1.5.0). An update gets it in
+     * the record writer (BeforeSubmitTest).
+     */
+    public function testACreateRunsOnbeforesubmitBetweenTheSaveCallbacksAndOnsubmit(): void
+    {
+        $callbacks = $this->createMock(DcaCallbacks::class);
+        $callbacks->method('create')->willReturnCallback(static function (string $t, int $id): void { self::$log[] = 'oncreate ' . $id; });
+        $callbacks->method('save')->willReturnCallback(static function (string $t, int $id, array $fields): array {
+            self::$log[] = 'save ' . $id;
+
+            return $fields;
+        });
+        $callbacks->method('beforeSubmit')->willReturnCallback(static function (string $t, int $id, array $values, array $row): array {
+            self::$log[] = \sprintf('beforesubmit %d row=%s', $id, $row['title']);
+
+            return $values + ['languageMain' => 9, 'tstamp' => 1];
+        });
+        $callbacks->method('submit')->willReturnCallback(static function (string $t, int $id): void { self::$log[] = 'onsubmit ' . $id; });
+
+        $command = $this->createCommand($callbacks);
+        $command->convert('tl_probe', ['title' => 'Neu']);
+        $command->created('tl_probe', 7);
+
+        $this->assertSame(['oncreate 7', 'save 7', 'beforesubmit 7 row=Neu', 'onsubmit 7', 'version 7'], self::$log);
+        $this->assertSame([['tl_probe', 7, ['languageMain' => 9, 'tstamp' => 1]]], $command->writtenBack);
     }
 
     public function testAnUpdateStillRunsThemInConvertFields(): void

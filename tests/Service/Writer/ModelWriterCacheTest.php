@@ -119,6 +119,8 @@ class ModelWriterCacheTest extends TestCase
     public function testARefusingCallbackRollsTheSaveBack(): void
     {
         $callbacks = $this->createMock(DcaCallbacks::class);
+        // onbeforesubmit (v1.5.0) hands the values back unchanged unless a test says otherwise.
+        $callbacks->method('beforeSubmit')->willReturnArgument(2);
         $callbacks->method('submit')->willThrowException(new \InvalidArgumentException('tl_page.onsubmit refused by Probe::check. Nothing was written.'));
 
         $versions = $this->createMock(VersionManager::class);
@@ -246,6 +248,8 @@ class ModelWriterCacheTest extends TestCase
     private function loggingCallbacks(): DcaCallbacks
     {
         $callbacks = $this->createMock(DcaCallbacks::class);
+        // onbeforesubmit (v1.5.0) hands the values back unchanged unless a test says otherwise.
+        $callbacks->method('beforeSubmit')->willReturnArgument(2);
         $callbacks->method('submit')->willReturnCallback(static function (string $table, int $id): void {
             CacheTestRecord::$log[] = 'onsubmit ' . $table . ':' . $id;
         });
