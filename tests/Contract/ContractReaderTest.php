@@ -30,6 +30,11 @@ class WritesWithoutTraceCommand
 {
 }
 
+#[AiContract(writes: true, trace: [])]
+class WritesWithAnExplicitlyEmptyTraceCommand
+{
+}
+
 #[AiContract(writes: true, trace: ['tl_log'])]
 class TraceWithoutWhenCommand
 {
@@ -223,6 +228,17 @@ class ContractReaderTest extends TestCase
 
         self::assertNotSame([], $contract['problems']);
         self::assertStringContainsString('no trace declared', implode(' ', $contract['problems']));
+    }
+
+    public function testAnExplicitlyEmptyTraceIsAStatementAndNotAMistake(): void
+    {
+        /* The problem message itself tells the author to write `trace: []` when
+           the command leaves no trail. Until v1.4.2 that declaration was reported
+           exactly like a missing one (found at consho:stock:book). */
+        $contract = ContractReader::read(WritesWithAnExplicitlyEmptyTraceCommand::class);
+
+        self::assertSame([], $contract['problems']);
+        self::assertSame([], $contract['fields']['trace']);
     }
 
     public function testATraceWithoutItsTimingIsReported(): void

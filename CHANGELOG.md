@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## Unreleased (v1.4.2)
+
+### Fixed
+
+- **An explicit `trace: []` in `#[AiContract]` is no longer reported as missing.** The
+  problem "writes: true but no trace declared" asked the author to declare `trace: []` when a
+  command leaves no trail, then raised the same problem for exactly that declaration. Only an
+  absent `trace` is reported now. Found by the Consho session at `consho:stock:book`.
+
 ## v1.4.1 - 2026-10-11
 
 Nothing to change for callers; works with the same contao-ai-cli and backend-bundle.

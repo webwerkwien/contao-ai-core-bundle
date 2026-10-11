@@ -159,8 +159,9 @@ final class ContractReader
         // Not a type error, so the checks above cannot see it: a command that
         // says it writes and names no trace is exactly the case the `ext run`
         // warning describes, and staying quiet about it here would hide the
-        // one thing a caller most needs to know.
-        if (($fields['writes'] ?? false) && [] === ($fields['trace'] ?? [])) {
+        // one thing a caller most needs to know. Only an absent trace counts: the
+        // raw arguments tell an explicit `trace: []` from the constructor default.
+        if (($fields['writes'] ?? false) && !\array_key_exists('trace', $fields)) {
             $problems[] = 'writes: true but no trace declared — a caller cannot tell whether that '
                 .'means "leaves nothing behind" or "not stated". Declare trace: [] explicitly if '
                 .'the command genuinely leaves no trail.';
