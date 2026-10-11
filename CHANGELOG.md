@@ -4,14 +4,24 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
-## Unreleased
+## v1.4.1 - 2026-10-11
+
+Nothing to change for callers; works with the same contao-ai-cli and backend-bundle.
 
 ### Added
 
 - **`CacheTagInvalidator::drainReport()` and `reset()` are public API** (`@api`), so an
   extension's command that writes through `RecordWriterInterface` can report `cacheTags`
   and `cacheWarnings` as this bundle's commands do. Call `reset()` when the command
-  starts. Asked for by Consho Connect. No code changed.
+  starts. Asked for by Consho Connect. The README's extension section shows it, and the
+  example uses `saveCallbacks: true` instead of calling the save callbacks by hand.
+
+### Fixed
+
+- **`record clone` and `version restore` forgot an earlier command's report** only after
+  their own run. In the back-end chat, after a refused write, their answer could carry
+  that write's `cacheTags`, `cacheWarnings` or `callbacks`. They now start like every
+  other write command (`forgetEarlierReports()`), as v1.4.0 made the others do.
 
 ## v1.4.0 - 2026-10-11
 

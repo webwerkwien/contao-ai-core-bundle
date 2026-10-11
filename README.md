@@ -168,7 +168,7 @@ callbacks that ran under `callbacks`. On the console they see the back-end user
 the back end, in place only while callbacks run. What a callback does with a request it
 does not get on the console (POST data, `FORM_SUBMIT`) it does not do there.
 
-## Writing from your own extension (v1.4.0)
+## Writing from your own extension (v1.4.0, v1.4.1)
 
 An extension that ships its own `#[AiContract]` commands can write through this bundle's
 building blocks and get what its commands get — versions, the DCA callbacks, an undo entry
@@ -176,21 +176,32 @@ with the cascade, cache invalidation, one transaction per write. They are public
 changes to them need a major version.
 
 ```php
-use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
+use Webwerkwien\ContaoAiCoreBundle\Service\Cache\CacheTagInvalidator;
 use Webwerkwien\ContaoAiCoreBundle\Service\Writer\RecordWriterInterface;
 
-// autowired in your command
-$fields = $callbacks->save('tl_acme_item', 0, ['title' => $title], [], [], ['title']);
-$id     = $writer->create('tl_acme_item', $fields, $operator);
-$writer->update('tl_acme_item', $id, ['published' => 1], $operator);
+// autowired in your command (type-hint the class or interface)
+$cacheTags->reset();   // forget what an earlier command in this request reported
+
+$id = $writer->create('tl_acme_item', ['title' => $title], $operator, saveCallbacks: true);
+$writer->update('tl_acme_item', $id, ['published' => 1], $operator, saveCallbacks: true);
 $writer->delete('tl_acme_item', $id, $operator, 0);
+
+$report = $cacheTags->drainReport();   // ['tags' => [...], 'warnings' => [...]]
 ```
 
 - `RecordWriterInterface::create()`, `update()`, `delete()` — values in their stored form;
-  tables without a registered model are written row by row.
-- `DcaCallbacks::save()` — the field `save_callback`s, before a write; the last argument
-  names the fields your command sets on purpose.
+  tables without a registered model are written row by row. With `saveCallbacks: true`
+  the fields' `save_callback`s run where `DC_Table` runs them (on a create between
+  `oncreate` and `onsubmit`).
+- `DcaCallbacks` — the callbacks one by one (`save()`, `submit()`, …) and `drainReport()`,
+  which ones ran.
 - `VersionManager` — versions directly, if you need them.
+- `CacheTagInvalidator::drainReport()` and `reset()` (since v1.4.1) — what the writes
+  invalidated, to answer `cacheTags`/`cacheWarnings` like this bundle's commands (only
+  when not empty). Call `reset()` when your command starts.
+
+All of them are services registered under their class name, autowirable by type and
+present in every installation; they are private, so not available via `$container->get()`.
 
 The writer checks no permissions; that is your command's part.
 

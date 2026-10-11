@@ -175,8 +175,9 @@ class CacheTagInvalidator implements ResetInterface
      * Public API since v1.4.1 (maintainer, 2026-10-11, asked for by Consho): an
      * extension's own command writing through RecordWriterInterface reports the tags
      * as `cacheTags` and the warnings as `cacheWarnings`, as this bundle's commands do.
-     * Call reset() when the command starts — the service lives as long as the process,
-     * and in the back-end chat several commands run in one.
+     * Call reset() when the command starts — the service lives for the request (Symfony
+     * resets it between requests, ResetInterface), and in the back-end chat several
+     * commands run in one.
      *
      * @return array{tags: list<string>, warnings: list<string>}
      *

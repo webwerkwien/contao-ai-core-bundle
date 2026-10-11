@@ -37,6 +37,17 @@ trait InvalidatesCacheTags
     }
 
     /**
+     * At the start of a command: forget what an earlier command reported. Both services
+     * outlive one command — in the back-end chat several run in one request, and a
+     * refused one never drained its report (pre-release reviews of v1.4.0 and v1.4.1).
+     */
+    protected function forgetEarlierReports(): void
+    {
+        $this->cacheTags?->reset();
+        $this->dcaCallbacks?->drainReport();
+    }
+
+    /**
      * Adds `cacheTags` (what was invalidated) and — only when something went
      * wrong — `cacheWarnings` (why part of the cache may still be stale).
      *

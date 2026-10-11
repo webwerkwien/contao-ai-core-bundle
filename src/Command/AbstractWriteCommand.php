@@ -162,8 +162,7 @@ abstract class AbstractWriteCommand extends Command
         $this->earlierVersions    = [];
         $this->aliasWarning       = null;
         $this->routeConflicts     = [];
-        $this->dcaCallbacks?->drainReport();
-        $this->cacheTags?->reset();
+        $this->forgetEarlierReports();
 
         $fields = $this->parseSetOptions($input->getOption('set'));
 

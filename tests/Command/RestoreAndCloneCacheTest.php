@@ -36,6 +36,10 @@ class RestoreAndCloneCacheTest extends TestCase
             }
         );
         $cacheTags->method('drainReport')->willReturn(['tags' => ['contao.sitemap.1'], 'warnings' => []]);
+        // First thing in a run: an earlier command's report is forgotten (review of v1.4.1).
+        $cacheTags->method('reset')->willReturnCallback(static function () use (&$log): void {
+            $log[] = 'reset';
+        });
 
         return $cacheTags;
     }
@@ -61,7 +65,7 @@ class RestoreAndCloneCacheTest extends TestCase
         $tester->execute(['--table' => 'tl_page', '--id' => '2', '--ver' => '3']);
         $answer = json_decode($tester->getDisplay(), true);
 
-        $this->assertSame(['restore tl_page:2 v3', 'invalidate tl_page:2'], $log);
+        $this->assertSame(['reset', 'restore tl_page:2 v3', 'invalidate tl_page:2'], $log);
         $this->assertSame(['contao.sitemap.1'], $answer['cacheTags']);
     }
 
@@ -80,7 +84,7 @@ class RestoreAndCloneCacheTest extends TestCase
         $tester->execute(['--source-table' => 'tl_page', '--source-id' => '1']);
         $answer = json_decode($tester->getDisplay(), true);
 
-        $this->assertSame(['invalidate tl_page:7'], $log);
+        $this->assertSame(['reset', 'invalidate tl_page:7'], $log);
         $this->assertSame(7, $answer['id']);
         $this->assertSame(['contao.sitemap.1'], $answer['cacheTags']);
     }
