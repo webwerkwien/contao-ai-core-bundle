@@ -6,6 +6,7 @@ use Contao\Controller;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\System;
 use Webwerkwien\ContaoAiCoreBundle\Command\ReadsDcaOptions;
+use Webwerkwien\ContaoAiCoreBundle\Service\CliUser;
 
 /**
  * The values a field offers — static, or asked from its own options callback.
@@ -27,8 +28,10 @@ class OptionsResolver
     /** @var array<string, string> */
     private array $errors = [];
 
-    public function __construct(private readonly ContaoFramework $framework)
-    {
+    public function __construct(
+        private readonly ContaoFramework $framework,
+        private readonly ?CliUser $cliUser = null,
+    ) {
     }
 
     /**
@@ -38,8 +41,10 @@ class OptionsResolver
      * writer persists without checking a value against the field's options, so an
      * extension's command that should refuse what the widget would refuse asks here
      * instead of rebuilding the callback call. Null means "cannot say", not "nothing
-     * allowed": skip the check for that field and report lastError() — never guess.
-     * Signatures stay stable within 1.x.
+     * allowed" — the field is unknown, has no options, its callback threw (lastError()
+     * says why) or returned no array: skip the check for that field, never guess. The
+     * values are strings; compare `(string) $value`. On the console the callback runs
+     * as `contao-ai`, the user the write runs as. Signatures stay stable within 1.x.
      *
      * @param array<string, mixed> $activeRecord the record the options are for, e.g. `['type' => 'text']`
      *
@@ -70,9 +75,16 @@ class OptionsResolver
     {
         unset($this->errors[$table . '.' . $field]);
 
-        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
-            $this->framework->initialize();
-            Controller::loadDataContainer($table);
+        try {
+            if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+                $this->framework->initialize();
+                Controller::loadDataContainer($table);
+            }
+        } catch (\Throwable $e) {
+            // Unresolvable like a throwing callback: values() promises null, not an exception.
+            $this->errors[$table . '.' . $field] = $e->getMessage();
+
+            return null;
         }
 
         $def = $GLOBALS['TL_DCA'][$table]['fields'][$field] ?? null;
@@ -97,10 +109,14 @@ class OptionsResolver
                 System::loadLanguageFile($table);
             }
 
-            $dc     = RecordDataContainer::create($table, $id, $activeRecord);
-            $result = \is_array($callback)
+            $dc   = RecordDataContainer::create($table, $id, $activeRecord);
+            $call = static fn (): mixed => \is_array($callback)
                 ? System::importStatic($callback[0])->{$callback[1]}($dc)
                 : $callback($dc);
+            // On the console the callback sees `contao-ai`, the user the write runs
+            // as — a permission-filtered list answers empty for the anonymous non-admin
+            // instead of throwing. Where someone is logged in, that someone (CliUser).
+            $result = null === $this->cliUser ? $call() : $this->cliUser->asCurrentUser($call);
         } catch (\Throwable $e) {
             $this->errors[$table . '.' . $field] = $e->getMessage();
 

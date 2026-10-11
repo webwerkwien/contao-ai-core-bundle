@@ -202,12 +202,14 @@ $report = $cacheTags->drainReport();   // ['tags' => [...], 'warnings' => [...]]
 - `OptionsResolver::values()` and `lastError()` (since v1.4.2) — the values a field's
   widget would offer, static or from its `options_callback`. The writer stores a value
   without checking it against the options; ask here to refuse what the widget would refuse.
-  `null` means "cannot say" (no options, or the callback needs a request or a back-end
-  user and threw): skip the check for that field and report `lastError()`, don't guess.
+  `null` means "cannot say" (unknown field, no options, or the callback threw — then
+  `lastError()` says why, e.g. it needs a request): skip the check for that field, don't
+  guess. The values are strings. On the console the callback runs as `contao-ai`, the
+  user the write runs as, so a permission-filtered list is not empty there.
 
 ```php
 $allowed = $options->values('tl_acme_item', 'country', ['type' => 'shop'], $id);
-if (null !== $allowed && !in_array($value, $allowed, true)) { /* refuse */ }
+if (null !== $allowed && !in_array((string) $value, $allowed, true)) { /* refuse */ }
 ```
 
 All of them are services registered under their class name, autowirable by type and

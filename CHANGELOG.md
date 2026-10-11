@@ -23,6 +23,11 @@ shows an explicit `trace: []` in the `ext run` warning.
   command leaves no trail, then raised the same problem for exactly that declaration. Only an
   absent `trace` is reported now, and a malformed one only with its own type problem. Found
   by the Consho session at `consho:stock:book`.
+- **An options callback on the console runs as `contao-ai`**, the user the write runs as,
+  like the save and submit callbacks since v1.4.0. Before, it saw the anonymous non-admin,
+  and a permission-filtered list answered empty instead of failing — `dca options
+  tl_content form` listed no forms. A table whose DCA cannot be loaded now answers `null`
+  with `lastError()` instead of throwing.
 
 ## v1.4.1 - 2026-10-11
 

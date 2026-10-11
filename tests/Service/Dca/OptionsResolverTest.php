@@ -2,9 +2,13 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Tests\Service\Dca;
 
+use Contao\BackendUser;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\DataContainer;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
+use Symfony\Component\Security\Core\User\UserProviderInterface;
+use Webwerkwien\ContaoAiCoreBundle\Service\CliUser;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\OptionsResolver;
 
 /**
@@ -102,6 +106,42 @@ class OptionsResolverTest extends TestCase
         $GLOBALS['TL_DCA']['tl_test']['fields']['useSSL'] = ['options' => ['http://', 'https://'], 'eval' => ['isAssociative' => true]];
 
         $this->assertSame(['0', '1'], $this->resolver()->values('tl_test', 'useSSL'));
+    }
+
+    /**
+     * A permission-filtered callback does not throw on the console, it answers
+     * empty — Contao's tl_content.getForms() returns [] for a non-admin, and without
+     * a token BackendUser is an empty non-admin. A caller then refused every form,
+     * although the write itself runs as `contao-ai`. The callback sees the same user
+     * as the write (Fable review before v1.4.2).
+     */
+    public function testOnTheConsoleTheCallbackSeesTheUserTheWriteRunsAs(): void
+    {
+        $tokens   = new TokenStorage();
+        $user     = $this->createMock(BackendUser::class);
+        $user->method('getRoles')->willReturn(['ROLE_USER', 'ROLE_ADMIN']);
+        $provider = $this->createMock(UserProviderInterface::class);
+        $provider->method('loadUserByIdentifier')->with(CliUser::USERNAME)->willReturn($user);
+
+        $GLOBALS['TL_DCA']['tl_test']['fields']['form'] = [
+            'options_callback' => static fn (): array => $tokens->getToken()?->getUser() === $user ? ['1', '2'] : [],
+        ];
+
+        $resolver = new OptionsResolver($this->createMock(ContaoFramework::class), new CliUser($tokens, $provider));
+
+        $this->assertSame(['1', '2'], $resolver->values('tl_test', 'form'));
+        $this->assertNull($tokens->getToken());
+    }
+
+    public function testAnUnloadableTableIsUnresolvableAndDoesNotThrow(): void
+    {
+        $framework = $this->createMock(ContaoFramework::class);
+        $framework->method('initialize')->willThrowException(new \RuntimeException('no DCA here'));
+
+        $resolver = new OptionsResolver($framework);
+
+        $this->assertNull($resolver->values('tl_nope', 'field'));
+        $this->assertStringContainsString('no DCA here', (string) $resolver->lastError('tl_nope', 'field'));
     }
 
     public function testAFieldWithoutOptionsHasNone(): void
