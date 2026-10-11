@@ -36,6 +36,38 @@ class CommandLineRedactorTest extends TestCase
         yield 'passive is no secret' => ['acme:x --set passive=1', 'acme:x --set passive=1'];
     }
 
+    /**
+     * Review 2 before v1.5.0: an unclosed quote. StringInput takes it as a plain
+     * character, a first version of this split read to the end of the line — and the
+     * password after it stayed in the log.
+     */
+    public function testAnUnclosedQuoteIsSplitAsTheCommandReadsIt(): void
+    {
+        $this->assertSame('acme:x --set title="abc --set password=***', CommandLineRedactor::redact('acme:x --set title="abc --set password=S3CRET'));
+        $this->assertSame("acme:x --set title='abc --set password=***", CommandLineRedactor::redact("acme:x --set title='abc --set password=S3CRET"));
+    }
+
+    public function testWhereSymfonySplitsDifferentlyTheArgumentsAreWithheld(): void
+    {
+        // StringInput drops adjacent quote pairs inside a glued part: the command reads
+        // `secret=S3CRET`, which this split does not see. Withheld, not guessed.
+        $logged = CommandLineRedactor::redact('acme:x --set="sec\'\'ret=S3CRET"');
+
+        $this->assertSame('acme:x ' . CommandLineRedactor::WITHHELD, $logged);
+    }
+
+    public function testAnAbsurdlyLongLineIsWithheldInsteadOfExhaustingMemory(): void
+    {
+        $logged = CommandLineRedactor::redact('acme:x ' . str_repeat('a ', 200000) . '--set password=S3CRET');
+
+        $this->assertSame('acme:x ' . CommandLineRedactor::WITHHELD, $logged);
+    }
+
+    public function testAKeyWithASpaceIsJudgedByItsName(): void
+    {
+        $this->assertSame('acme:x --set pass phrase=***', CommandLineRedactor::redact('acme:x --set "pass phrase=S3CRET"'));
+    }
+
     public function testASecretAfterALongQuotedValueIsStillBlanked(): void
     {
         // The regex version gave such a line back unchanged: a quoted value past 8 KB

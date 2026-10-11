@@ -214,27 +214,32 @@ class ModelWriter implements RecordWriterInterface
 
         $unknown = $this->notColumns($table, $fields);
 
-        if ([] === $unknown) {
-            return $fields;
+        if ([] !== $unknown) {
+            $this->refuseMissing($table, $unknown, ' — no onbeforesubmit_callback took it over, so it would not be stored');
         }
 
-        // A field the DCA gives an `sql` definition is meant to be a column: the table
-        // lacks it, most likely a pending migration — not a virtual field nobody took.
+        return $fields;
+    }
+
+    /**
+     * Refuse keys that are no column, saying why where it can be told: a field the DCA
+     * gives an `sql` definition is meant to be one — the table lacks it, most likely a
+     * pending migration.
+     *
+     * @param list<string> $unknown
+     */
+    private function refuseMissing(string $table, array $unknown, string $otherwise): never
+    {
         $declared = array_values(array_filter($unknown, static fn (string $field): bool => isset($GLOBALS['TL_DCA'][$table]['fields'][$field]['sql'])));
 
-        if ([] !== $declared) {
-            throw new \InvalidArgumentException(\sprintf(
-                'Not a column of %s: %s — the DCA defines one, the table does not have it; is a database migration pending (contao:migrate)? Nothing was written.',
+        throw new \InvalidArgumentException([] !== $declared
+            ? \sprintf(
+                'Not a column of %s: %s — the DCA defines a column for %s, the table does not have it; is a database migration pending (contao:migrate)? Nothing was written.',
                 $table,
+                implode(', ', $unknown),
                 implode(', ', $declared),
-            ));
-        }
-
-        throw new \InvalidArgumentException(\sprintf(
-            'Not a column of %s: %s — no onbeforesubmit_callback took it over, so it would not be stored. Nothing was written.',
-            $table,
-            implode(', ', $unknown),
-        ));
+            )
+            : \sprintf('Not a column of %s: %s%s. Nothing was written.', $table, implode(', ', $unknown), $otherwise));
     }
 
     /**
@@ -254,7 +259,7 @@ class ModelWriter implements RecordWriterInterface
         }
 
         if ([] !== $unknown) {
-            throw new \InvalidArgumentException(\sprintf('Not a column of %s: %s. Nothing was written.', $table, implode(', ', $unknown)));
+            $this->refuseMissing($table, $unknown, '');
         }
     }
 

@@ -195,6 +195,35 @@ class BeforeSubmitTest extends TestCase
         $this->writer($this->connection(['id', 'tstamp', 'net']), $callbacks)->update('tl_contao_ai_price', 3, ['amonut' => '12.00'], 'claude');
     }
 
+    /**
+     * A field with an `sql` definition is meant to be a column: its absence is a
+     * pending migration, said so — with or without onbeforesubmit on the table.
+     */
+    public function testAMissingColumnTheDcaDefinesPointsToAPendingMigration(): void
+    {
+        $GLOBALS['TL_DCA']['tl_contao_ai_x']['fields']['subtitle'] = ['sql' => "varchar(255) NOT NULL default ''"];
+
+        $callbacks = $this->createMock(DcaCallbacks::class);
+        $callbacks->expects($this->never())->method('beforeSubmit');
+
+        $this->expectExceptionMessage('Not a column of tl_contao_ai_x: subtitle — the DCA defines a column for subtitle, the table does not have it; is a database migration pending (contao:migrate)? Nothing was written.');
+
+        $this->writer($this->connection(['id', 'tstamp', 'title']), $callbacks)->update('tl_contao_ai_x', 3, ['subtitle' => 'x'], 'claude');
+    }
+
+    public function testWithOnbeforesubmitTheSameFieldIsNamedAfterTheCallbacks(): void
+    {
+        $this->virtualAmount();
+        $GLOBALS['TL_DCA']['tl_contao_ai_price']['fields']['subtitle'] = ['sql' => "varchar(255) NOT NULL default ''"];
+
+        $callbacks = $this->createMock(DcaCallbacks::class);
+        $callbacks->method('beforeSubmit')->willReturnArgument(2);
+
+        $this->expectExceptionMessage('the DCA defines a column for subtitle, the table does not have it');
+
+        $this->writer($this->connection(['id', 'tstamp', 'net']), $callbacks)->update('tl_contao_ai_price', 3, ['subtitle' => 'x'], 'claude');
+    }
+
     public function testACreateInsertsNoVirtualFieldAndWritesWhatTheCallbackReturns(): void
     {
         $this->virtualAmount();

@@ -30,7 +30,8 @@ of `RecordWriterInterface`, see the first entry.
   has `onbeforesubmit_callback`s — a virtual field, like a gross amount a callback stores
   as net. What is still no column after the callbacks is refused by name
   (`… — no onbeforesubmit_callback took it over, so it would not be stored`), never dropped.
-  A create inserts the columns only.
+  A create inserts the columns only. A field the DCA defines with `sql` but the table lacks
+  is named as a likely pending migration (`contao:migrate`), on every table.
 
 ### Added
 
@@ -39,7 +40,9 @@ of `RecordWriterInterface`, see the first entry.
   the run; values of options and `--set` fields whose name reads like a secret (password,
   passwd, pass, secret, token, api key, credential) are blanked first, and so are the names
   a command declares in the new `#[AiContract(secrets: [...])]` field. The line is split as
-  Symfony's `StringInput` splits it (escapes, quotes). Short options (`-p …`) are not
+  Symfony's `StringInput` splits it (escapes, quotes) and checked against it; where the two
+  differ, or the line has thousands of parts, the arguments are withheld whole
+  (`[arguments withheld: …]`) rather than guessed. Short options (`-p …`) are not
   recognised. This protects `tl_log` and the
   backups containing it — the line itself still reaches the server, and from the back-end
   chat the model provider. Reported by the Consho session.

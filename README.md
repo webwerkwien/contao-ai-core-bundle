@@ -144,7 +144,8 @@ contract still stands. A contract that silently loses a field looks complete and
 Values of options and `--set` fields whose name reads like a secret — password, passwd,
 pass, secret, token, api key, credential — are blanked there (`--set password=***`). A name
 that does not look like one is declared: `secrets: ['pin', 'iban']`. Long options only; a
-short option (`-p …`) is not recognised.
+short option (`-p …`) is not recognised. Where the line cannot be split for sure the way
+the command reads it, the arguments are withheld whole instead of guessed.
 
 That keeps the secret out of `tl_log` and the backups that contain it, nothing more: the
 command line still reaches the server as a process argument, and from the back-end chat

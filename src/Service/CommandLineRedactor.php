@@ -2,6 +2,9 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Service;
 
+use Symfony\Component\Console\Input\ArgvInput;
+use Symfony\Component\Console\Input\StringInput;
+
 /**
  * Blanks the values of secrets in a command line before it is logged (v1.5.0).
  *
@@ -47,6 +50,14 @@ final class CommandLineRedactor
             || 1 === preg_match(self::SECRET, $name);
 
         $tokens = self::tokens($line);
+
+        // Blank only what can be located for sure. Where this split and Symfony's
+        // differ — a quirk of StringInput (adjacent quote pairs, a backslash before a
+        // line break) — or the line is absurdly long, the arguments are withheld
+        // whole: a log entry with less detail, never one with the secret.
+        if (\count($tokens) > self::MAX_TOKENS || !self::splitsLikeSymfony($line, $tokens)) {
+            return self::withheld($tokens, $line);
+        }
 
         /** @var array<int, string> $replace token index => replacement */
         $replace = [];
@@ -96,6 +107,11 @@ final class CommandLineRedactor
         return $line;
     }
 
+    /** More tokens than any command line of this bundle has; past it the arguments are withheld. */
+    private const MAX_TOKENS = 5000;
+
+    public const WITHHELD = '[arguments withheld: the line could not be checked for secrets]';
+
     /**
      * @param \Closure(string): bool $isSecret
      */
@@ -103,11 +119,49 @@ final class CommandLineRedactor
     {
         $eq = strpos($text, '=');
 
-        if (false === $eq || 0 === $eq || 1 !== preg_match('/^[\w.-]+$/', $key = substr($text, 0, $eq)) || !$isSecret($key)) {
+        // Any key, spaces included (`"pass phrase=…"`): what decides is the name.
+        if (false === $eq || 0 === $eq || str_starts_with($text, '-') || !$isSecret($key = substr($text, 0, $eq))) {
             return null;
         }
 
         return $key . '=' . self::MASK;
+    }
+
+    /**
+     * Whether Symfony's StringInput — which the command actually reads — splits the
+     * line into the same tokens. Its token list is private; read the way Symfony's own
+     * TraceableCommand reads private state. Without the property (a future Symfony)
+     * this split stands alone.
+     *
+     * @param list<array{int, int, string}> $tokens
+     */
+    private static function splitsLikeSymfony(string $line, array $tokens): bool
+    {
+        if (!property_exists(ArgvInput::class, 'tokens')) {
+            return true;
+        }
+
+        try {
+            $theirs = (new \ReflectionProperty(ArgvInput::class, 'tokens'))->getValue(new StringInput($line));
+        } catch (\Throwable) {
+            return false;
+        }
+
+        return array_column($tokens, 2) === $theirs;
+    }
+
+    /**
+     * The command name and a note instead of the arguments.
+     *
+     * @param list<array{int, int, string}> $tokens
+     */
+    private static function withheld(array $tokens, string $line): string
+    {
+        if ([] === $tokens) {
+            return $line;
+        }
+
+        return substr($line, $tokens[0][0], $tokens[0][1]) . ' ' . self::WITHHELD;
     }
 
     /**
@@ -124,6 +178,11 @@ final class CommandLineRedactor
         $i      = 0;
 
         while ($i < $length) {
+            // Enough to know the line is past the limit; the rest is never read.
+            if (\count($tokens) > self::MAX_TOKENS) {
+                break;
+            }
+
             if (ctype_space($line[$i])) {
                 ++$i;
                 continue;
@@ -142,6 +201,7 @@ final class CommandLineRedactor
                 }
 
                 if ('"' === $char || "'" === $char) {
+                    $open   = $i;
                     $quoted = '';
                     ++$i;
 
@@ -153,6 +213,14 @@ final class CommandLineRedactor
                         }
 
                         $quoted .= $line[$i++];
+                    }
+
+                    if ($i >= $length) {
+                        // No closing quote: StringInput takes the quote as a plain
+                        // character and splits at the next whitespace (review 2 before v1.5.0).
+                        $text .= $char;
+                        $i = $open + 1;
+                        continue;
                     }
 
                     ++$i; // the closing quote
