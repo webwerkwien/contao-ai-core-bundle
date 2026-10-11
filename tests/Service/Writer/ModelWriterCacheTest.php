@@ -139,6 +139,27 @@ class ModelWriterCacheTest extends TestCase
         $this->assertSame(['begin', 'save tl_page:2 title=Neu', 'rollback'], CacheTestRecord::$log);
     }
 
+    /**
+     * The model path is the one every command of this bundle takes (tl_page,
+     * tl_content, tl_member …); BeforeSubmitTest covers the row-by-row path. Fable
+     * review before v1.5.0: dropping the call here left the whole suite green.
+     */
+    public function testOnTheModelPathOnbeforesubmitRunsBeforeTheSaveAndItsResultIsSaved(): void
+    {
+        $callbacks = $this->createMock(DcaCallbacks::class);
+        $callbacks->expects($this->once())->method('beforeSubmit')
+            ->with('tl_page', 2, ['title' => 'Neu'])
+            ->willReturnCallback(static function (string $t, int $id, array $values): array {
+                CacheTestRecord::$log[] = 'beforesubmit';
+
+                return ['title' => 'Neu (geprüft)', 'tstamp' => 1];
+            });
+
+        $this->writer($this->createMock(CacheTagInvalidator::class), $callbacks)->update('tl_page', 2, ['title' => 'Neu'], 'claude');
+
+        $this->assertSame(['beforesubmit', 'save tl_page:2 title=Neu (geprüft)'], CacheTestRecord::$log);
+    }
+
     public function testAKeyThatIsNoColumnIsRefusedOnTheModelPathToo(): void
     {
         $this->expectException(\InvalidArgumentException::class);

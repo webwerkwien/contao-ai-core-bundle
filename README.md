@@ -141,9 +141,10 @@ contract still stands. A contract that silently loses a field looks complete and
 ### Secrets on the command line (v1.5.0)
 
 `contao:ai:run` writes the command line it starts to the system log, before the run.
-Values of options and `--set` fields whose name reads like a secret — password, secret,
-token, api key, credential — are blanked there (`--set password=***`). A name that does not
-look like one is declared: `secrets: ['pin', 'iban']`.
+Values of options and `--set` fields whose name reads like a secret — password, passwd,
+pass, secret, token, api key, credential — are blanked there (`--set password=***`). A name
+that does not look like one is declared: `secrets: ['pin', 'iban']`. Long options only; a
+short option (`-p …`) is not recognised.
 
 That keeps the secret out of `tl_log` and the backups that contain it, nothing more: the
 command line still reaches the server as a process argument, and from the back-end chat

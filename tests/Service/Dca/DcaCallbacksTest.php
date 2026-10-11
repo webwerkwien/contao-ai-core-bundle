@@ -413,7 +413,8 @@ class DcaCallbacksTest extends TestCase
         $seen = null;
         $this->on('onbeforesubmit_callback', [
             static function (array $values, DataContainer $dc) use (&$seen): array {
-                $seen = [isset($values['tstamp']), $values['amount'], $dc->id, $dc->getCurrentRecord()['title']];
+                // getCurrentRecord(): the stored state; getActiveRecord(): with the new values, as in DC_Table.
+                $seen = [isset($values['tstamp']), $values['amount'], $dc->id, $dc->getCurrentRecord()['title'], $dc->getActiveRecord()['amount'], $dc->__get('activeRecord')->title];
                 $values['net'] = $values['amount'] / 1.2;
                 unset($values['amount']);
 
@@ -425,7 +426,7 @@ class DcaCallbacksTest extends TestCase
         $callbacks = $this->callbacks();
         $values    = $callbacks->beforeSubmit('tl_page', 7, ['amount' => 12.0], ['id' => 7, 'title' => 'Alt']);
 
-        $this->assertSame([true, 12.0, 7, 'Alt'], $seen);
+        $this->assertSame([true, 12.0, 7, 'Alt', 12.0, 'Alt'], $seen);
         $this->assertSame(['tstamp', 'net', 'currency'], array_keys($values));
         $this->assertEqualsWithDelta(10.0, $values['net'], 0.0001);
         $this->assertCount(2, $callbacks->drainReport());

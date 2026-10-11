@@ -214,15 +214,27 @@ class ModelWriter implements RecordWriterInterface
 
         $unknown = $this->notColumns($table, $fields);
 
-        if ([] !== $unknown) {
+        if ([] === $unknown) {
+            return $fields;
+        }
+
+        // A field the DCA gives an `sql` definition is meant to be a column: the table
+        // lacks it, most likely a pending migration — not a virtual field nobody took.
+        $declared = array_values(array_filter($unknown, static fn (string $field): bool => isset($GLOBALS['TL_DCA'][$table]['fields'][$field]['sql'])));
+
+        if ([] !== $declared) {
             throw new \InvalidArgumentException(\sprintf(
-                'Not a column of %s: %s — no onbeforesubmit_callback took it over, so it would not be stored. Nothing was written.',
+                'Not a column of %s: %s — the DCA defines one, the table does not have it; is a database migration pending (contao:migrate)? Nothing was written.',
                 $table,
-                implode(', ', $unknown),
+                implode(', ', $declared),
             ));
         }
 
-        return $fields;
+        throw new \InvalidArgumentException(\sprintf(
+            'Not a column of %s: %s — no onbeforesubmit_callback took it over, so it would not be stored. Nothing was written.',
+            $table,
+            implode(', ', $unknown),
+        ));
     }
 
     /**

@@ -99,17 +99,17 @@ class AiRunCommand extends AbstractReadCommand
             return $this->outputError('Command not found: '.$name);
         }
 
-        // The namespace is checked first and the contract only when it fails,
-        // so the common case costs nothing — resolving a contract means
-        // building the command service.
-        //
         // A declared #[AiContract] opens the door because that permission comes
         // from the *author*, which is the one thing a prefix cannot say. See
-        // AiRunGuard for why the namespace alone was the wrong measure.
-        $target = $application->find($name);
-        $class  = $target instanceof LazyCommand ? $target->getCommand()::class : $target::class;
+        // AiRunGuard for why the namespace alone was the wrong measure. Read for
+        // every run since v1.5.0: it also names the secrets to keep out of the log.
+        // Reading is reflection on the class; the command service is built once
+        // either way (bindingRefusal() needs it).
+        $target   = $application->find($name);
+        $class    = $target instanceof LazyCommand ? $target->getCommand()::class : $target::class;
+        $contract = ContractReader::read($class);
 
-        if (!AiRunGuard::isAllowed($name) && null === ContractReader::read($class)) {
+        if (!AiRunGuard::isAllowed($name) && null === $contract) {
             return $this->outputError(AiRunGuard::refusal($name));
         }
 
@@ -125,7 +125,9 @@ class AiRunCommand extends AbstractReadCommand
 
         // Before the run, on purpose — see the class docblock. Without the secrets:
         // the entry stays in tl_log for the log period and in every backup (v1.5.0).
-        $secrets = ContractReader::read($class)['fields']['secrets'] ?? [];
+        // A malformed `secrets` is left out by the reader (it reports a problem);
+        // the names reading like a secret are blanked regardless.
+        $secrets = $contract['fields']['secrets'] ?? [];
         $this->recordInvocation(CommandLineRedactor::redact($line, \is_array($secrets) ? array_values(array_map('strval', $secrets)) : []));
 
         // `doRun`, with the command name still in the string, rather than

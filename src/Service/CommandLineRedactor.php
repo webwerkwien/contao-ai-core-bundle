@@ -11,11 +11,17 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service;
  * admin in the system log, kept for the log period, and in every database backup
  * taken meanwhile. Reported by the Consho session, 2026-10-11.
  *
- * What counts as a secret: a name that reads like one (password, secret, token,
- * api key, credential …), and what a command declares in `#[AiContract(secrets: …)]`.
- * Both as an option (`--api-key x`, `--api-key=x`) and as the key of a `key=value`
- * pair (`--set password=x`, `--set=password=x`), the form this bundle's commands take
- * fields in. Short options (`-p x`) are not recognised.
+ * What counts as a secret: a name that reads like one (password, passwd, pass,
+ * secret, token, api key, credential …), and what a command declares in
+ * `#[AiContract(secrets: …)]`. Both as an option (`--api-key x`, `--api-key=x`) and as
+ * the key of a `key=value` pair (`--set password=x`, `--set=password=x`), the form this
+ * bundle's commands take fields in. Short options (`-p x`) are not recognised.
+ *
+ * The line is split the way Symfony's StringInput splits it — backslash escapes, both
+ * quote kinds, glued parts — character by character: what the command reads as
+ * `password=…` is what is blanked here. A first version used a regular expression and
+ * gave the line back unchanged when a quoted value passed 8 KB (PCRE's JIT stack), a
+ * secret after it included (Fable review before v1.5.0).
  *
  * ⚠️ This keeps the secret out of the log, nothing more. The line still travels to
  * the server as a process argument, and from the back-end chat to the model provider.
@@ -25,11 +31,11 @@ final class CommandLineRedactor
 {
     public const MASK = '***';
 
-    /** Names that read as a secret wherever they appear. Over-blanking costs a detail in the log, nothing else. */
-    private const SECRET = '/pass(?:word|wort|phrase)|secret|token|api[-_]?key|credential|private[-_]?key/i';
-
-    /** A shell-like token: bare text and quoted parts, glued together. */
-    private const TOKEN = '/(?:[^\s"\']+|"(?:[^"\\\\]|\\\\.)*"|\'[^\']*\')+/';
+    /**
+     * Names that read as a secret wherever they appear. `pass` only as a word of its
+     * own (`smtp-pass`, not `passive`). Over-blanking costs a detail in the log, nothing else.
+     */
+    public const SECRET = '/passw(?:or)?d|passwort|passphrase|pass(?![a-z])|secret|token|api[-_]?key|credential|private[-_]?key/i';
 
     /**
      * @param list<string> $declared names the command declares secret, with or without `--`
@@ -40,21 +46,20 @@ final class CommandLineRedactor
         $isSecret = static fn (string $name): bool => \in_array(strtolower(ltrim($name, '-')), $declared, true)
             || 1 === preg_match(self::SECRET, $name);
 
-        preg_match_all(self::TOKEN, $line, $matches, \PREG_OFFSET_CAPTURE);
-        $tokens = $matches[0];
+        $tokens = self::tokens($line);
 
         /** @var array<int, string> $replace token index => replacement */
         $replace = [];
 
-        foreach ($tokens as $n => [$raw]) {
-            $text = self::unquote($raw);
-
-            if (preg_match('/^(--[^=\s]+)=(.*)$/s', $text, $m)) {
+        foreach ($tokens as $n => [, , $text]) {
+            if (str_starts_with($text, '--') && false !== ($eq = strpos($text, '='))) {
                 // --name=value, or --name=key=value
-                if ($isSecret($m[1])) {
-                    $replace[$n] = $m[1] . '=' . self::MASK;
-                } elseif (null !== ($pair = self::blankedPair($m[2], $isSecret))) {
-                    $replace[$n] = $m[1] . '=' . $pair;
+                $name = substr($text, 0, $eq);
+
+                if ($isSecret($name)) {
+                    $replace[$n] = $name . '=' . self::MASK;
+                } elseif (null !== ($pair = self::blankedPair(substr($text, $eq + 1), $isSecret))) {
+                    $replace[$n] = $name . '=' . $pair;
                 }
 
                 continue;
@@ -62,7 +67,7 @@ final class CommandLineRedactor
 
             if (str_starts_with($text, '--')) {
                 // --name value: the next token is the value, unless it is an option itself.
-                if ($isSecret($text) && isset($tokens[$n + 1]) && !str_starts_with(self::unquote($tokens[$n + 1][0]), '-')) {
+                if ($isSecret($text) && isset($tokens[$n + 1]) && !str_starts_with($tokens[$n + 1][2], '-')) {
                     $replace[$n + 1] = self::MASK;
                 }
 
@@ -84,8 +89,8 @@ final class CommandLineRedactor
         krsort($replace);
 
         foreach ($replace as $n => $replacement) {
-            [$raw, $offset] = $tokens[$n];
-            $line = substr_replace($line, $replacement, $offset, \strlen($raw));
+            [$offset, $length] = $tokens[$n];
+            $line = substr_replace($line, $replacement, $offset, $length);
         }
 
         return $line;
@@ -96,20 +101,72 @@ final class CommandLineRedactor
      */
     private static function blankedPair(string $text, \Closure $isSecret): ?string
     {
-        if (!preg_match('/^([A-Za-z_][\w.-]*)=/', $text, $m) || !$isSecret($m[1])) {
+        $eq = strpos($text, '=');
+
+        if (false === $eq || 0 === $eq || 1 !== preg_match('/^[\w.-]+$/', $key = substr($text, 0, $eq)) || !$isSecret($key)) {
             return null;
         }
 
-        return $m[1] . '=' . self::MASK;
+        return $key . '=' . self::MASK;
     }
 
-    /** The token as the shell would hand it over: quotes removed, `\"` unescaped. */
-    private static function unquote(string $raw): string
+    /**
+     * The line as StringInput reads it: whitespace separates, a backslash escapes the
+     * next character, quoted parts (either kind, with backslash escapes inside, passed
+     * through stripcslashes) glue to their neighbours.
+     *
+     * @return list<array{int, int, string}> offset and length in the line, and the token as the command sees it
+     */
+    private static function tokens(string $line): array
     {
-        return (string) preg_replace_callback(
-            '/"((?:[^"\\\\]|\\\\.)*)"|\'([^\']*)\'/',
-            static fn (array $m): string => isset($m[2]) ? $m[2] : stripcslashes($m[1]),
-            $raw,
-        );
+        $tokens = [];
+        $length = \strlen($line);
+        $i      = 0;
+
+        while ($i < $length) {
+            if (ctype_space($line[$i])) {
+                ++$i;
+                continue;
+            }
+
+            $start = $i;
+            $text  = '';
+
+            while ($i < $length && !ctype_space($line[$i])) {
+                $char = $line[$i];
+
+                if ('\\' === $char) {
+                    $text .= $line[$i + 1] ?? '';
+                    $i += 2;
+                    continue;
+                }
+
+                if ('"' === $char || "'" === $char) {
+                    $quoted = '';
+                    ++$i;
+
+                    while ($i < $length && $line[$i] !== $char) {
+                        if ('\\' === $line[$i] && $i + 1 < $length) {
+                            $quoted .= $line[$i] . $line[$i + 1];
+                            $i += 2;
+                            continue;
+                        }
+
+                        $quoted .= $line[$i++];
+                    }
+
+                    ++$i; // the closing quote
+                    $text .= stripcslashes($quoted);
+                    continue;
+                }
+
+                $text .= $char;
+                ++$i;
+            }
+
+            $tokens[] = [$start, min($i, $length) - $start, $text];
+        }
+
+        return $tokens;
     }
 }

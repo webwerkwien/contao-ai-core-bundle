@@ -129,8 +129,11 @@ class DcaCallbacks
      * (tl_page, tl_article, tl_content, tl_member, tl_user and their groups).
      *
      * As in DC_Table, the values carry `tstamp`, and nothing runs for empty values.
-     * The data container's current record is the stored one, the state being replaced
-     * (for a create: the row as inserted).
+     * The data container's getCurrentRecord() is the stored record, the state being
+     * replaced (for a create: the row as inserted); getActiveRecord() and `activeRecord`
+     * carry the values being saved on top of it. Every value handed over counts as
+     * submitted — DC_Table hands over only what changed, so a callback that checks
+     * `array_key_exists` sees an unchanged `--set start=…` as set.
      *
      * @param array<string, mixed> $values the values about to be written
      * @param array<string, mixed> $record the stored record
@@ -150,7 +153,9 @@ class DcaCallbacks
             ($this->loadLanguageFile)($table);
 
             $values['tstamp'] = time();
-            $dc               = RecordDataContainer::create($table, $id, $record, $this->connection);
+            // As in DC_Table: getCurrentRecord() is the state being replaced,
+            // getActiveRecord() and `activeRecord` carry the values being saved.
+            $dc = RecordDataContainer::create($table, $id, $record, $this->connection, $values);
             $name             = $table . '.onbeforesubmit';
 
             foreach ($callbacks as $callback) {

@@ -27,6 +27,27 @@ class CommandLineRedactorTest extends TestCase
         yield 'case' => ['acme:x --set Passwort=x', 'acme:x --set Passwort=***'];
         yield 'nothing secret is unchanged, spelling kept' => ['acme:x  --set "title=Mein Laden"   5', 'acme:x  --set "title=Mein Laden"   5'];
         yield 'a value that merely contains the word stays' => ['acme:x --set title=password-reset', 'acme:x --set title=password-reset'];
+        // Fable review before v1.5.0: escapes as StringInput reads them.
+        yield 'escaped space outside quotes' => ['acme:x --set password=ge\ S3CRET --set title=a', 'acme:x --set password=*** --set title=a'];
+        yield 'escaped quote outside quotes' => ['acme:x --set password=a\"S3CRET', 'acme:x --set password=***'];
+        yield 'escaped space after an option' => ['acme:x --token ab\ S3CRET 5', 'acme:x --token *** 5'];
+        yield 'escaped quote inside single quotes' => ["acme:x --set 'password=S3CRET\\' x' --set title=a", 'acme:x --set password=*** --set title=a'];
+        yield 'passwd, a word-pass and a key with a digit' => ['acme:x --set passwd=a --smtp-pass b --set 2fa_token=c', 'acme:x --set passwd=*** --smtp-pass *** --set 2fa_token=***'];
+        yield 'passive is no secret' => ['acme:x --set passive=1', 'acme:x --set passive=1'];
+    }
+
+    public function testASecretAfterALongQuotedValueIsStillBlanked(): void
+    {
+        // The regex version gave such a line back unchanged: a quoted value past 8 KB
+        // exhausted PCRE's JIT stack, and preg_match_all failed without a word.
+        $long = str_repeat('Lorem ipsum dolor ', 3000);
+        $line = 'acme:x --set "text=' . $long . '" --set password=S3CRET';
+
+        $logged = CommandLineRedactor::redact($line);
+
+        $this->assertStringNotContainsString('S3CRET', $logged);
+        $this->assertStringEndsWith('--set password=***', $logged);
+        $this->assertStringContainsString($long, $logged);
     }
 
     #[DataProvider('lines')]

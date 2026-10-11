@@ -17,8 +17,12 @@ of `RecordWriterInterface`, see the first entry.
   their groups was refused in the back end and stored by a command. Now: after the fields'
   `save_callback`s, before the write, on every save that is not a move, with the values
   (plus `tstamp`) and a data container on the stored record; the return value is written,
-  so a callback may add, change or drop fields. Commands' creates run it after their
-  deferred save callbacks. **Through `RecordWriterInterface` it runs with or without
+  so a callback may add, change or drop fields (on a create a dropped column keeps the
+  value already inserted). `getCurrentRecord()` is the stored state, `getActiveRecord()`
+  carries the new values, as in `DC_Table`. Every value handed over counts as submitted,
+  unchanged ones too — `DC_Table` submits only what changed, so `--set start=…` with the
+  stored value is checked again. Commands' creates run it after their deferred save
+  callbacks. **Through `RecordWriterInterface` it runs with or without
   `$saveCallbacks`**, as `onsubmit` always did — the record callbacks are the table's
   rules, the flag covers the fields' callbacks. `update()` reports the fields a callback
   added. Asked for by Consho.
@@ -33,8 +37,10 @@ of `RecordWriterInterface`, see the first entry.
 - `DcaCallbacks::beforeSubmit()` (`@api`, like the class).
 - **`contao:ai:run` keeps secrets out of the system log.** It logs the command line before
   the run; values of options and `--set` fields whose name reads like a secret (password,
-  secret, token, api key, credential) are blanked first, and so are the names a command
-  declares in the new `#[AiContract(secrets: [...])]` field. This protects `tl_log` and the
+  passwd, pass, secret, token, api key, credential) are blanked first, and so are the names
+  a command declares in the new `#[AiContract(secrets: [...])]` field. The line is split as
+  Symfony's `StringInput` splits it (escapes, quotes). Short options (`-p …`) are not
+  recognised. This protects `tl_log` and the
   backups containing it — the line itself still reaches the server, and from the back-end
   chat the model provider. Reported by the Consho session.
 

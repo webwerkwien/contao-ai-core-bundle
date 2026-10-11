@@ -53,9 +53,13 @@ final class RecordDataContainer
     private static ?\WeakMap $defaults = null;
 
     /**
-     * @param array<string, mixed> $record
+     * @param array<string, mixed>      $record the record as stored — getCurrentRecord()
+     * @param array<string, mixed>|null $active the record with the values being saved —
+     *                                          getActiveRecord() and `activeRecord`; the
+     *                                          stored record when null (v1.5.0: in
+     *                                          DC_Table::submit() they differ)
      */
-    public static function create(string $table, int $id, array $record, ?Connection $db = null): DataContainer
+    public static function create(string $table, int $id, array $record, ?Connection $db = null, ?array $active = null): DataContainer
     {
         $db ??= self::connection();
 
@@ -63,17 +67,20 @@ final class RecordDataContainer
             $record = array_replace(self::columnDefaults($db, $table), $record);
         }
 
-        return new class($table, $id, $record, $db) extends DC_Table {
+        $active = null === $active ? $record : array_replace($record, $active);
+
+        return new class($table, $id, $record, $db, $active) extends DC_Table {
             /**
              * @param array<string, mixed> $record
+             * @param array<string, mixed> $active
              */
-            public function __construct(string $table, int $id, private readonly array $record, private readonly ?Connection $db)
+            public function __construct(string $table, int $id, private readonly array $record, private readonly ?Connection $db, private readonly array $active)
             {
                 $this->strTable = $table;
                 $this->intId    = $id;
                 // The deprecated `$dc->activeRecord` reads this property in 5.3, 5.7
                 // and 6.0 alike — and it is what Contao's alias callbacks still use.
-                $this->objActiveRecord = [] === $record ? null : (object) $record;
+                $this->objActiveRecord = [] === $active ? null : (object) $active;
             }
 
             public function getCurrentRecord(int|string|null $id = null, string|null $table = null): array|null
@@ -97,7 +104,7 @@ final class RecordDataContainer
 
             public function getActiveRecord(): array|null
             {
-                return [] === $this->record ? null : $this->record;
+                return [] === $this->active ? null : $this->active;
             }
         };
     }

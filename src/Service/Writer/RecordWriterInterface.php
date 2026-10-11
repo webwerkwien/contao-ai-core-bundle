@@ -48,7 +48,10 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Writer;
  * The table's `onbeforesubmit_callback`s run on every write that is not a move, with
  * or without the flag, as `onsubmit` does (v1.5.0): after the save_callbacks, before the
  * write, with the values and a data container on the stored record. Their return value
- * is what gets written — they may add, change and remove fields. A field the DCA
+ * is what gets written — they may add, change and remove fields; on a create a removed
+ * column keeps the value already inserted (DC_Table's create inserts defaults first,
+ * this one the values). Every value handed over counts as submitted, unchanged ones
+ * too — DC_Table submits only what changed. A field the DCA
  * declares without a column (a virtual field, a gross amount stored as net) may be
  * handed over when the table has such callbacks; what is still no column after them is
  * refused by name.
@@ -60,7 +63,8 @@ interface RecordWriterInterface
     /**
      * Insert a record (v1.4.0).
      *
-     * `tstamp` is set; a key that is no column is refused before anything is written.
+     * `tstamp` is set; a key that is no column is refused before anything is written,
+     * unless the DCA declares it and an onbeforesubmit_callback may take it over (above).
      * Then, as a create of the bundle's own commands: oncreate, with `$saveCallbacks`
      * the fields' save_callbacks, onbeforesubmit (what both change is written to the
      * record; a field without a column is not inserted, only handed to it), onsubmit,
