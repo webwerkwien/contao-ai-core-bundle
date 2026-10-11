@@ -32,9 +32,20 @@ class OptionsResolver
     }
 
     /**
+     * The stored values a field allows — what its widget would offer.
+     *
+     * Public API since v1.4.2 (maintainer, 2026-10-11, asked for by Consho): the
+     * writer persists without checking a value against the field's options, so an
+     * extension's command that should refuse what the widget would refuse asks here
+     * instead of rebuilding the callback call. Null means "cannot say", not "nothing
+     * allowed": skip the check for that field and report lastError() — never guess.
+     * Signatures stay stable within 1.x.
+     *
      * @param array<string, mixed> $activeRecord the record the options are for, e.g. `['type' => 'text']`
      *
      * @return list<string>|null the values, or null when the field has no options or they cannot be resolved
+     *
+     * @api
      */
     public function values(string $table, string $field, array $activeRecord = [], int $id = 0): ?array
     {
@@ -99,6 +110,12 @@ class OptionsResolver
         return \is_array($result) ? $result : null;
     }
 
+    /**
+     * Why the last values()/options() call for this field answered null because
+     * its callback threw — null when it did not (no options, or resolved fine).
+     *
+     * @api since v1.4.2, see values()
+     */
     public function lastError(string $table, string $field): ?string
     {
         return $this->errors[$table . '.' . $field] ?? null;

@@ -168,7 +168,7 @@ callbacks that ran under `callbacks`. On the console they see the back-end user
 the back end, in place only while callbacks run. What a callback does with a request it
 does not get on the console (POST data, `FORM_SUBMIT`) it does not do there.
 
-## Writing from your own extension (v1.4.0, v1.4.1)
+## Writing from your own extension (v1.4.0 – v1.4.2)
 
 An extension that ships its own `#[AiContract]` commands can write through this bundle's
 building blocks and get what its commands get — versions, the DCA callbacks, an undo entry
@@ -199,6 +199,16 @@ $report = $cacheTags->drainReport();   // ['tags' => [...], 'warnings' => [...]]
 - `CacheTagInvalidator::drainReport()` and `reset()` (since v1.4.1) — what the writes
   invalidated, to answer `cacheTags`/`cacheWarnings` like this bundle's commands (only
   when not empty). Call `reset()` when your command starts.
+- `OptionsResolver::values()` and `lastError()` (since v1.4.2) — the values a field's
+  widget would offer, static or from its `options_callback`. The writer stores a value
+  without checking it against the options; ask here to refuse what the widget would refuse.
+  `null` means "cannot say" (no options, or the callback needs a request or a back-end
+  user and threw): skip the check for that field and report `lastError()`, don't guess.
+
+```php
+$allowed = $options->values('tl_acme_item', 'country', ['type' => 'shop'], $id);
+if (null !== $allowed && !in_array($value, $allowed, true)) { /* refuse */ }
+```
 
 All of them are services registered under their class name, autowirable by type and
 present in every installation; they are private, so not available via `$container->get()`.

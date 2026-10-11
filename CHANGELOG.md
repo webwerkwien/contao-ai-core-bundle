@@ -6,12 +6,23 @@ This file was reconstructed from the git history on 2026-08-13, so entries befor
 
 ## Unreleased (v1.4.2)
 
+Nothing to change for callers; works with the same backend-bundle. contao-ai-cli v1.4.1
+shows an explicit `trace: []` in the `ext run` warning.
+
+### Added
+
+- **`OptionsResolver::values()` and `lastError()` are public API** (`@api`), so an
+  extension's command can check a value against the options its widget would offer — the
+  writer stores without that check. `null` means "cannot say": skip the check, report
+  `lastError()`. Asked for by Consho.
+
 ### Fixed
 
 - **An explicit `trace: []` in `#[AiContract]` is no longer reported as missing.** The
   problem "writes: true but no trace declared" asked the author to declare `trace: []` when a
   command leaves no trail, then raised the same problem for exactly that declaration. Only an
-  absent `trace` is reported now. Found by the Consho session at `consho:stock:book`.
+  absent `trace` is reported now, and a malformed one only with its own type problem. Found
+  by the Consho session at `consho:stock:book`.
 
 ## v1.4.1 - 2026-10-11
 

@@ -963,7 +963,7 @@ refuse a duplicate. The package's rules on copy, cut and delete run as its callb
 ⚠️ changelanguage finds associated pages **only when they and their roots are published**:
 on an unpublished test tree the article options are empty, in the back end as well.
 
-## Public write API (v1.4.0, v1.4.1)
+## Public write API (v1.4.0 – v1.4.2)
 
 `RecordWriterInterface` (with `create()` since v1.4.0), `DcaCallbacks` and `VersionManager`
 are marked `@api`, decided with the maintainer on 2026-10-10 for Consho Connect: an
@@ -972,6 +972,9 @@ version.** Since v1.4.1 also `CacheTagInvalidator::drainReport()` and `reset()`
 (2026-10-11), so such a command can answer `cacheTags`/`cacheWarnings` like ours: `reset()`
 at its start (the service lives for the request, and several commands run in one in the
 chat), keys only when not empty (`InvalidatesCacheTags::withCacheReport()`, not `@api`).
+Since v1.4.2 also `OptionsResolver::values()` and `lastError()` (2026-10-11, Consho
+Connect validates option fields with it): `null` is "cannot say", never "nothing allowed" —
+a caller skips the check and reports the reason. `options()` (labels, groups) is not `@api`.
 All are services under their class name, autowirable by type, private.
 `ModelWriter::update()` writes a table without a registered model row by row —
 Contao 5's `Model::getClassFromTable()` throws for one instead of guessing. Both `update()`
