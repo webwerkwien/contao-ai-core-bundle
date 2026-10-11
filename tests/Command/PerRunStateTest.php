@@ -36,6 +36,7 @@ class PerRunStateTest extends TestCase
 
         $this->assertSame(['tl_probe.7' => 3], $first['earlierVersions']);
         $this->assertSame('alias of run 1', $first['aliasWarning']);
+        $this->assertSame('index', $first['routeConflicts'][0]['alias']);
         $this->assertArrayNotHasKey('earlierVersions', $second);
         $this->assertArrayNotHasKey('aliasWarning', $second);
         $this->assertArrayNotHasKey('routeConflicts', $second);
@@ -74,7 +75,7 @@ final class PerRunProbeCreateCommand extends AbstractWriteCommand implements Cre
 
         if (1 === $this->run) {
             (new \ReflectionProperty(AbstractWriteCommand::class, 'aliasWarning'))->setValue($this, 'alias of run 1');
-            $this->routeConflicts = [['id' => 1]];
+            $this->routeConflicts = [['id' => 1, 'title' => 'Start', 'alias' => 'index', 'path' => '/']];
         }
 
         $this->createVersion('tl_probe', $id, true);
