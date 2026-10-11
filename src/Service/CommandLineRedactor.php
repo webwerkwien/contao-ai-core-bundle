@@ -45,10 +45,38 @@ final class CommandLineRedactor
      */
     public static function redact(string $line, array $declared = []): string
     {
+        return self::redacted($line, $declared)[0];
+    }
+
+    /**
+     * The line blanked, and what was blanked in it (v1.6.0): the values as the command
+     * reads them, so they can be struck from an error message that quotes one —
+     * Symfony's *No arguments expected, got "password=…"*. Null instead of the values
+     * when the arguments were withheld: then nothing says what to strike.
+     *
+     * @param list<string> $declared names the command declares secret, with or without `--`
+     *
+     * @return array{string, list<string>|null}
+     */
+    public static function redacted(string $line, array $declared = []): array
+    {
         $declared = array_map(static fn (string $name): string => strtolower(ltrim($name, '-')), $declared);
         $isSecret = static fn (string $name): bool => \in_array(strtolower(ltrim($name, '-')), $declared, true)
             || 1 === preg_match(self::SECRET, $name);
 
+        $values   = [];
+        $withheld = false;
+        $line     = self::redactLine($line, $isSecret, 0, $values, $withheld);
+
+        return [$line, $withheld ? null : array_values(array_unique($values))];
+    }
+
+    /**
+     * @param \Closure(string): bool $isSecret
+     * @param list<string>           $values   collects what is blanked
+     */
+    private static function redactLine(string $line, \Closure $isSecret, int $depth, array &$values, bool &$withheld): string
+    {
         $tokens = self::tokens($line);
 
         // Blank only what can be located for sure. Where this split and Symfony's
@@ -56,6 +84,8 @@ final class CommandLineRedactor
         // line break) — or the line is absurdly long, the arguments are withheld
         // whole: a log entry with less detail, never one with the secret.
         if (\count($tokens) > self::MAX_TOKENS || !self::splitsLikeSymfony($line, $tokens)) {
+            $withheld = true;
+
             return self::withheld($tokens, $line);
         }
 
@@ -69,8 +99,9 @@ final class CommandLineRedactor
 
                 if ($isSecret($name)) {
                     $replace[$n] = $name . '=' . self::MASK;
-                } elseif (null !== ($pair = self::blankedPair(substr($text, $eq + 1), $isSecret))) {
-                    $replace[$n] = $name . '=' . $pair;
+                    $values[]    = substr($text, $eq + 1);
+                } elseif (null !== ($value = self::blankedValue(substr($text, $eq + 1), $isSecret, $depth, $values, $withheld))) {
+                    $replace[$n] = $name . '=' . $value;
                 }
 
                 continue;
@@ -80,14 +111,15 @@ final class CommandLineRedactor
                 // --name value: the next token is the value, unless it is an option itself.
                 if ($isSecret($text) && isset($tokens[$n + 1]) && !str_starts_with($tokens[$n + 1][2], '-')) {
                     $replace[$n + 1] = self::MASK;
+                    $values[]        = $tokens[$n + 1][2];
                 }
 
                 continue;
             }
 
-            if (!isset($replace[$n]) && null !== ($pair = self::blankedPair($text, $isSecret))) {
-                // key=value as the value of an option (--set password=x) or an argument.
-                $replace[$n] = $pair;
+            // key=value as the value of an option (--set password=x) or an argument.
+            if (!isset($replace[$n]) && null !== ($value = self::blankedValue($text, $isSecret, $depth, $values, $withheld))) {
+                $replace[$n] = $value;
             }
         }
 
@@ -113,9 +145,25 @@ final class CommandLineRedactor
     public const WITHHELD = '[arguments withheld: the line could not be checked for secrets]';
 
     /**
+     * A value read as one pair first, then as a line. In that order: `"password=a b"`
+     * read as a line would blank `a` and leave `b`, a part of the secret. A pair whose
+     * key merely contains a secret's name (`"user:create --set password=x"`) is blanked
+     * whole — less detail, nothing kept. Only a value whose first key is harmless
+     * (`'note=my password=x'`, `'user:create --set name=a --set password=x'`) is split.
+     *
      * @param \Closure(string): bool $isSecret
+     * @param list<string>           $values
      */
-    private static function blankedPair(string $text, \Closure $isSecret): ?string
+    private static function blankedValue(string $text, \Closure $isSecret, int $depth, array &$values, bool &$withheld): ?string
+    {
+        return self::blankedPair($text, $isSecret, $values) ?? self::blankedLine($text, $isSecret, $depth, $values, $withheld);
+    }
+
+    /**
+     * @param \Closure(string): bool $isSecret
+     * @param list<string>           $values
+     */
+    private static function blankedPair(string $text, \Closure $isSecret, array &$values): ?string
     {
         $eq = strpos($text, '=');
 
@@ -124,7 +172,60 @@ final class CommandLineRedactor
             return null;
         }
 
+        $values[] = substr($text, $eq + 1);
+
         return $key . '=' . self::MASK;
+    }
+
+    /** Lines inside lines (a quoted value that is itself a command line) this deep are read. */
+    private const MAX_DEPTH = 3;
+
+    /**
+     * A value with whitespace in it, read as a command line of its own (v1.6.0).
+     *
+     * Symfony's console error listener logs the line of `contao:ai:run` with the inner
+     * line as one quoted value: `--command-line='user:create --set password=x'`. Read
+     * as one token, its key is `user:create --set password` — a secret by luck — and
+     * with a pair in front (`--set name=a --set password=x`) not even that. So such a
+     * value is split and blanked like a line. Over-blanking a text value that merely
+     * contains `password=` costs a detail in the log, nothing else.
+     *
+     * The blanked value comes back single-quoted: it is for the log, not to be run.
+     *
+     * @param \Closure(string): bool $isSecret
+     * @param list<string>           $values
+     */
+    private static function blankedLine(string $text, \Closure $isSecret, int $depth, array &$values, bool &$withheld): ?string
+    {
+        if ($depth >= self::MAX_DEPTH || 1 !== preg_match('/\s/', $text)) {
+            return null;
+        }
+
+        // Only a value with a name in it that could be a secret: a long text, read as a
+        // line, would otherwise be withheld for its length alone, with nothing to hide.
+        // Should the scan itself fail, the value is read.
+        if (false !== preg_match_all('/[\w-]+/', $text, $words)) {
+            $candidate = false;
+
+            foreach ($words[0] as $word) {
+                if ($isSecret($word)) {
+                    $candidate = true;
+                    break;
+                }
+            }
+
+            if (!$candidate) {
+                return null;
+            }
+        }
+
+        $inner = self::redactLine($text, $isSecret, $depth + 1, $values, $withheld);
+
+        if ($inner === $text) {
+            return null;
+        }
+
+        return "'" . str_replace("'", "'\\''", $inner) . "'";
     }
 
     /**

@@ -34,6 +34,14 @@ class CommandLineRedactorTest extends TestCase
         yield 'escaped quote inside single quotes' => ["acme:x --set 'password=S3CRET\\' x' --set title=a", 'acme:x --set password=*** --set title=a'];
         yield 'passwd, a word-pass and a key with a digit' => ['acme:x --set passwd=a --smtp-pass b --set 2fa_token=c', 'acme:x --set passwd=*** --smtp-pass *** --set 2fa_token=***'];
         yield 'passive is no secret' => ['acme:x --set passive=1', 'acme:x --set passive=1'];
+        // v1.6.0: a line inside a line, as Symfony's console error listener logs contao:ai:run.
+        yield 'inner line as option value' => ["contao:ai:run --command-line='acme:x --set name=a --set password=S3CRET'", "contao:ai:run --command-line='acme:x --set name=a --set password=***'"];
+        yield 'inner line after the option' => ["contao:ai:run --command-line 'acme:x --set name=a --api-key S3CRET'", "contao:ai:run --command-line 'acme:x --set name=a --api-key ***'"];
+        yield 'inner line whose first key reads secret is blanked whole' => ["contao:ai:run --command-line='acme:x --set password=S3CRET --set name=a'", 'contao:ai:run --command-line=acme:x --set password=***'];
+        yield 'inner line with a quoted secret' => ["contao:ai:run --command-line='acme:x --set name=a --set \"password=S3 CRET\"'", "contao:ai:run --command-line='acme:x --set name=a --set password=***'"];
+        yield 'a secret pair with a space is never split' => ['acme:x --set "password=S3 CRET"', 'acme:x --set password=***'];
+        yield 'a text value with a secret pair inside' => ["acme:x --set 'note=mein password=S3CRET'", "acme:x --set 'note=mein password=***'"];
+        yield 'an inner line with nothing secret is unchanged' => ["contao:ai:run --command-line='acme:x --set \"title=Mein Laden\"'", "contao:ai:run --command-line='acme:x --set \"title=Mein Laden\"'"];
     }
 
     /**
@@ -45,6 +53,22 @@ class CommandLineRedactorTest extends TestCase
     {
         $this->assertSame('acme:x --set title="abc --set password=***', CommandLineRedactor::redact('acme:x --set title="abc --set password=S3CRET'));
         $this->assertSame("acme:x --set title='abc --set password=***", CommandLineRedactor::redact("acme:x --set title='abc --set password=S3CRET"));
+    }
+
+    /**
+     * v1.6.0: what was blanked, as the command reads it — to strike from a message.
+     */
+    public function testRedactedNamesTheValuesItBlanked(): void
+    {
+        [$line, $values] = CommandLineRedactor::redacted(
+            "contao:ai:run --command-line='acme:x --set name=a --set \"password=S3 CRET\" --api-key K3Y' --token=T0K",
+        );
+
+        $this->assertSame("contao:ai:run --command-line='acme:x --set name=a --set password=*** --api-key ***' --token=***", $line);
+        $this->assertSame(['S3 CRET', 'K3Y', 'T0K'], $values);
+        $this->assertSame(['x'], CommandLineRedactor::redacted('acme:x --set pin=x --set pin=x', ['pin'])[1], 'each once');
+        $this->assertSame([], CommandLineRedactor::redacted('acme:x --set title=a')[1]);
+        $this->assertNull(CommandLineRedactor::redacted('acme:x --set="sec\'\'ret=S3CRET"')[1], 'withheld: nothing says what to strike');
     }
 
     public function testWhereSymfonySplitsDifferentlyTheArgumentsAreWithheld(): void

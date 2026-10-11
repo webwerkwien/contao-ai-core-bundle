@@ -15,9 +15,19 @@ use Contao\NewsModel;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+use Webwerkwien\ContaoAiCoreBundle\DependencyInjection\Compiler\RedactingConsoleErrorListenerPass;
 
 class ContaoAiCoreBundle extends AbstractBundle
 {
+    public function build(ContainerBuilder $container): void
+    {
+        parent::build($container);
+
+        // Symfony's console error listener logs a failing command's line, secrets
+        // included; ours blanks them first (v1.6.0).
+        $container->addCompilerPass(new RedactingConsoleErrorListenerPass());
+    }
+
     public function loadExtension(
         array $config,
         ContainerConfigurator $containerConfigurator,

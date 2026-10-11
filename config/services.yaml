@@ -17,7 +17,11 @@ services:
         # nur wenn das jeweilige Contao-Bundle (news, calendar, faq, comments)
         # tatsächlich installiert ist (siehe ContaoAiCoreBundle::loadExtension).
         exclude:
-            - ../src/{ContaoManager,ContaoAiCoreBundle.php}
+            - ../src/{ContaoManager,ContaoAiCoreBundle.php,DependencyInjection}
+            # Not a service of its own: RedactingConsoleErrorListenerPass puts the class
+            # on Symfony's console.error_listener. Registered here as well, it would be
+            # a second subscriber and log every console error twice.
+            - ../src/EventListener/{RedactingConsoleErrorListener.php,RedactedConsoleError.php}
             - ../src/Command/News*.php
             - ../src/Command/Event*.php
             # Die Kalender-Commands (tl_calendar) hängen genauso am
