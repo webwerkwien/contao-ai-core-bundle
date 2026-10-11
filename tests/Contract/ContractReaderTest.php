@@ -35,6 +35,11 @@ class WritesWithAnExplicitlyEmptyTraceCommand
 {
 }
 
+#[AiContract(writes: true, trace: 'tl_log')]
+class WritesWithAMalformedTraceCommand
+{
+}
+
 #[AiContract(writes: true, trace: ['tl_log'])]
 class TraceWithoutWhenCommand
 {
@@ -239,6 +244,16 @@ class ContractReaderTest extends TestCase
 
         self::assertSame([], $contract['problems']);
         self::assertSame([], $contract['fields']['trace']);
+    }
+
+    public function testAMalformedTraceIsReportedOnceAndNotAsMissing(): void
+    {
+        /* The trace was declared, just wrongly: "no trace declared" on top of the
+           type problem would send the author looking in the wrong place. */
+        $contract = ContractReader::read(WritesWithAMalformedTraceCommand::class);
+
+        self::assertCount(1, $contract['problems'], implode("\n", $contract['problems']));
+        self::assertStringContainsString('trace must be', $contract['problems'][0]);
     }
 
     public function testATraceWithoutItsTimingIsReported(): void
