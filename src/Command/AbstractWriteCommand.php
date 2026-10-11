@@ -156,9 +156,14 @@ abstract class AbstractWriteCommand extends Command
 
         // A command is a service: in the back-end chat one instance serves every run
         // of the request. Nothing of a previous run — a refused one above all — may
-        // reach this one's answer or its callbacks (pre-release review K3).
+        // reach this one's answer or its callbacks (pre-release reviews, K3 and M-A:
+        // the second `page create` reported the first one's earlier versions).
         $this->deferredSaveFields = [];
+        $this->earlierVersions    = [];
+        $this->aliasWarning       = null;
+        $this->routeConflicts     = [];
         $this->dcaCallbacks?->drainReport();
+        $this->cacheTags?->reset();
 
         $fields = $this->parseSetOptions($input->getOption('set'));
 

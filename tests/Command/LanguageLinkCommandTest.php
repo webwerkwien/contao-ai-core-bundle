@@ -79,6 +79,10 @@ class LanguageLinkCommandTest extends TestCase
         });
 
         $command->setRecordWriter($writer);
+
+        if (null !== $this->callbacks) {
+            $command->setDcaCallbacks($this->callbacks);
+        }
         $command->setLogger($this->createMock(LoggerInterface::class));
         $command->setVersionManager($this->createMock(VersionManager::class));
 
@@ -116,6 +120,29 @@ class LanguageLinkCommandTest extends TestCase
         $this->assertSame(4, $answer['previous']);
         $this->assertSame([[$table, 7, [$field => 0]]], $this->written);
     }
+
+    /**
+     * changelanguage adds languageMain to the palette only for the edit mask; its
+     * duplicate check runs only because the command marks the field as set on purpose
+     * (second pre-release review: removing that line left every test green).
+     */
+    public function testTheLinkFieldReachesTheSaveCallbacksAsSetOnPurpose(): void
+    {
+        $requested = null;
+        $callbacks = $this->createMock(\Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks::class);
+        $callbacks->method('save')->willReturnCallback(static function (string $t, int $id, array $fields, array $row, array $skip, array $req) use (&$requested): array {
+            $requested = $req;
+
+            return $fields;
+        });
+
+        $this->callbacks = $callbacks;
+        $this->link(['--table' => 'tl_page', '--id' => '201', '--main' => '1'], ['id' => 201, 'type' => 'regular', 'languageMain' => 0]);
+
+        $this->assertContains('languageMain', (array) $requested);
+    }
+
+    private ?\Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks $callbacks = null;
 
     public function testARefusedTargetWritesNothing(): void
     {
