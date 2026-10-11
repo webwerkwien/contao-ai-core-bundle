@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## Unreleased
+
+### Added
+
+- **`CacheTagInvalidator::drainReport()` and `reset()` are public API** (`@api`), so an
+  extension's command that writes through `RecordWriterInterface` can report `cacheTags`
+  and `cacheWarnings` as this bundle's commands do. Call `reset()` when the command
+  starts. Asked for by Consho Connect. No code changed.
+
 ## v1.4.0 - 2026-10-11
 
 **Writes behave like the back end: Contao's versions, Contao's callbacks.** Until now

@@ -965,7 +965,10 @@ on an unpublished test tree the article options are empty, in the back end as we
 
 `RecordWriterInterface` (with `create()` since v1.4.0), `DcaCallbacks` and `VersionManager`
 are marked `@api`, decided with the maintainer on 2026-10-10 for Consho Connect: an
-extension's `#[AiContract]` commands write through them. **A signature change needs a major
+extension's `#[AiContract]` commands write through them. Since v1.4.1 also
+`CacheTagInvalidator::drainReport()` and `reset()` (2026-10-11), so such a command can
+answer `cacheTags`/`cacheWarnings` like ours — `reset()` at its start, the service outlives
+one command. **A signature change needs a major
 version.** `ModelWriter::update()` writes a table without a registered model row by row —
 Contao 5's `Model::getClassFromTable()` throws for one instead of guessing. Both `update()`
 and `create()` refuse a key that is no column (before v1.4.0 was tagged, `update()` on a

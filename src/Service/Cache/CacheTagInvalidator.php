@@ -30,10 +30,11 @@ use Symfony\Contracts\Service\ResetInterface;
  *     tl_calendar_events, tl_news_archive — and in every extension that puts
  *     addresses of its own into the sitemap.
  *
- * ⚠️ **The callbacks are the one kind of extension code this bundle runs on
- * purpose** (decided 2026-09-13). They are declared in the DCA and hand back a
- * list of tags; `save_callback` and friends still do not run. Without them the
- * sitemap would stay stale, which is the defect this class exists for.
+ * ⚠️ **The callbacks run** (decided 2026-09-13, when they were the only kind of
+ * extension code this bundle ran; since v1.4.0 the other DCA callbacks run too,
+ * see DcaCallbacks). They are declared in the DCA and hand back a list of tags.
+ * Without them the sitemap would stay stale, which is the defect this class
+ * exists for.
  *
  * `DC_Table` cannot be constructed on the console — its constructor reads the
  * session and the request. The callbacks get an instance built without it,
@@ -171,7 +172,15 @@ class CacheTagInvalidator implements ResetInterface
     /**
      * What happened since the last call, for the command's JSON answer.
      *
+     * Public API since v1.4.1 (maintainer, 2026-10-11, asked for by Consho): an
+     * extension's own command writing through RecordWriterInterface reports the tags
+     * as `cacheTags` and the warnings as `cacheWarnings`, as this bundle's commands do.
+     * Call reset() when the command starts — the service lives as long as the process,
+     * and in the back-end chat several commands run in one.
+     *
      * @return array{tags: list<string>, warnings: list<string>}
+     *
+     * @api
      */
     public function drainReport(): array
     {
@@ -181,6 +190,11 @@ class CacheTagInvalidator implements ResetInterface
         return $report;
     }
 
+    /**
+     * Forgets the report of earlier writes — at the start of a command, see drainReport().
+     *
+     * @api
+     */
     public function reset(): void
     {
         $this->invalidated = [];
