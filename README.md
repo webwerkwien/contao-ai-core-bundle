@@ -138,6 +138,18 @@ contract shaped around one consumer's domain stops being a contract.
 A field with the wrong type comes back under `problems` and is left out; the rest of the
 contract still stands. A contract that silently loses a field looks complete and is not.
 
+### Secrets on the command line (v1.5.0)
+
+`contao:ai:run` writes the command line it starts to the system log, before the run.
+Values of options and `--set` fields whose name reads like a secret — password, secret,
+token, api key, credential — are blanked there (`--set password=***`). A name that does not
+look like one is declared: `secrets: ['pin', 'iban']`.
+
+That keeps the secret out of `tl_log` and the backups that contain it, nothing more: the
+command line still reaches the server as a process argument, and from the back-end chat
+the model provider. A command that needs a secret is better off reading it from a file
+or the environment than taking it as an option.
+
 ## Audit trail
 
 Every successful write leaves two traces.
@@ -168,7 +180,12 @@ callbacks that ran under `callbacks`. On the console they see the back-end user
 the back end, in place only while callbacks run. What a callback does with a request it
 does not get on the console (POST data, `FORM_SUBMIT`) it does not do there.
 
-## Writing from your own extension (v1.4.0 – v1.4.2)
+Since v1.5.0 `onbeforesubmit` too: after the `save_callback`s, before the write, on every
+save that is not a move. Contao's own check that a stop does not lie before the start
+(pages, articles, content elements, members, users) runs there — before v1.5.0 a command
+stored it.
+
+## Writing from your own extension (v1.4.0 – v1.5.0)
 
 An extension that ships its own `#[AiContract]` commands can write through this bundle's
 building blocks and get what its commands get — versions, the DCA callbacks, an undo entry
@@ -192,7 +209,11 @@ $report = $cacheTags->drainReport();   // ['tags' => [...], 'warnings' => [...]]
 - `RecordWriterInterface::create()`, `update()`, `delete()` — values in their stored form;
   tables without a registered model are written row by row. With `saveCallbacks: true`
   the fields' `save_callback`s run where `DC_Table` runs them (on a create between
-  `oncreate` and `onsubmit`).
+  `oncreate` and `onsubmit`). The table's `onbeforesubmit_callback`s run on every write
+  that is not a move, flag or not (since v1.5.0); what they return is written. A field
+  your DCA declares without a column — a gross amount the callback stores as net — may be
+  handed over when the table has such callbacks; what is still no column afterwards is
+  refused by name (`Not a column of …: amount — no onbeforesubmit_callback took it over`).
 - `DcaCallbacks` — the callbacks one by one (`save()`, `submit()`, …) and `drainReport()`,
   which ones ran.
 - `VersionManager` — versions directly, if you need them.

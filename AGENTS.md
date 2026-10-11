@@ -417,6 +417,15 @@ through its own command (`ext run`, see `#[AiContract]`) or the back end — not
 | `ondelete` | `ModelWriter::delete()`, after the undo row, before the DELETE, for the record itself | `$dc, $undoId` |
 | `oncopy` | every cloner, per copied row after its children, the root last | `$newId, $dc` (the source) |
 | field `save_callback` | `convertFields()`, last, on the stored values, in DCA order | `$value, $dc` |
+| `onbeforesubmit` (v1.5.0) | `ModelWriter` before every write that is not a move (with or without `$saveCallbacks`), and a command's create after its deferred save_callbacks; returns the values to write | `$values, $dc` (current record = the stored row) |
+
+`onbeforesubmit` may add, change and drop fields. In the writer a field the DCA declares
+without a column passes `refuseUnknownKeys()` only when the table has such callbacks, and
+whatever is still no column afterwards is refused by name in `beforeSubmit()` — never
+dropped. Contao's `StartStopValidationListener` hangs there (stop before start on tl_page,
+tl_article, tl_content, tl_member, tl_user and their groups); before v1.5.0 commands
+stored it. Mocks of `DcaCallbacks` need `beforeSubmit` → `willReturnArgument(2)`, or the
+mock's `[]` empties every write.
 
 What holds for all of them:
 
@@ -963,7 +972,7 @@ refuse a duplicate. The package's rules on copy, cut and delete run as its callb
 ⚠️ changelanguage finds associated pages **only when they and their roots are published**:
 on an unpublished test tree the article options are empty, in the back end as well.
 
-## Public write API (v1.4.0 – v1.4.2)
+## Public write API (v1.4.0 – v1.5.0)
 
 `RecordWriterInterface` (with `create()` since v1.4.0), `DcaCallbacks` and `VersionManager`
 are marked `@api`, decided with the maintainer on 2026-10-10 for Consho Connect: an
@@ -979,7 +988,17 @@ All are services under their class name, autowirable by type, private.
 `ModelWriter::update()` writes a table without a registered model row by row —
 Contao 5's `Model::getClassFromTable()` throws for one instead of guessing. Both `update()`
 and `create()` refuse a key that is no column (before v1.4.0 was tagged, `update()` on a
-model table reported such a key as written — `Model::save()` drops it silently).
+model table reported such a key as written — `Model::save()` drops it silently). Since
+v1.5.0 a DCA field without a column may wait for an `onbeforesubmit_callback` (see the
+callbacks table above) and `DcaCallbacks::beforeSubmit()` is public; `update()` reports what
+the callbacks added. **Behaviour change for API callers:** onbeforesubmit runs even
+without `$saveCallbacks`, like onsubmit — the record callbacks are the table's rules.
+
+**Secrets in the log of `contao:ai:run`** (v1.5.0, `Service\CommandLineRedactor`): the line
+is logged before the run, so values of options and `--set` keys whose name reads like a
+secret, plus the contract's `secrets`, are blanked first. It protects `tl_log` only — the
+line still reaches the server and, from the chat, the model provider; say so wherever
+this is documented, don't sell it as more.
 
 - **For the console and the back end, not for a front-end request.** `DcaCallbacks` uses
   the current request's session and, without a token, puts `contao-ai` (an admin) into the

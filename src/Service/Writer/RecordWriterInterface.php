@@ -45,6 +45,14 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Writer;
  * itself around create() — onsubmit would see the raw values (asked for by Consho,
  * 2026-10-10). Without the flag the caller may run them through DcaCallbacks::save().
  *
+ * The table's `onbeforesubmit_callback`s run on every write that is not a move, with
+ * or without the flag, as `onsubmit` does (v1.5.0): after the save_callbacks, before the
+ * write, with the values and a data container on the stored record. Their return value
+ * is what gets written — they may add, change and remove fields. A field the DCA
+ * declares without a column (a virtual field, a gross amount stored as net) may be
+ * handed over when the table has such callbacks; what is still no column after them is
+ * refused by name.
+ *
  * @api
  */
 interface RecordWriterInterface
@@ -54,7 +62,8 @@ interface RecordWriterInterface
      *
      * `tstamp` is set; a key that is no column is refused before anything is written.
      * Then, as a create of the bundle's own commands: oncreate, with `$saveCallbacks`
-     * the fields' save_callbacks (what they change is written to the record), onsubmit,
+     * the fields' save_callbacks, onbeforesubmit (what both change is written to the
+     * record; a field without a column is not inserted, only handed to it), onsubmit,
      * the record's first version (marked as its own, so versions of an earlier record
      * with the same ID are told apart), cache invalidation — one transaction, so a
      * refusing callback leaves no record behind.
@@ -75,11 +84,13 @@ interface RecordWriterInterface
      * In between the record callbacks run — onsubmit for a field, oncut for a new
      * parent — and the whole write is one transaction, so a refusing callback leaves
      * nothing behind. With `$saveCallbacks` the fields' save_callbacks run first, on the
-     * stored record, and their return values are written.
+     * stored record, then onbeforesubmit; their return values are written.
      *
      * @param array<string, mixed> $fields
      *
-     * @return list<string>|null the written field names, or null when the record does not exist
+     * @return list<string>|null the written field names — what an onbeforesubmit_callback
+     *                           added included, what it removed not — or null when the
+     *                           record does not exist
      */
     public function update(string $table, int $id, array $fields, string $operator, bool $saveCallbacks = false): ?array;
 

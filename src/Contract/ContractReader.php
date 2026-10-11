@@ -45,6 +45,7 @@ final class ContractReader
         'optionValues'          => 'string-list-map',
         'answerShape'           => 'string-list',
         'genericPathUnsuitable' => 'string-map',
+        'secrets'               => 'string-list',
     ];
 
     /**

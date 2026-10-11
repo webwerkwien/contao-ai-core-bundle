@@ -106,6 +106,15 @@ final class ContractPresenter
             $checked['generic_path_unsuitable'] = $fields['genericPathUnsuitable'];
         }
 
+        if (isset($fields['secrets']) && [] !== $fields['secrets']) {
+            // Enforced here, not promised: contao:ai:run does the blanking (v1.5.0).
+            $checked['secrets'] = $fields['secrets'];
+            $checked['secrets_note'] = 'contao:ai:run blanks their values in its system-log entry, as it '
+                .'does for any name reading like a secret. The command line itself still reaches the '
+                .'server, and from the back-end chat the model provider — a secret is better read from '
+                .'a file or the environment.';
+        }
+
         return $checked;
     }
 

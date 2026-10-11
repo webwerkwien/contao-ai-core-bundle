@@ -14,6 +14,7 @@ use Symfony\Component\Console\Input\StringInput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Contracts\Service\Attribute\Required;
 use Webwerkwien\ContaoAiCoreBundle\Contract\ContractReader;
+use Webwerkwien\ContaoAiCoreBundle\Service\CommandLineRedactor;
 use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 
 /**
@@ -106,15 +107,10 @@ class AiRunCommand extends AbstractReadCommand
         // from the *author*, which is the one thing a prefix cannot say. See
         // AiRunGuard for why the namespace alone was the wrong measure.
         $target = $application->find($name);
+        $class  = $target instanceof LazyCommand ? $target->getCommand()::class : $target::class;
 
-        if (!AiRunGuard::isAllowed($name)) {
-            $declared = null !== ContractReader::read(
-                $target instanceof LazyCommand ? $target->getCommand()::class : $target::class,
-            );
-
-            if (!$declared) {
-                return $this->outputError(AiRunGuard::refusal($name));
-            }
+        if (!AiRunGuard::isAllowed($name) && null === ContractReader::read($class)) {
+            return $this->outputError(AiRunGuard::refusal($name));
         }
 
         // A command line that does not bind — an unknown option, a missing
@@ -127,8 +123,10 @@ class AiRunCommand extends AbstractReadCommand
             return $this->outputError($refusal);
         }
 
-        // Before the run, on purpose — see the class docblock.
-        $this->recordInvocation($line);
+        // Before the run, on purpose — see the class docblock. Without the secrets:
+        // the entry stays in tl_log for the log period and in every backup (v1.5.0).
+        $secrets = ContractReader::read($class)['fields']['secrets'] ?? [];
+        $this->recordInvocation(CommandLineRedactor::redact($line, \is_array($secrets) ? array_values(array_map('strval', $secrets)) : []));
 
         // `doRun`, with the command name still in the string, rather than
         // `find()->run()` on the remainder. Running the command object directly

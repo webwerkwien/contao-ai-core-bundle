@@ -66,6 +66,9 @@ final class AiContract
      * @param array<string, list<string>> $optionValues Allowed values per option, only where no DCA states them
      * @param list<string>               $answerShape  Keys the JSON answer carries
      * @param array<string, string>      $genericPathUnsuitable Table => why a generic writer must not touch it
+     * @param list<string>               $secrets      Options and `--set` fields whose value is a secret: contao:ai:run
+     *                                                 blanks them in its log entry (v1.5.0). Names reading like one
+     *                                                 (password, token, api key …) are blanked anyway
      */
     public function __construct(
         public readonly bool $writes = false,
@@ -88,6 +91,9 @@ final class AiContract
         // wrapper exists rather than after: "for tl_ww_buchung the generic
         // path is unsuitable, the transitions hang on save_callbacks."
         public readonly array $genericPathUnsuitable = [],
+        // Kept out of tl_log by contao:ai:run (v1.5.0). Only for names that do not
+        // read like a secret already — a PIN, an IBAN; "password" needs no entry.
+        public readonly array $secrets = [],
     ) {
     }
 }

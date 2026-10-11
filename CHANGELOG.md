@@ -4,6 +4,40 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## Unreleased (v1.5.0)
+
+Works with the same backend-bundle and contao-ai-cli. One behaviour change for callers
+of `RecordWriterInterface`, see the first entry.
+
+### Changed
+
+- **`onbeforesubmit` runs where `DC_Table::submit()` runs it.** Every write of this bundle
+  went past `config.onbeforesubmit_callback`. Contao hangs `StartStopValidationListener`
+  there — a stop before the start on pages, articles, content elements, members, users and
+  their groups was refused in the back end and stored by a command. Now: after the fields'
+  `save_callback`s, before the write, on every save that is not a move, with the values
+  (plus `tstamp`) and a data container on the stored record; the return value is written,
+  so a callback may add, change or drop fields. Commands' creates run it after their
+  deferred save callbacks. **Through `RecordWriterInterface` it runs with or without
+  `$saveCallbacks`**, as `onsubmit` always did — the record callbacks are the table's
+  rules, the flag covers the fields' callbacks. `update()` reports the fields a callback
+  added. Asked for by Consho.
+- **A field the DCA declares without a column may be handed to the writer** when the table
+  has `onbeforesubmit_callback`s — a virtual field, like a gross amount a callback stores
+  as net. What is still no column after the callbacks is refused by name
+  (`… — no onbeforesubmit_callback took it over, so it would not be stored`), never dropped.
+  A create inserts the columns only.
+
+### Added
+
+- `DcaCallbacks::beforeSubmit()` (`@api`, like the class).
+- **`contao:ai:run` keeps secrets out of the system log.** It logs the command line before
+  the run; values of options and `--set` fields whose name reads like a secret (password,
+  secret, token, api key, credential) are blanked first, and so are the names a command
+  declares in the new `#[AiContract(secrets: [...])]` field. This protects `tl_log` and the
+  backups containing it — the line itself still reaches the server, and from the back-end
+  chat the model provider. Reported by the Consho session.
+
 ## v1.4.2 - 2026-10-11
 
 Nothing to change for callers; works with the same backend-bundle. contao-ai-cli v1.4.1
