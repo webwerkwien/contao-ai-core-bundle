@@ -67,6 +67,8 @@ final class RecordDataContainer
             $record = array_replace(self::columnDefaults($db, $table), $record);
         }
 
+        // As DC_Table::getCurrentRecord() in 5.7 and 6.0: target columns replaced by their virtual fields (v1.6.0).
+        $record = VirtualFields::expand($table, $record);
         $active = null === $active ? $record : array_replace($record, $active);
 
         return new class($table, $id, $record, $db, $active) extends DC_Table {
@@ -99,7 +101,7 @@ final class RecordDataContainer
 
                 $row = $this->db->fetchAssociative('SELECT * FROM ' . $this->db->quoteIdentifier($table) . ' WHERE id = ?', [$id]);
 
-                return false === $row ? null : $row;
+                return false === $row ? null : VirtualFields::expand($table, $row);
             }
 
             public function getActiveRecord(): array|null

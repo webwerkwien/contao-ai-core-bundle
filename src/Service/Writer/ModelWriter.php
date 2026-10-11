@@ -6,6 +6,7 @@ use Contao\Model;
 use Doctrine\DBAL\Connection;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cache\CacheTagInvalidator;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\VirtualFields;
 use Webwerkwien\ContaoAiCoreBundle\Service\RecordCascadeCollector;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
@@ -79,7 +80,7 @@ class ModelWriter implements RecordWriterInterface
             $fields = $this->beforeSubmit($table, $id, $fields, $old);
 
             $this->versionManager->initialize($table, $id);
-            $this->connection->update($table, $this->quoted(['tstamp' => time()] + $fields), ['id' => $id]);
+            $this->connection->update($table, $this->quoted(['tstamp' => time()] + VirtualFields::combine($table, $fields, $old)), ['id' => $id]);
         } else {
             $record = $class::findById($id);
 
@@ -91,7 +92,8 @@ class ModelWriter implements RecordWriterInterface
             $fields = $this->withSaveCallbacks($saveCallbacks, $table, $id, $fields, $old);
             $fields = $this->beforeSubmit($table, $id, $fields, $old);
 
-            foreach ($fields as $key => $value) {
+            // Virtual fields into their target column, the column's other values kept (v1.6.0).
+            foreach (VirtualFields::combine($table, $fields, $old) as $key => $value) {
                 $record->$key = $value;
             }
 
@@ -135,9 +137,9 @@ class ModelWriter implements RecordWriterInterface
             $this->refuseUnknownKeys($table, $fields);
 
             // A DCA field without a column waits for the callbacks below; it cannot be
-            // inserted (v1.5.0).
+            // inserted (v1.5.0). A virtual field goes into its target column (v1.6.0).
             $columns  = $this->columns($table);
-            $inserted = array_filter($fields, static fn ($field): bool => \in_array(strtolower((string) $field), $columns, true), \ARRAY_FILTER_USE_KEY);
+            $inserted = array_filter(VirtualFields::combine($table, $fields, []), static fn ($field): bool => \in_array(strtolower((string) $field), $columns, true), \ARRAY_FILTER_USE_KEY);
 
             $this->connection->insert($table, $this->quoted(['tstamp' => time()] + $inserted));
             $id = (int) $this->connection->lastInsertId();
@@ -155,7 +157,7 @@ class ModelWriter implements RecordWriterInterface
                 $changed = array_filter($saved, static fn ($value, $field): bool => !\array_key_exists($field, $inserted) || $inserted[$field] !== $value, \ARRAY_FILTER_USE_BOTH);
 
                 if ([] !== $changed) {
-                    $this->connection->update($table, $this->quoted($changed), ['id' => $id]);
+                    $this->connection->update($table, $this->quoted(VirtualFields::combine($table, $changed, $row)), ['id' => $id]);
                 }
             }
 
@@ -271,10 +273,12 @@ class ModelWriter implements RecordWriterInterface
     private function notColumns(string $table, array $fields): array
     {
         $columns = $this->columns($table);
+        // A virtual field is stored in its target column (v1.6.0).
+        $virtual = VirtualFields::map($table);
 
         return array_values(array_filter(
             array_map('strval', array_keys($fields)),
-            static fn (string $field): bool => !\in_array(strtolower($field), $columns, true),
+            static fn (string $field): bool => !\in_array(strtolower($field), $columns, true) && !isset($virtual[$field]),
         ));
     }
 

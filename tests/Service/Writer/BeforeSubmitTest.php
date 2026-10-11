@@ -8,6 +8,7 @@ use Doctrine\DBAL\Schema\Column;
 use Doctrine\DBAL\Types\StringType;
 use PHPUnit\Framework\TestCase;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\VirtualFields;
 use Webwerkwien\ContaoAiCoreBundle\Service\RecordCascadeCollector;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 use Webwerkwien\ContaoAiCoreBundle\Service\Writer\ModelWriter;
@@ -245,5 +246,55 @@ class BeforeSubmitTest extends TestCase
         $this->assertSame(42, $id);
         $this->assertSame(['insert `tstamp`,`title`', 'oncreate', 'beforesubmit', 'update `tstamp`,`net`', 'onsubmit'], $this->order);
         $this->assertSame('10.00', $this->written['`net`']);
+    }
+
+    /** Contao's virtual fields (5.7/6.0): a bank detail kept in the JSON column jsonData. */
+    private function contaoVirtualFields(): void
+    {
+        VirtualFields::$supported = true;
+        $GLOBALS['TL_DCA']['tl_contao_ai_payment']['fields'] = [
+            'title'         => ['sql' => "varchar(255) NOT NULL default ''"],
+            'jsonData'      => ['virtualTarget' => true, 'sql' => ['type' => 'json', 'notnull' => false]],
+            'accountHolder' => ['inputType' => 'text', 'targetColumn' => 'jsonData'],
+            'bic'           => ['inputType' => 'text', 'targetColumn' => 'jsonData'],
+        ];
+    }
+
+    /**
+     * v1.6.0: a virtual field is written into its target column, the column's other
+     * values kept — without onbeforesubmit, and named as written.
+     */
+    public function testAnUpdateWritesAVirtualFieldIntoItsTargetKeepingTheOthers(): void
+    {
+        $this->contaoVirtualFields();
+
+        try {
+            $callbacks = $this->createMock(DcaCallbacks::class);
+            $callbacks->method('beforeSubmit')->willReturnArgument(2);
+
+            $updated = $this->writer($this->connection(['id', 'tstamp', 'title', 'jsonData'], ['id' => 3, 'title' => 'Vorkasse', 'jsonData' => '{"accountHolder":"Alt","bic":"BICX"}']), $callbacks)
+                ->update('tl_contao_ai_payment', 3, ['accountHolder' => 'Neu'], 'claude');
+
+            $this->assertSame(['accountHolder'], $updated);
+            $this->assertSame('{"accountHolder":"Neu","bic":"BICX"}', $this->written['`jsonData`']);
+            $this->assertArrayNotHasKey('`accountHolder`', $this->written);
+        } finally {
+            VirtualFields::$supported = null;
+        }
+    }
+
+    public function testACreateInsertsAVirtualFieldIntoItsTarget(): void
+    {
+        $this->contaoVirtualFields();
+
+        try {
+            $id = $this->writer($this->connection(['id', 'tstamp', 'title', 'jsonData'], ['id' => 42, 'title' => 'P', 'jsonData' => '{"bic":"BICX"}']), $this->createMock(DcaCallbacks::class))
+                ->create('tl_contao_ai_payment', ['title' => 'P', 'bic' => 'BICX'], 'claude');
+
+            $this->assertSame(42, $id);
+            $this->assertSame('insert `tstamp`,`title`,`jsonData`', $this->order[0]);
+        } finally {
+            VirtualFields::$supported = null;
+        }
     }
 }

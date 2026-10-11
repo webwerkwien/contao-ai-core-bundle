@@ -20,6 +20,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Dca\ContaoAlias;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\OptionsResolver;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\RecordDataContainer;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\StructuredFields;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\VirtualFields;
 use Webwerkwien\ContaoAiCoreBundle\Service\Sorting;
 use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
@@ -488,12 +489,14 @@ abstract class AbstractWriteCommand extends Command
         // check, an extension's derived fields. An update gets it in the record writer.
         $saved   = $this->dcaCallbacks->beforeSubmit($table, $id, $saved, $row);
         $changed = array_filter($saved, static fn ($value, $field): bool => !\array_key_exists($field, $fields) || $fields[$field] !== $value, \ARRAY_FILTER_USE_BOTH);
+        // Virtual fields always: the model's save() drops what is no column (v1.6.0).
+        $changed += array_intersect_key($saved, VirtualFields::map($table));
 
         if ([] !== $changed) {
             // A field a callback added has to be a column, or the UPDATE fails without
             // saying why; the create's transaction takes the record back.
             $this->refuseUnknownFields($table, $changed);
-            $this->writeBack($table, $id, $changed);
+            $this->writeBack($table, $id, VirtualFields::combine($table, $changed, $row));
         }
     }
 
@@ -662,7 +665,8 @@ abstract class AbstractWriteCommand extends Command
             return;
         }
 
-        $unknown = array_values(array_diff(array_keys($fields), $columns));
+        // A virtual field is stored in its target column (v1.6.0).
+        $unknown = array_values(array_diff(array_keys($fields), $columns, array_keys(VirtualFields::map($table))));
         if ([] === $unknown) {
             return;
         }
