@@ -64,9 +64,10 @@ trait JsonErrorBoundary
     /**
      * Run $work; answer a JSON error instead of letting a throwable escape.
      *
-     * @param callable(): int $work
+     * @param callable(): int                         $work
+     * @param (callable(): array<string, mixed>)|null $extras more for the error answer, the callbacks' messages (v1.6.0)
      */
-    protected function guarded(OutputInterface $output, callable $work): int
+    protected function guarded(OutputInterface $output, callable $work, ?callable $extras = null): int
     {
         try {
             return $work();
@@ -80,7 +81,7 @@ trait JsonErrorBoundary
                 'status'  => 'error',
                 'message' => \sprintf('%s: %s', (new \ReflectionClass($e))->getShortName(), $e->getMessage()),
                 'code'    => 1,
-            ] + self::defectOf($e);
+            ] + self::defectOf($e) + (null === $extras ? [] : $extras());
 
             $output->writeln(json_encode($answer, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
 

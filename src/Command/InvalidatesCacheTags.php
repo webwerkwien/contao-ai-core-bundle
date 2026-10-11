@@ -45,6 +45,20 @@ trait InvalidatesCacheTags
     {
         $this->cacheTags?->reset();
         $this->dcaCallbacks?->drainReport();
+        $this->dcaCallbacks?->drainMessages();
+    }
+
+    /**
+     * `messages`: what the callbacks told the editor through Contao's messages (v1.6.0),
+     * on success and on refusal alike — a callback that refuses often says why there.
+     *
+     * @return array{messages?: list<array{type: string, text: string}>}
+     */
+    protected function callbackMessages(): array
+    {
+        $messages = $this->dcaCallbacks?->drainMessages() ?? [];
+
+        return [] === $messages ? [] : ['messages' => $messages];
     }
 
     /**
@@ -73,6 +87,6 @@ trait InvalidatesCacheTags
             $data['callbacks'] = $callbacks;
         }
 
-        return $data;
+        return $data + $this->callbackMessages();
     }
 }

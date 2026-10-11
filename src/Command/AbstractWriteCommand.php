@@ -176,10 +176,10 @@ abstract class AbstractWriteCommand extends Command
         if ($this instanceof CreatesRecord && null !== $this->transactionConnection) {
             $connection = $this->transactionConnection;
 
-            return $this->guarded($output, fn (): int => $connection->transactional(fn (): int => $this->doExecute($fields)));
+            return $this->guarded($output, fn (): int => $connection->transactional(fn (): int => $this->doExecute($fields)), $this->callbackMessages(...));
         }
 
-        return $this->guarded($output, fn (): int => $this->doExecute($fields));
+        return $this->guarded($output, fn (): int => $this->doExecute($fields), $this->callbackMessages(...));
     }
 
     abstract protected function doExecute(array $fields): int;
@@ -2950,7 +2950,7 @@ abstract class AbstractWriteCommand extends Command
             'status'  => 'error',
             'message' => $message,
             'code'    => $code,
-        ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
+        ] + $this->callbackMessages(), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
         return Command::FAILURE;
     }
 }

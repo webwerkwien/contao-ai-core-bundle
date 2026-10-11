@@ -262,6 +262,80 @@ class DcaCallbacksTest extends TestCase
         $this->assertSame([], $callbacks->drainReport());
     }
 
+    /**
+     * v1.6.0: what a callback tells the editor through Contao's messages comes back in
+     * the report, in order; a raw message as text.
+     */
+    public function testTheCallbacksMessagesAreCollectedAndDrained(): void
+    {
+        $requests = $this->requests;
+
+        $this->on('onsubmit_callback', [static function () use ($requests): void {
+            $flashes = $requests->getSession()->getFlashBag();
+            $flashes->add('contao.BE.info', 'Sitemap wird neu erstellt.');
+            $flashes->add('contao.BE.error', 'Alias bereits vergeben.');
+            $flashes->add('contao.BE.raw', '<p>Mit <strong>HTML</strong> &amp; Entity</p>');
+            $flashes->add('some.other.key', 'not a Contao message');
+        }]);
+
+        $callbacks = $this->callbacks();
+        $callbacks->submit('tl_page', 7);
+
+        $this->assertSame([
+            ['type' => 'info', 'text' => 'Sitemap wird neu erstellt.'],
+            ['type' => 'error', 'text' => 'Alias bereits vergeben.'],
+            ['type' => 'raw', 'text' => 'Mit HTML & Entity'],
+        ], $callbacks->drainMessages());
+        $this->assertSame([], $callbacks->drainMessages());
+    }
+
+    public function testAMessageOfARefusingCallbackIsCollectedToo(): void
+    {
+        $requests = $this->requests;
+
+        $this->on('onsubmit_callback', [static function () use ($requests): void {
+            $requests->getSession()->getFlashBag()->add('contao.BE.error', 'Startdatum liegt nach dem Enddatum.');
+
+            throw new \RuntimeException('refused');
+        }]);
+
+        $callbacks = $this->callbacks();
+
+        try {
+            $callbacks->submit('tl_page', 7);
+            $this->fail('the callback refuses');
+        } catch (\InvalidArgumentException) {
+        }
+
+        $this->assertSame([['type' => 'error', 'text' => 'Startdatum liegt nach dem Enddatum.']], $callbacks->drainMessages());
+    }
+
+    /**
+     * In the chat the session is the editor's: what the callbacks added is taken out
+     * of it — it would turn up on the next back-end page — and what was there stays.
+     */
+    public function testInTheChatOnlyTheCallbacksMessagesLeaveTheEditorsSession(): void
+    {
+        $session = new Session(new MockArraySessionStorage());
+        $session->getFlashBag()->add('contao.BE.confirm', 'Vorher gespeichert.');
+
+        $request = Request::create('/contao/ai');
+        $request->setSession($session);
+        $this->requests->push($request);
+
+        $this->on('onsubmit_callback', [static function () use ($session): void {
+            $session->getFlashBag()->add('contao.BE.confirm', 'Vom Callback.');
+            $session->getFlashBag()->add('contao.BE.new', 'Neu angelegt.');
+        }]);
+
+        $callbacks = $this->callbacks();
+        $callbacks->submit('tl_page', 7);
+
+        $this->assertSame([['type' => 'confirm', 'text' => 'Vom Callback.'], ['type' => 'new', 'text' => 'Neu angelegt.']], $callbacks->drainMessages());
+        $this->assertSame(['Vorher gespeichert.'], $session->getFlashBag()->peek('contao.BE.confirm'));
+        $this->assertSame([], $session->getFlashBag()->peek('contao.BE.new'));
+    }
+
     public function testSaveCallbacksRunAsDcTableSaveRunsThem(): void
     {
         $seen = [];

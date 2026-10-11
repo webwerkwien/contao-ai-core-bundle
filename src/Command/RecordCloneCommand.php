@@ -74,7 +74,7 @@ class RecordCloneCommand extends Command
     {
         $this->forgetEarlierReports();
 
-        return $this->guarded($output, fn (): int => $this->doExecute($input, $output));
+        return $this->guarded($output, fn (): int => $this->doExecute($input, $output), $this->callbackMessages(...));
     }
 
     protected function doExecute(InputInterface $input, OutputInterface $output): int

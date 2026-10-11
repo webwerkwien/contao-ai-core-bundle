@@ -11,7 +11,9 @@ use Contao\Widget;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\HttpFoundation\Session\Session;
+use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Webwerkwien\ContaoAiCoreBundle\Command\DcaPaletteCommand;
@@ -338,6 +340,24 @@ class DcaCallbacks
         return $ran;
     }
 
+    /** @var list<array{type: string, text: string}> */
+    private array $messages = [];
+
+    /**
+     * The Contao messages the callbacks left since the last call (v1.6.0), in order:
+     * `['type' => 'error', 'text' => '…']`. Types as Contao names them — error,
+     * confirm, new, info, raw (a raw message as plain text).
+     *
+     * @return list<array{type: string, text: string}>
+     */
+    public function drainMessages(): array
+    {
+        $messages       = $this->messages;
+        $this->messages = [];
+
+        return $messages;
+    }
+
     /**
      * @param array<string, mixed>                    $row
      * @param \Closure(DataContainer): list<mixed> $arguments
@@ -402,7 +422,7 @@ class DcaCallbacks
         $request = $this->requestStack->getCurrentRequest();
 
         if (null !== $request && $request->hasSession()) {
-            return $this->asUser(static fn () => $work($request));
+            return $this->collectingMessages($request->getSession(), fn () => $this->asUser(static fn () => $work($request)));
         }
 
         // One for the whole run, as the back end has one: oncreate lists the new page in
@@ -426,10 +446,66 @@ class DcaCallbacks
         $this->requestStack->push($request);
 
         try {
-            return $this->asUser(static fn () => $work($request));
+            return $this->collectingMessages($this->consoleSession, fn () => $this->asUser(static fn () => $work($request)));
         } finally {
             $this->requestStack->pop();
         }
+    }
+
+    /** The flash bag keys of Contao's messages: `contao.BE.error`, `contao.FE.info`, `contao..new`. */
+    private const MESSAGE_KEY = '/^contao\.(?:BE|FE|)\.(error|confirm|new|info|raw)$/';
+
+    /**
+     * Takes the messages a callback leaves — `Message::addError()`, `addConfirmation()`
+     * … — out of the session and into the report (v1.6.0).
+     *
+     * In the back end they show on the next page. Here nothing showed them: on the
+     * console the session is thrown away, so a callback's *why* behind a refusal or
+     * its notice about a side effect was lost; in the chat they stayed in the editor's
+     * session and turned up later on some unrelated back-end page. Only what the
+     * callbacks added is taken, also when they throw; what was there before stays.
+     *
+     * @template T
+     *
+     * @param \Closure(): T $work
+     *
+     * @return T
+     */
+    private function collectingMessages(SessionInterface $session, \Closure $work): mixed
+    {
+        if (!$session instanceof FlashBagAwareSessionInterface) {
+            return $work();
+        }
+
+        $flashBag = $session->getFlashBag();
+        $before   = $flashBag->peekAll();
+
+        try {
+            return $work();
+        } finally {
+            foreach ($flashBag->peekAll() as $key => $messages) {
+                if (1 !== preg_match(self::MESSAGE_KEY, (string) $key, $type) || !\is_array($messages)) {
+                    continue;
+                }
+
+                $kept  = \is_array($before[$key] ?? null) ? $before[$key] : [];
+                $added = \array_slice($messages, \count($kept));
+
+                foreach ($added as $text) {
+                    if (\is_scalar($text) && '' !== ($text = trim((string) $text))) {
+                        $this->messages[] = ['type' => $type[1], 'text' => 'raw' === $type[1] ? self::plainText($text) : $text];
+                    }
+                }
+
+                $flashBag->set((string) $key, $kept);
+            }
+        }
+    }
+
+    /** A raw message is HTML; the caller reads text. */
+    private static function plainText(string $html): string
+    {
+        return trim((string) preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
     }
 
     /**
