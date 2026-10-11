@@ -56,6 +56,11 @@ class CommandLineRedactorTest extends TestCase
         $this->assertSame('acme:x ' . CommandLineRedactor::WITHHELD, $logged);
     }
 
+    public function testAWithheldLineNeverKeepsAnOptionAsItsName(): void
+    {
+        $this->assertSame(CommandLineRedactor::WITHHELD, CommandLineRedactor::redact('--password=S3CRET acme:x --set="a\'\'b"'));
+    }
+
     public function testAnAbsurdlyLongLineIsWithheldInsteadOfExhaustingMemory(): void
     {
         $logged = CommandLineRedactor::redact('acme:x ' . str_repeat('a ', 200000) . '--set password=S3CRET');

@@ -161,6 +161,14 @@ final class CommandLineRedactor
             return $line;
         }
 
+        // Only a command name stays; a first token that is an option or a pair could
+        // carry a secret (contao:ai:run never gets here with one — it needs a name first).
+        $first = $tokens[0][2];
+
+        if (str_starts_with($first, '-') || str_contains($first, '=')) {
+            return self::WITHHELD;
+        }
+
         return substr($line, $tokens[0][0], $tokens[0][1]) . ' ' . self::WITHHELD;
     }
 
