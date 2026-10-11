@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
-## v1.4.0 - 2026-10-10
+## v1.4.0 - 2026-10-11
 
 **Writes behave like the back end: Contao's versions, Contao's callbacks.** Until now
 this bundle wrote past Contao in two places it should not have — its own version code
