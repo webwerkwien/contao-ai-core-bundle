@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.7.1 - 2026-10-12
+
+Works with the same backend-bundle and contao-ai-cli; backend-bundle v0.16.2 sets the
+operator in the chat itself and works with older cores too.
+
+### Fixed
+
+- **`contao:ai:run` hands its `--operator` on to the command it runs.** It wrote the user
+  into its own log entry only; a command that records who acts — Consho's write commands
+  have an `--operator` option of their own — fell back to the shell user. In a chat test an
+  editor's change was stored in `tl_version` under the web server's account with user id 0.
+  When the command defines an `operator` option that takes a value, it now gets the run's
+  operator. A command line that sets `--operator` to another user is refused before
+  anything is logged or runs; the same user passes.
+
 ## v1.7.0 - 2026-10-12
 
 Works with the same backend-bundle and contao-ai-cli; contao-ai-cli v1.6.0 shows the new

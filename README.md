@@ -156,6 +156,15 @@ Since v1.6.0 the same applies to Symfony's console error log (`var/logs`): when 
 command fails, the line it logs is blanked the same way, and so is a value Symfony's own
 message quotes (*No arguments expected, got "password=…"*).
 
+### Who acts (v1.7.1)
+
+A command that records who changed something — `tl_version`, `tl_log`, its own history —
+defines an option `--operator` that takes a value. `contao:ai:run --operator <user>` hands
+the user on to it: the back-end chat passes the signed-in user, `contao-ai-cli ext run
+--operator` the name given there. Without the option the command decides itself (usually
+the shell user). A command line that already sets `--operator` to another user is refused
+before anything runs; the back-end chat does not let the model set it at all.
+
 ## Audit trail
 
 Every successful write leaves two traces.

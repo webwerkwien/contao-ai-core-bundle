@@ -1027,6 +1027,13 @@ first key is a secret is blanked whole, never split (`"password=a b"` read as a 
 `b`) — and `redacted()` returns the blanked values, so the console error listener can
 strike them from the message.
 
+**`contao:ai:run` hands on `--operator`** (v1.7.1): when the target defines an `operator`
+option that takes a value, the run's `--operator` is inserted right after the command name
+(behind `--` it would be an argument), written as its own token or, starting with `-`, in
+the `=` form. The line in the log carries it too. A line whose own `--operator` names
+another user is a refusal; the same user passes. Before, the operator reached only the log
+entry, and Consho's write commands stored the shell user in `tl_version`.
+
 - **For the console and the back end, not for a front-end request.** `DcaCallbacks` uses
   the current request's session and, without a token, puts `contao-ai` (an admin) into the
   token storage for the length of a callback. In a front-end request that would be the

@@ -74,7 +74,7 @@ class AiRunCommand extends AbstractReadCommand
         );
         $this->addOption(
             'operator', null, InputOption::VALUE_REQUIRED,
-            'Acting user identifier for the log entry.',
+            'Acting user: written to the log entry, and handed on to a command that has an --operator option of its own.',
             '',
         );
     }
@@ -122,6 +122,10 @@ class AiRunCommand extends AbstractReadCommand
         if (null !== $refusal) {
             return $this->outputError($refusal);
         }
+
+        // Who acts reaches the command, not only this log entry (v1.7.1, Consho chat
+        // test 2026-10-12: a command that records the user fell back to the shell user).
+        $line = $this->withOperator($target, $line, $name);
 
         // Before the run, on purpose — see the class docblock. Without the secrets:
         // the entry stays in tl_log for the log period and in every backup (v1.5.0).
@@ -191,6 +195,53 @@ class AiRunCommand extends AbstractReadCommand
         }
 
         return null;
+    }
+
+    /**
+     * $line with this command's --operator handed on, when the target defines an
+     * `operator` option that takes a value. A refusal, before anything is logged or
+     * runs, when the line names another user or the name cannot be passed unchanged.
+     *
+     * Until v1.7.1 the operator went into the log entry only, and a command with its own
+     * `--operator` (Consho's write commands) recorded the shell user. Placed right after
+     * the name: the arguments may stand behind `--`, where an option is an argument.
+     * Written like the backend bundle's ExtTool writes options: its own token, or the `=`
+     * form when the value starts with `-` (it would be read as the next option).
+     */
+    private function withOperator(Command $target, string $line, string $name): string
+    {
+        $operator = trim((string) $this->input->getOption('operator'));
+        $real     = $target instanceof LazyCommand ? $target->getCommand() : $target;
+
+        if ('' === $operator || !$real->getDefinition()->hasOption('operator') || !$real->getDefinition()->getOption('operator')->acceptValue()) {
+            return $line;
+        }
+
+        $input = new StringInput($line);
+
+        try {
+            $input->bind($real->getDefinition());
+            $given = $input->getOption('operator');
+        } catch (ConsoleExceptionInterface) {
+            $given = null; // a target that ignores binding errors; bindingRefusal() let it through
+        }
+
+        if (\is_string($given) && '' !== $given) {
+            if ($given !== $operator) {
+                throw new \InvalidArgumentException(\sprintf('The command line sets --operator to "%s", contao:ai:run was given "%s". Pass it once, as --operator of contao:ai:run.', $given, $operator));
+            }
+
+            return $line;
+        }
+
+        if (str_starts_with($operator, '-') && (str_contains($operator, "''") || str_contains($operator, '"\''))) {
+            throw new \InvalidArgumentException('--operator starts with - and contains \'\' or "\' - the console cannot hand that on unchanged.');
+        }
+
+        $quoted = '"'.addcslashes($operator, '"\\').'"';
+        $option = str_starts_with($operator, '-') ? '--operator='.$quoted : '--operator '.$quoted;
+
+        return $name.' '.$option.substr(ltrim($line), \strlen($name));
     }
 
     /**
