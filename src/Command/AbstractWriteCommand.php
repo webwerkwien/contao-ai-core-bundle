@@ -489,14 +489,12 @@ abstract class AbstractWriteCommand extends Command
         // check, an extension's derived fields. An update gets it in the record writer.
         $saved   = $this->dcaCallbacks->beforeSubmit($table, $id, $saved, $row);
         $changed = array_filter($saved, static fn ($value, $field): bool => !\array_key_exists($field, $fields) || $fields[$field] !== $value, \ARRAY_FILTER_USE_BOTH);
-        // Virtual fields always: the model's save() drops what is no column (v1.6.0).
-        $changed += array_intersect_key($saved, VirtualFields::map($table));
 
         if ([] !== $changed) {
             // A field a callback added has to be a column, or the UPDATE fails without
             // saying why; the create's transaction takes the record back.
             $this->refuseUnknownFields($table, $changed);
-            $this->writeBack($table, $id, VirtualFields::combine($table, $changed, $row));
+            $this->writeBack($table, $id, $changed);
         }
     }
 
@@ -505,7 +503,11 @@ abstract class AbstractWriteCommand extends Command
      */
     protected function writeBack(string $table, int $id, array $changed): void
     {
-        Database::getInstance()->prepare('UPDATE ' . $table . ' %s WHERE id=?')->set($changed)->execute($id);
+        // Past the model: a virtual field goes into its target column, the column's
+        // other values kept (v1.6.0). The model instance takes the fields as they are.
+        $set = [] === array_intersect_key($changed, VirtualFields::map($table)) ? $changed : VirtualFields::combine($table, $changed, $this->storedRow($table, $id));
+
+        Database::getInstance()->prepare('UPDATE ' . $table . ' %s WHERE id=?')->set($set)->execute($id);
 
         Model\Registry::getInstance()->fetch($table, $id)?->mergeRow($changed);
     }

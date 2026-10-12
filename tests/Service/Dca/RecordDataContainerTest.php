@@ -13,6 +13,7 @@ use PHPUnit\Framework\MockObject\Rule\InvocationOrder;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\RecordDataContainer;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\VirtualFields;
 
 /**
  * The record Contao's callbacks see on the console has to look like the one they see in
@@ -84,6 +85,30 @@ class RecordDataContainerTest extends TestCase
 
         $this->assertNull($dc->getCurrentRecord(-1));
         $this->assertNull($dc->getCurrentRecord('abc', 'tl_article'));
+    }
+
+    /**
+     * v1.6.0: as DC_Table::getCurrentRecord() in 5.7 and 6.0, a callback sees virtual
+     * fields as fields of their own, and the values being saved over them.
+     */
+    public function testACallbackSeesVirtualFieldsExpanded(): void
+    {
+        VirtualFields::$supported = true;
+        $GLOBALS['TL_DCA']['tl_probe_rdc']['fields'] = [
+            'jsonData' => ['virtualTarget' => true, 'sql' => ['type' => 'json']],
+            'bic'      => ['inputType' => 'text', 'targetColumn' => 'jsonData'],
+            'holder'   => ['inputType' => 'text', 'targetColumn' => 'jsonData'],
+        ];
+
+        try {
+            $dc = RecordDataContainer::create('tl_probe_rdc', 4, ['id' => 4, 'jsonData' => '{"bic":"BICX","holder":"Alt"}'], null, ['holder' => 'Neu']);
+
+            $this->assertSame(['id' => 4, 'bic' => 'BICX', 'holder' => 'Alt'], $dc->getCurrentRecord());
+            $this->assertSame(['id' => 4, 'bic' => 'BICX', 'holder' => 'Neu'], $dc->getActiveRecord());
+        } finally {
+            VirtualFields::$supported = null;
+            unset($GLOBALS['TL_DCA']['tl_probe_rdc']);
+        }
     }
 
     public function testGivenValuesWinOverTheDefaults(): void

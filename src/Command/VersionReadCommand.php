@@ -2,6 +2,7 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
+use Contao\Controller;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -9,6 +10,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\VirtualFields;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 #[AsCommand(name: 'contao:version:read', description: 'Read a specific version snapshot as JSON')]
@@ -64,6 +66,16 @@ class VersionReadCommand extends Command
         if ($data === false) {
             $output->writeln(json_encode(['status' => 'error', 'message' => "Version {$version} not found or corrupt for {$table}:{$id}"]));
             return self::FAILURE;
+        }
+
+        // Virtual fields as `record read` shows them (v1.6.0); the stored version keeps
+        // its JSON column, and `version restore` writes that back as it is.
+        if (\is_array($data)) {
+            if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+                Controller::loadDataContainer($table);
+            }
+
+            $data = VirtualFields::expand($table, $data);
         }
 
         // Normalize through JSON roundtrip to handle binary strings and other

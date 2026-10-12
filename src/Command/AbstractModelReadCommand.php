@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\VirtualFields;
 
 abstract class AbstractModelReadCommand extends AbstractReadCommand
 {
@@ -35,9 +36,12 @@ abstract class AbstractModelReadCommand extends AbstractReadCommand
             return $this->outputError($this->entityName() . " not found: $id");
         }
 
+        // Virtual fields (5.7/6.0) as fields of their own, the JSON column they live in
+        // replaced — as DC_Table::getCurrentRecord() reads them, and as `--set` takes
+        // them (v1.6.0). After the file conversion, which loads the DCA.
         $row = $this->convertStructuredFieldsForRead(
             $class::getTable(),
-            $this->convertFileTreeFieldsToUuid($class::getTable(), $record->row()),
+            VirtualFields::expand($class::getTable(), $this->convertFileTreeFieldsToUuid($class::getTable(), $record->row())),
         );
 
         $this->outputRecord($this->postProcessRow($row));

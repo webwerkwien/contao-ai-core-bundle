@@ -92,8 +92,10 @@ class ModelWriter implements RecordWriterInterface
             $fields = $this->withSaveCallbacks($saveCallbacks, $table, $id, $fields, $old);
             $fields = $this->beforeSubmit($table, $id, $fields, $old);
 
-            // Virtual fields into their target column, the column's other values kept (v1.6.0).
-            foreach (VirtualFields::combine($table, $fields, $old) as $key => $value) {
+            // Virtual fields as they are: the model folds them into their target column
+            // itself in 5.7 and 6.0, from its own values — folded here, save() rebuilt the
+            // column from the old ones (c5, 6.0, 2026-10-12).
+            foreach ($fields as $key => $value) {
                 $record->$key = $value;
             }
 
