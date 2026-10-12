@@ -167,8 +167,11 @@ final class CommandLineRedactor
         // only `P1N` would not be struck (Fable review before v1.6.0).
         // Only where the "key" itself has whitespace, i.e. is the start of a line;
         // `"password=S3 CRET"` is one value with a space in it.
+        // Its own withheld flag: the pair is blanked already, and an inner line that
+        // cannot be split only means its parts are not collected — the whole value is.
         if ($depth < self::MAX_DEPTH && 1 === preg_match('/\s/', strstr($text, '=', true) ?: '')) {
-            self::redactLine($text, $isSecret, $depth + 1, $values, $withheld);
+            $innerWithheld = false;
+            self::redactLine($text, $isSecret, $depth + 1, $values, $innerWithheld);
         }
 
         return $pair;

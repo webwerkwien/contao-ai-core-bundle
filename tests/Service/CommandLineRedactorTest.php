@@ -74,6 +74,11 @@ class CommandLineRedactorTest extends TestCase
         $this->assertSame('contao:ai:run --command-line=acme:x --set password=***', $line);
         $this->assertContains('S3CRET', $values);
         $this->assertContains('P1N', $values);
+
+        // An inner line that cannot be split does not withhold what is blanked already.
+        [, $values] = CommandLineRedactor::redacted("contao:ai:run --command-line='acme:x --set password=S3CRET " . str_repeat('--set a=b ', 6000) . "'");
+        $this->assertIsArray($values);
+        $this->assertStringStartsWith('S3CRET ', $values[0]);
         $this->assertSame([], CommandLineRedactor::redacted('acme:x --set title=a')[1]);
         $this->assertNull(CommandLineRedactor::redacted('acme:x --set="sec\'\'ret=S3CRET"')[1], 'withheld: nothing says what to strike');
     }

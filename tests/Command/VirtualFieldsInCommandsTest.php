@@ -90,6 +90,23 @@ class VirtualFieldsInCommandsTest extends TestCase
         $data = json_decode($tester->getDisplay(), true)['data'];
         $this->assertSame(['id' => 3, 'title' => 'T', 'bic' => 'BICX', 'holder' => 'Alt'], $data);
     }
+
+    /** On 5.3 there is nothing to expand, and no DCA is loaded for it (as in v1.5.0). */
+    public function testVersionReadOnContao53LoadsNoDcaAndShowsTheRow(): void
+    {
+        VirtualFields::$supported = false;
+
+        $connection = $this->createMock(Connection::class);
+        $connection->method('fetchAssociative')->willReturn(['tstamp' => 1, 'version' => 2, 'username' => 'claude', 'active' => 1]);
+        $versions = $this->createMock(VersionManager::class);
+        $versions->method('loadVersionData')->willReturn(['id' => 3, 'jsonData' => '{"bic":"BICX"}']);
+
+        // No TL_DCA for this table: loading it would need a booted framework.
+        $tester = new CommandTester(new VersionReadCommand($this->createMock(ContaoFramework::class), $connection, $versions));
+        $tester->execute(['--table' => 'tl_probe_vf_53', '--id' => '3', '--ver' => '2']);
+
+        $this->assertSame(['id' => 3, 'jsonData' => '{"bic":"BICX"}'], json_decode($tester->getDisplay(), true)['data']);
+    }
 }
 
 final class VirtualFieldsProbeWriteCommand extends AbstractWriteCommand

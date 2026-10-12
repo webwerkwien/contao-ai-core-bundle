@@ -35,6 +35,19 @@ class VirtualFieldsTest extends TestCase
         $this->assertSame(['accountHolder' => 'jsonData', 'cashOnDelivery' => 'jsonData'], VirtualFields::map('tl_probe_virtual'));
     }
 
+    /** As DcaExtractor: `sql` counts when truthy — an empty one is no column. */
+    public function testAnEmptySqlIsNoColumnAndNoTarget(): void
+    {
+        $GLOBALS['TL_DCA']['tl_probe_virtual']['fields']['emptySql']    = ['inputType' => 'text', 'targetColumn' => 'jsonData', 'sql' => ''];
+        $GLOBALS['TL_DCA']['tl_probe_virtual']['fields']['emptyTarget'] = ['virtualTarget' => true, 'sql' => []];
+        $GLOBALS['TL_DCA']['tl_probe_virtual']['fields']['toEmpty']     = ['inputType' => 'text', 'targetColumn' => 'emptyTarget'];
+
+        $map = VirtualFields::map('tl_probe_virtual');
+
+        $this->assertSame('jsonData', $map['emptySql'] ?? null);
+        $this->assertArrayNotHasKey('toEmpty', $map);
+    }
+
     public function testWithoutSupportThereAreNone(): void
     {
         VirtualFields::$supported = false;
