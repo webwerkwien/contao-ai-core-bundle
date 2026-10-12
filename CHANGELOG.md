@@ -4,6 +4,46 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.6.0 - 2026-10-12
+
+Works with the same backend-bundle and contao-ai-cli; backend-bundle v0.15.0 and
+contao-ai-cli v1.5.0 also show the new `messages` with a refusal.
+
+### Added
+
+- **Contao's virtual fields (5.7, 6.0) can be written and are read as fields.** Contao
+  keeps a DCA field without `sql` in a JSON column (`targetColumn`, mapped to `jsonData`
+  automatically); 6.0 moved the player fields of `tl_content` there, Consho a payment
+  method's bank details. They were refused as "not a column". Now they are written as
+  `DC_Table` writes them: through a model, which folds them itself; past it (a table
+  without a model, an insert, a value a callback changed) the stored row is expanded,
+  the new values laid over it and folded back — the column's other values are kept, a
+  single field written into it would have dropped them. Callbacks see them in
+  `getCurrentRecord()`/`getActiveRecord()`, and `<table> read` and `version read` show
+  them instead of the JSON column. 5.3 has no virtual fields and refuses as before.
+- **Contao messages from callbacks come back as `messages`.** What a callback tells the
+  editor through `Message::addError()`, `addInfo()` … was lost on the console (a
+  throw-away session) and stayed in the editor's session in the back-end chat, turning
+  up later on an unrelated page. Write commands now answer
+  `"messages": [{"type": "error", "text": "…"}]` — with a success, and with a refusal,
+  where a callback often says why. Types as Contao names them (error, confirm, new,
+  info, raw — raw as plain text). Messages that were in the session before stay there.
+  `DcaCallbacks::drainMessages()` (`@api`) for writes an extension makes. Asked for by
+  Consho.
+
+### Security
+
+- **Symfony's console error log no longer carries secrets.** When a command fails,
+  `console.error_listener` writes its line to `var/logs` (CRITICAL, and the exit code at
+  debug) — `--set password=…` included, on every installation, for every command. The
+  listener is replaced (same service, channel and tags) by one that blanks the line with
+  the rules of v1.5.0 and the secrets the command declares; for `contao:ai:run` also
+  those of the command it runs, whose line it reads inside the quoted value. Symfony's
+  own message can quote a value (*No arguments expected, got "password=…"* — a `--set`
+  forgotten): values blanked in the line are struck from the message and from the
+  exception in the log context, which is replaced by a `RedactedConsoleError` keeping
+  class, message, file and line, not the trace. Found by the Consho session.
+
 ## v1.5.0 - 2026-10-11
 
 Works with the same backend-bundle and contao-ai-cli. One behaviour change for callers

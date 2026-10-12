@@ -150,7 +150,8 @@ caller's values are converted and checked, raw as the back end inserts them
 console — the `author` defaults read the logged-in back end user — is skipped; the
 commands set those fields themselves. Two more deliberate differences from `DC_Table`:
 a `null` default is skipped (the column default applies), and virtual fields (5.7+) get
-none — only real columns. Found in the practical test of 2026-09-19: a
+none — only real columns (written since v1.6.0, see `Service\Dca\VirtualFields`, but not
+defaulted). Found in the practical test of 2026-09-19: a
 subscribe module had no `nl_subscribe` mail text and the first front end subscription
 answered HTTP 500; a created layout had no modules.
 
@@ -426,6 +427,27 @@ dropped. Contao's `StartStopValidationListener` hangs there (stop before start o
 tl_article, tl_content, tl_member, tl_user and their groups); before v1.5.0 commands
 stored it. Mocks of `DcaCallbacks` need `beforeSubmit` → `willReturnArgument(2)`, or the
 mock's `[]` empties every write.
+
+**Virtual fields (v1.6.0, `Service\Dca\VirtualFields`).** Contao 5.7/6.0 keep a DCA field
+without `sql` in a JSON column (`targetColumn`, auto-mapped to `jsonData`). Contao's
+**model** expands them on load and folds them on save from its own values — so on the
+model path hand them over as they are; folding them first made `save()` rebuild the
+column from the old values (c5, 6.0). Fold (`VirtualFields::combine()`, stored row
+expanded, new values over it) only where a write goes past the model: the writer's row
+path and insert, `writeBack()`. `RecordDataContainer` and the read commands expand them,
+as `DC_Table::getCurrentRecord()` does. `VirtualFields` mirrors the core handler instead
+of calling it (it needs a `DcaExtractor` and a database, and 5.3 has none);
+tests set `VirtualFields::$supported = true`, the dev vendor is 5.3.
+
+**Messages (v1.6.0).** `DcaCallbacks::withSession()` takes what the callbacks add to the
+flash bag (`contao.BE|FE.*`) into `drainMessages()` and restores what was there before;
+write commands answer it as `messages` via `callbackMessages()`, also through
+`guarded()`'s third argument and `outputError()`.
+
+**Console error log (v1.6.0).** `RedactingConsoleErrorListenerPass` swaps the class of
+`console.error_listener` (only when it is Symfony's own) for
+`RedactingConsoleErrorListener`; keep that class out of the service autodiscovery, or it
+subscribes twice.
 
 What holds for all of them:
 
@@ -998,7 +1020,11 @@ without `$saveCallbacks`, like onsubmit — the record callbacks are the table's
 is logged before the run, so values of options and `--set` keys whose name reads like a
 secret, plus the contract's `secrets`, are blanked first. It protects `tl_log` only — the
 line still reaches the server and, from the chat, the model provider; say so wherever
-this is documented, don't sell it as more.
+this is documented, don't sell it as more. Since v1.6.0 the redactor also reads a quoted
+value that is itself a command line (how Symfony logs `contao:ai:run`) — but a value whose
+first key is a secret is blanked whole, never split (`"password=a b"` read as a line kept
+`b`) — and `redacted()` returns the blanked values, so the console error listener can
+strike them from the message.
 
 - **For the console and the back end, not for a front-end request.** `DcaCallbacks` uses
   the current request's session and, without a token, puts `contao-ai` (an admin) into the

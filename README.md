@@ -152,6 +152,10 @@ command line still reaches the server as a process argument, and from the back-e
 the model provider. A command that needs a secret is better off reading it from a file
 or the environment than taking it as an option.
 
+Since v1.6.0 the same applies to Symfony's console error log (`var/logs`): when any
+command fails, the line it logs is blanked the same way, and so is a value Symfony's own
+message quotes (*No arguments expected, got "password=…"*).
+
 ## Audit trail
 
 Every successful write leaves two traces.
@@ -187,7 +191,16 @@ save that is not a move. Contao's own check that a stop does not lie before the 
 (pages, articles, content elements, members, users) runs there — before v1.5.0 a command
 stored it.
 
-## Writing from your own extension (v1.4.0 – v1.5.0)
+Since v1.6.0 what a callback tells the editor through Contao's messages
+(`Message::addError()` …) comes back as `messages` — `[{"type": "error", "text": "…"}]`,
+with a success and with a refusal, where a callback often says why.
+
+**Virtual fields (Contao 5.7, 6.0; since v1.6.0).** A DCA field without a column of its own
+lives in a JSON column (`jsonData`). It is written and read like any field —
+`--set playerCaption=…`, and `content read` shows `playerCaption`, not the JSON column. The
+column's other values are kept, as in the back end.
+
+## Writing from your own extension (v1.4.0 – v1.6.0)
 
 An extension that ships its own `#[AiContract]` commands can write through this bundle's
 building blocks and get what its commands get — versions, the DCA callbacks, an undo entry
@@ -216,8 +229,11 @@ $report = $cacheTags->drainReport();   // ['tags' => [...], 'warnings' => [...]]
   your DCA declares without a column — a gross amount the callback stores as net — may be
   handed over when the table has such callbacks; what is still no column afterwards is
   refused by name (`Not a column of …: amount — no onbeforesubmit_callback took it over`).
-- `DcaCallbacks` — the callbacks one by one (`save()`, `submit()`, …) and `drainReport()`,
-  which ones ran.
+  Contao's virtual fields (`targetColumn`, 5.7/6.0) are written into their JSON column,
+  its other values kept (since v1.6.0).
+- `DcaCallbacks` — the callbacks one by one (`save()`, `submit()`, …), `drainReport()`,
+  which ones ran, and `drainMessages()` (since v1.6.0), the Contao messages they left —
+  answer them as `messages` like this bundle's commands.
 - `VersionManager` — versions directly, if you need them.
 - `CacheTagInvalidator::drainReport()` and `reset()` (since v1.4.1) — what the writes
   invalidated, to answer `cacheTags`/`cacheWarnings` like this bundle's commands (only
