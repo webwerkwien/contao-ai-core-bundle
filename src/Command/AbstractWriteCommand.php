@@ -424,6 +424,8 @@ abstract class AbstractWriteCommand extends Command
         if (\array_key_exists('customTpl', $fields)) {
             $this->refuseUnknownTemplates($table, $fields, $this->storedRow($table, $excludeId));
         }
+        // A palette selector (`type` …) whose options come from a callback (v1.6.1).
+        $this->refuseUnknownSelectorValues($table, $fields, $excludeId);
 
         $fields = $this->convertFileTreeFields($table, $fields);
         $fields = $this->convertOptionFields($table, $fields);
@@ -1548,6 +1550,72 @@ abstract class AbstractWriteCommand extends Command
      *
      * @throws \InvalidArgumentException naming the valid templates
      */
+    /**
+     * Refuse a value of a palette selector that Contao does not offer (v1.6.1).
+     *
+     * 🔴 **Measured on 2026-10-12:** `content create --type texxt` stored a visible
+     * element of a type that does not exist, `page update --set type=foo` a page type
+     * nobody registered. refuseInvalidOptions() checks declared `options` only, and
+     * the selectors of pages and content elements take theirs from a callback — the
+     * general decision against `options_callback` (2026-09-11) predates OptionsResolver.
+     * A selector decides the whole palette, so a wrong one leaves a record nothing can
+     * render; this is the narrow case. All callback options are a separate question
+     * (they may answer per record and per user).
+     *
+     * Cannot the options be resolved, nothing is refused — the list is not guessed.
+     *
+     * @param array<string, mixed> $fields
+     *
+     * @throws \InvalidArgumentException naming the values Contao offers
+     */
+    protected function refuseUnknownSelectorValues(string $table, array $fields, ?int $id): void
+    {
+        if (null === $this->optionsResolver) {
+            return;
+        }
+
+        $selectors = $GLOBALS['TL_DCA'][$table]['palettes']['__selector__'] ?? [];
+
+        if (!\is_array($selectors)) {
+            return;
+        }
+
+        $record = null;
+
+        foreach ($fields as $name => $value) {
+            $def = $GLOBALS['TL_DCA'][$table]['fields'][$name] ?? null;
+
+            // Only selectors whose list is not in the DCA itself: a declared `options`
+            // list is checked by refuseInvalidOptions(), a checkbox selector is a flag.
+            if (!\in_array($name, $selectors, true) || !\is_array($def) || isset($def['options'])
+                || !\in_array($def['inputType'] ?? null, ['select', 'radio'], true) || !\is_scalar($value)) {
+                continue;
+            }
+
+            $record ??= $this->storedRow($table, $id);
+            $allowed = $this->optionsResolver->values($table, (string) $name, array_merge($record, $fields), (int) ($record['id'] ?? 0));
+
+            // Cannot say — not guessed, as for customTpl.
+            if (null === $allowed || [] === $allowed || \in_array((string) $value, $allowed, true)) {
+                continue;
+            }
+
+            throw new \InvalidArgumentException(\sprintf(
+                'Not a value Contao offers for %s.%s: %s. Nothing was written. Available: %s. '
+                . 'Look the list up with `contao:dca:options %s %s`, the fields of a %s with `contao:dca:palette %s --set %s=<value>`.',
+                $table,
+                $name,
+                (string) $value,
+                implode(', ', array_values(array_filter($allowed, static fn (string $v): bool => '' !== $v))),
+                $table,
+                $name,
+                $name,
+                $table,
+                $name,
+            ));
+        }
+    }
+
     protected function refuseUnknownTemplates(string $table, array $fields, array $record): void
     {
         $value = $fields['customTpl'] ?? '';

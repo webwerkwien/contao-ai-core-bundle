@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.6.1 - 2026-10-12
+
+Works with the same backend-bundle and contao-ai-cli.
+
+### Fixed
+
+- **A palette selector only takes a value Contao offers.** `content create --type texxt`
+  stored a visible element of a type that does not exist, `page update --set type=foo` a
+  page type nobody registered. Values of declared `options` lists were checked since
+  v0.16.0; the selectors of pages, content elements, modules and form fields take theirs
+  from a callback and were not. A selector (`select`/`radio` in the palette's
+  `__selector__`) whose options come from a callback is now checked against what
+  `OptionsResolver` resolves — the list the back end's select would show, for the user
+  the write runs as. The refusal names the offered values and the lookup
+  (`contao:dca:options`, `contao:dca:palette`). Where the list cannot be resolved,
+  nothing is refused. Measured before: on c5 (5.7 with Consho, 5.3, 6.0) every stored
+  `type` is among the resolved values. Other callback option fields stay unchecked.
+
 ## v1.6.0 - 2026-10-12
 
 Works with the same backend-bundle and contao-ai-cli; backend-bundle v0.15.0 and
