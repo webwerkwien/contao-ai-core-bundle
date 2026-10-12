@@ -210,25 +210,46 @@ class AiRunCommand extends AbstractReadCommand
      */
     private function withOperator(Command $target, string $line, string $name): string
     {
-        $operator = trim((string) $this->input->getOption('operator'));
+        $operator = $this->operator();
         $real     = $target instanceof LazyCommand ? $target->getCommand() : $target;
 
-        if ('' === $operator || !$real->getDefinition()->hasOption('operator') || !$real->getDefinition()->getOption('operator')->acceptValue()) {
+        if ('' === $operator) {
             return $line;
         }
 
-        $input = new StringInput($line);
+        // Idempotent; without it the name binds as the first argument and nothing is found.
+        $real->mergeApplicationDefinition();
+        $definition = $real->getDefinition();
 
-        try {
-            $input->bind($real->getDefinition());
-            $given = $input->getOption('operator');
-        } catch (ConsoleExceptionInterface) {
-            $given = null; // a target that ignores binding errors; bindingRefusal() let it through
+        if (!$definition->hasOption('operator') || !$definition->getOption('operator')->acceptValue()) {
+            return $line;
         }
 
-        if (\is_string($given) && '' !== $given) {
-            if ($given !== $operator) {
-                throw new \InvalidArgumentException(\sprintf('The command line sets --operator to "%s", contao:ai:run was given "%s". Pass it once, as --operator of contao:ai:run.', $given, $operator));
+        $option = $definition->getOption('operator');
+        $input  = new StringInput($line);
+
+        try {
+            $input->bind($definition);
+        } catch (ConsoleExceptionInterface) {
+            // A target that ignores binding errors (bindingRefusal() let it through).
+            // bind() keeps what it parsed before the failing token, and the raw tokens
+            // are looked at below for anything behind it.
+        }
+
+        // Set in the line at all — in any form, also empty: an empty value written after
+        // ours would win (last value wins) and hand the command no user (review S1).
+        $names = ['--operator'];
+        foreach (array_filter(explode('|', (string) $option->getShortcut())) as $shortcut) {
+            $names[] = '-'.$shortcut;
+        }
+
+        $given = $input->getOption('operator');
+
+        if ($input->hasParameterOption($names, true) || $given !== $option->getDefault()) {
+            $values = array_map(static fn (mixed $v): string => trim((string) $v), (array) $given);
+
+            if ([] === $values || array_diff($values, [$operator]) !== []) {
+                throw new \InvalidArgumentException(\sprintf('The command line sets --operator itself (%s), contao:ai:run was given "%s". Pass it once, as --operator of contao:ai:run.', [] === $values ? 'unreadable' : '"'.implode('", "', $values).'"', $operator));
             }
 
             return $line;
@@ -241,7 +262,13 @@ class AiRunCommand extends AbstractReadCommand
         $quoted = '"'.addcslashes($operator, '"\\').'"';
         $option = str_starts_with($operator, '-') ? '--operator='.$quoted : '--operator '.$quoted;
 
-        return $name.' '.$option.substr(ltrim($line), \strlen($name));
+        return $name.' '.$option.substr($line, \strlen($name));
+    }
+
+    /** The run's --operator, the same for the log entry and the command it runs. */
+    private function operator(): string
+    {
+        return trim((string) $this->input->getOption('operator'));
     }
 
     /**
@@ -264,7 +291,10 @@ class AiRunCommand extends AbstractReadCommand
             return;
         }
 
-        $operator = (string) ($this->input->getOption('operator') ?: ($_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent'));
+        $operator = $this->operator();
+        if ('' === $operator) {
+            $operator = (string) ($_SERVER['USER'] ?? $_SERVER['USERNAME'] ?? 'cli-agent');
+        }
 
         // "started", not "ran": this entry exists before the outcome does, and
         // the wording should not claim more than it knows.

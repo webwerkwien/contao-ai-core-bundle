@@ -24,7 +24,7 @@ class AiRunOperatorTest extends TestCase
     /** @var list<array{operator: mixed, id: mixed}> */
     private array $received = [];
 
-    /** @var list<string> */
+    /** @var list<array{message: string, operator: string}> */
     private array $logged = [];
 
     private ?CommandTester $tester = null;
@@ -41,9 +41,17 @@ class AiRunOperatorTest extends TestCase
             $this->received[] = ['operator' => $operator, 'id' => $id];
         };
 
-        foreach (['contao:probe-operator' => true, 'contao:probe-plain' => false] as $name => $withOperator) {
-            $application->add(new class($name, $withOperator, $record) extends Command {
-                public function __construct(string $name, private readonly bool $withOperator, private readonly \Closure $record)
+        $targets = [
+            'contao:probe-operator' => ['mode' => InputOption::VALUE_REQUIRED, 'shortcut' => 'o', 'ignore' => false],
+            'contao:probe-ignore'   => ['mode' => InputOption::VALUE_REQUIRED, 'shortcut' => null, 'ignore' => true],
+            'contao:probe-flag'     => ['mode' => InputOption::VALUE_NONE, 'shortcut' => null, 'ignore' => false],
+            'contao:probe-plain'    => ['mode' => null, 'shortcut' => null, 'ignore' => false],
+        ];
+
+        foreach ($targets as $name => $spec) {
+            $application->add(new class($name, $spec, $record) extends Command {
+                /** @param array{mode: int|null, shortcut: string|null, ignore: bool} $spec */
+                public function __construct(string $name, private readonly array $spec, private readonly \Closure $record)
                 {
                     parent::__construct($name);
                 }
@@ -51,8 +59,11 @@ class AiRunOperatorTest extends TestCase
                 protected function configure(): void
                 {
                     $this->addArgument('id', InputArgument::OPTIONAL);
-                    if ($this->withOperator) {
-                        $this->addOption('operator', null, InputOption::VALUE_REQUIRED);
+                    if (null !== $this->spec['mode']) {
+                        $this->addOption('operator', $this->spec['shortcut'], $this->spec['mode']);
+                    }
+                    if ($this->spec['ignore']) {
+                        $this->ignoreValidationErrors();
                     }
                 }
 
@@ -66,8 +77,8 @@ class AiRunOperatorTest extends TestCase
         }
 
         $log = $this->createMock(SystemLog::class);
-        $log->method('write')->willReturnCallback(function (string $message): void {
-            $this->logged[] = $message;
+        $log->method('write')->willReturnCallback(function (string $message, string $action, string $operator): void {
+            $this->logged[] = ['message' => $message, 'operator' => $operator];
         });
 
         $application->add($command = new AiRunCommand());
@@ -83,7 +94,8 @@ class AiRunOperatorTest extends TestCase
         $this->aiRun(['--command-line' => 'contao:probe-operator -- "-5"', '--operator' => 'testredakteur']);
 
         $this->assertSame([['operator' => 'testredakteur', 'id' => '-5']], $this->received, 'an argument behind -- stays an argument');
-        $this->assertStringContainsString('--operator "testredakteur"', $this->logged[0] ?? '');
+        $this->assertStringContainsString('--operator "testredakteur"', $this->logged[0]['message'] ?? '');
+        $this->assertSame('testredakteur', $this->logged[0]['operator'] ?? null);
     }
 
     /**
@@ -104,16 +116,65 @@ class AiRunOperatorTest extends TestCase
         $this->assertSame([['operator' => $operator, 'id' => '7']], $this->received);
     }
 
-    public function testTheSameOperatorInTheLineRuns(): void
+    public function testANameTheConsoleCannotPassIsRefused(): void
     {
-        $this->aiRun(['--command-line' => 'contao:probe-operator --operator "editor" 7', '--operator' => 'editor']);
+        $code = $this->aiRun(['--command-line' => 'contao:probe-operator 7', '--operator' => "-a''b"]);
 
-        $this->assertSame([['operator' => 'editor', 'id' => '7']], $this->received);
+        $this->assertNotSame(Command::SUCCESS, $code);
+        $this->assertSame([], $this->received);
+        $this->assertSame([], $this->logged);
     }
 
-    public function testAnotherOperatorInTheLineIsRefusedBeforeAnythingIsLoggedOrRuns(): void
+    public function testTheLogAndTheCommandGetTheSameTrimmedOperator(): void
     {
-        $code = $this->aiRun(['--command-line' => 'contao:probe-operator --operator admin 7', '--operator' => 'editor']);
+        $this->aiRun(['--command-line' => 'contao:probe-operator 7', '--operator' => '  editor  ']);
+
+        $this->assertSame('editor', $this->received[0]['operator'] ?? null);
+        $this->assertSame('editor', $this->logged[0]['operator'] ?? null);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function theSameUser(): iterable
+    {
+        yield 'own token'       => ['contao:probe-operator --operator "editor" 7'];
+        yield '= form'          => ['contao:probe-operator --operator=editor 7'];
+        yield 'shortcut'        => ['contao:probe-operator -o editor 7'];
+        yield 'with a space'    => ['contao:probe-operator --operator " editor" 7'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('theSameUser')]
+    public function testTheSameOperatorInTheLineRuns(string $line): void
+    {
+        $this->aiRun(['--command-line' => $line, '--operator' => 'editor']);
+
+        $this->assertSame('7', $this->received[0]['id'] ?? null);
+        $this->assertSame('editor', trim((string) ($this->received[0]['operator'] ?? '')));
+    }
+
+    /**
+     * Every way of naming another user, or none, in the line (review S1, S2, S3).
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function anotherUser(): iterable
+    {
+        yield 'own token'                         => ['contao:probe-operator --operator admin 7'];
+        yield '= form'                            => ['contao:probe-operator --operator=admin 7'];
+        yield 'shortcut'                          => ['contao:probe-operator -o admin 7'];
+        yield 'shortcut glued'                    => ['contao:probe-operator -oadmin 7'];
+        yield 'repeated, the last wins'           => ['contao:probe-operator --operator editor --operator admin 7'];
+        yield 'empty'                             => ['contao:probe-operator --operator "" 7'];
+        yield 'empty = form'                      => ['contao:probe-operator --operator= 7'];
+        yield 'ignoring target, before an error'  => ['contao:probe-ignore --operator admin --bogus 7'];
+        yield 'ignoring target, after an error'   => ['contao:probe-ignore --bogus --operator admin 7'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('anotherUser')]
+    public function testAnotherOrNoOperatorInTheLineIsRefusedBeforeAnythingIsLoggedOrRuns(string $line): void
+    {
+        $code = $this->aiRun(['--command-line' => $line, '--operator' => 'editor']);
 
         $this->assertNotSame(Command::SUCCESS, $code);
         $this->assertSame([], $this->received);
@@ -126,7 +187,14 @@ class AiRunOperatorTest extends TestCase
         $this->aiRun(['--command-line' => 'contao:probe-plain 7', '--operator' => 'editor']);
 
         $this->assertSame([['operator' => 'none defined', 'id' => '7']], $this->received);
-        $this->assertSame(['contao:ai:run started an unwrapped command: contao:probe-plain 7'], $this->logged);
+        $this->assertSame('contao:ai:run started an unwrapped command: contao:probe-plain 7', $this->logged[0]['message'] ?? null);
+    }
+
+    public function testAnOperatorFlagGetsNoUser(): void
+    {
+        $this->aiRun(['--command-line' => 'contao:probe-flag 7', '--operator' => 'editor']);
+
+        $this->assertSame([['operator' => false, 'id' => '7']], $this->received);
     }
 
     public function testWithoutAnOperatorTheCommandDecidesItself(): void

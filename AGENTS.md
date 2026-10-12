@@ -1031,7 +1031,10 @@ strike them from the message.
 option that takes a value, the run's `--operator` is inserted right after the command name
 (behind `--` it would be an argument), written as its own token or, starting with `-`, in
 the `=` form. The line in the log carries it too. A line whose own `--operator` names
-another user is a refusal; the same user passes. Before, the operator reached only the log
+another user — or none: an empty value after ours would win — is a refusal; the same user
+passes. Detection reads the bound value and the raw tokens (`--operator`, `=` form, the
+option's shortcuts), so a target with `ignoreValidationErrors()` cannot hide one behind a
+binding error. Before, the operator reached only the log
 entry, and Consho's write commands stored the shell user in `tl_version`.
 
 - **For the console and the back end, not for a front-end request.** `DcaCallbacks` uses
