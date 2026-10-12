@@ -54,18 +54,22 @@ class DcaPaletteCommandTest extends TestCase
     public function testTheSelectorsWithoutAValueAreNamed(): void
     {
         $GLOBALS['TL_DCA']['tl_probe_pal'] = [
-            'palettes' => ['__selector__' => ['type', 'addImage', 'source']],
+            'palettes' => ['__selector__' => ['type', 'addImage', 'source', 'rgxp']],
             'fields'   => [
                 'type'     => ['inputType' => 'select'],
                 'addImage' => ['inputType' => 'checkbox'],
                 'source'   => ['inputType' => 'radio'],
+                // A blank is a choice here ("no validation", tl_form_field).
+                'rgxp'     => ['inputType' => 'select', 'eval' => ['includeBlankOption' => true]],
             ],
         ];
 
         try {
             $this->assertSame(['selectors' => ['type']], DcaPaletteCommand::missingSelectors('tl_probe_pal', ['type'], []));
-            $this->assertSame(['selectors' => ['type', 'source']], DcaPaletteCommand::missingSelectors('tl_probe_pal', ['type', 'addImage', 'source', 'title'], ['type' => '']));
-            $this->assertSame([], DcaPaletteCommand::missingSelectors('tl_probe_pal', ['type', 'addImage', 'title'], ['type' => 'text']));
+            $this->assertSame(['selectors' => ['type', 'source']], DcaPaletteCommand::missingSelectors('tl_probe_pal', ['type', 'addImage', 'source', 'rgxp', 'title'], ['type' => '']));
+            // Always in the answer: [] tells a caller this core found nothing missing.
+            $this->assertSame(['selectors' => []], DcaPaletteCommand::missingSelectors('tl_probe_pal', ['type', 'addImage', 'title'], ['type' => 'text']));
+            $this->assertSame(['selectors' => []], DcaPaletteCommand::missingSelectors('tl_no_selectors', ['title'], []));
         } finally {
             unset($GLOBALS['TL_DCA']['tl_probe_pal']);
         }
@@ -74,7 +78,7 @@ class DcaPaletteCommandTest extends TestCase
     public function testTheAnswerCarriesThem(): void
     {
         $this->assertStringContainsString(
-            '+ self::missingSelectors($table, $fields, $record)',
+            '+ self::missingSelectors($table, $fields, $seen)',
             (string) file_get_contents(__DIR__ . '/../../src/Command/DcaPaletteCommand.php'),
         );
     }

@@ -784,7 +784,7 @@ Used by:
 | | what | why |
 |---|---|---|
 | `OptionsResolver`, `contao:dca:options` | a field's `options_callback` | page types from the `PageRegistry` (`#[AsPage]`), templates per element type |
-| `contao:dca:palette` | `DataContainer::getPalette()` | mandatory fields of one kind of record (selectors, sub-palettes, `onpalette_callback`); since v1.7.0 `selectors` names the select/radio selectors of that palette still without a value (`tl_content` without a type: `["type"]`) |
+| `contao:dca:palette` | `DataContainer::getPalette()` | mandatory fields of one kind of record (selectors, sub-palettes, `onpalette_callback`); since v1.7.0 `selectors` names the select/radio selectors of that palette still without a value in the record as the palette saw it — defaults included once any `--set` is given, a field with `includeBlankOption` excepted (`tl_content` without a type: `["type"]`); always present, `[]` when none |
 | `ContaoAlias` | the alias field's `generateAlias` save callback | aliases of new records as Contao makes them |
 | `DcaCallbacks` (v1.4.0) | record callbacks and field `save_callback`s | every write, see "Callbacks run as in `DC_Table`" |
 

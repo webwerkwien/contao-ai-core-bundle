@@ -14,8 +14,10 @@ field as a hint.
 - **`contao:dca:palette` names the choice still to make.** Asked without a type,
   `tl_content` answers `"fields": ["type"]` — correct, and of no use unless one knows that
   the type picks the palette. The answer now adds `"selectors": ["type"]`: the select and
-  radio fields of that palette that choose another one and have no value in the record.
-  A table without one (`tl_member`) answers its palette as before, without the field.
+  radio fields of that palette that choose another one and have no value in the record as
+  the palette saw it (column defaults included once any value is given), a field whose
+  blank is an option excepted. Always present — `[]` for a table without one
+  (`tl_member`), so a caller can tell this core from an older one.
   Part of "agents should not guess input" (Michael, 2026-10-12).
 
 ## v1.6.1 - 2026-10-12

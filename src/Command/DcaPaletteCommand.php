@@ -52,7 +52,11 @@ class DcaPaletteCommand extends AbstractReadCommand
         }
 
         try {
-            $palette = (string) RecordDataContainer::create($table, 0, $record)->getPalette();
+            $dc      = RecordDataContainer::create($table, 0, $record);
+            $palette = (string) $dc->getPalette();
+            // The record as the palette saw it — with the column defaults laid under the
+            // given values, as soon as any are given (Fable review before v1.7.0).
+            $seen    = $dc->getCurrentRecord() ?? [];
         } catch (\Throwable $e) {
             return $this->outputError("The palette of {$table} could not be built on the console: " . $e->getMessage());
         }
@@ -65,7 +69,7 @@ class DcaPaletteCommand extends AbstractReadCommand
             'record'    => $record,
             'fields'    => $fields,
             'mandatory' => self::mandatoryOf($fields, $GLOBALS['TL_DCA'][$table]['fields']),
-        ] + self::missingSelectors($table, $fields, $record));
+        ] + self::missingSelectors($table, $fields, $seen));
 
         return Command::SUCCESS;
     }
@@ -74,29 +78,32 @@ class DcaPaletteCommand extends AbstractReadCommand
      * `selectors`: the fields of this palette that choose another one and have no value
      * in the record (v1.7.0) — `tl_content` without a type answers `["type"]` alone, and
      * this says so instead of leaving a caller to guess. Select and radio only: a
-     * checkbox that opens a sub-palette is a switch, not a missing choice.
+     * checkbox that opens a sub-palette is a switch, not a missing choice; nor is a field
+     * whose blank is an option (`tl_form_field.rgxp`: "no validation"). Always in the
+     * answer, `[]` when nothing is missing, so a caller can tell this core from an older one.
      *
      * @param list<string>         $fields
      * @param array<string, mixed> $record
      *
-     * @return array{selectors?: list<string>}
+     * @return array{selectors: list<string>}
      */
     public static function missingSelectors(string $table, array $fields, array $record): array
     {
         $selectors = $GLOBALS['TL_DCA'][$table]['palettes']['__selector__'] ?? [];
 
         if (!\is_array($selectors)) {
-            return [];
+            return ['selectors' => []];
         }
 
         $missing = array_values(array_filter(
             $fields,
             static fn (string $field): bool => \in_array($field, $selectors, true)
                 && '' === (string) ($record[$field] ?? '')
-                && \in_array($GLOBALS['TL_DCA'][$table]['fields'][$field]['inputType'] ?? null, ['select', 'radio'], true),
+                && \in_array($GLOBALS['TL_DCA'][$table]['fields'][$field]['inputType'] ?? null, ['select', 'radio'], true)
+                && empty($GLOBALS['TL_DCA'][$table]['fields'][$field]['eval']['includeBlankOption']),
         ));
 
-        return [] === $missing ? [] : ['selectors' => $missing];
+        return ['selectors' => $missing];
     }
 
     /**
