@@ -106,6 +106,7 @@ a rule Contao has in the DCA and loses when a write goes around `DC_Table`:
 | `refuseWidgetLimitViolations()` | **from v0.27.0** — a value breaking the widget's other limits: `eval.maxlength` (for `text`/`textarea` without one: the column's `sql.length`, as the widget does), `minlength`, `minval`, `maxval`, `nospace`. Checked like `Widget::validator()`: on the trimmed value, never on an empty one or on `0` for lengths, on the same parts as `rgxp` (a list — serialized or comma form — entry by entry), never on a `password` field |
 | `refuseInvalidBooleans()` | anything but `1`, `0` or empty for a `sql.type => boolean` column |
 | `refuseInvalidOptions()` | a value not in the field's declared `options` list |
+| `refuseUnknownSelectorValues()` | **from v1.6.1** — a value of a palette selector (`select`/`radio` in `__selector__`, `type` of pages, content elements, modules, form fields, `source` of news/events) whose options come from a callback, held against `OptionsResolver`. The record's current value and a blank where the field offers one pass; an unresolvable list refuses nothing. The refusal names the values and the lookups `contao:dca:options` / `contao:dca:palette` — CLI and backend translate those names into their own |
 | `refuseTakenUniqueValues()` | a duplicate in a `eval.unique` field |
 | `refuseMissingParent()` | **from v0.27.0** — a `pid` with no record in the parent table, on create and on `--set pid=` / `ptable=`. The parent comes from the DCA: the record's `ptable` for `dynamicPtable` (tl_content), else `config.ptable`; a tree without `ptable` (tl_page) points into itself and allows `0`, but not a move below the record itself or its own subpages. An empty `pid` counts as `0`; a `ptable` naming no existing table is refused as such. Tables with neither are not checked |
 | `refuseUnstructuredValues()` | **from v0.12.0** — a value that is not a serialized array for a field whose widget stores one (`moduleWizard`, `sectionWizard`, `rowWizard`, `imageSize`, … — 14 input types). Runs **after** the conversions, so a short form that becomes an array (`options="red\|green"`) passes |
@@ -376,7 +377,7 @@ elsewhere either way.
 > |---|---|---|---|
 > | `options` | 94 | **yes** | the list is in the DCA, complete and closed |
 > | `foreignKey` | 79 | no | Contao itself produces dangling references — see below |
-> | `options_callback` | 106 | no | needs a live `DataContainer` this path has not, and may answer differently per record |
+> | `options_callback` | 106 | no | needs a live `DataContainer` this path has not, and may answer differently per record — **except palette selectors since v1.6.1** (`refuseUnknownSelectorValues()`, through `OptionsResolver`; a wrong `type` left a record nothing renders) |
 >
 > **The `foreignKey` exclusion is deliberate.** Of 55 scalar, checkable
 > foreign-key fields on that installation, one was broken: `tl_news.jumpTo`
@@ -783,7 +784,7 @@ Used by:
 | | what | why |
 |---|---|---|
 | `OptionsResolver`, `contao:dca:options` | a field's `options_callback` | page types from the `PageRegistry` (`#[AsPage]`), templates per element type |
-| `contao:dca:palette` | `DataContainer::getPalette()` | mandatory fields of one kind of record (selectors, sub-palettes, `onpalette_callback`) |
+| `contao:dca:palette` | `DataContainer::getPalette()` | mandatory fields of one kind of record (selectors, sub-palettes, `onpalette_callback`); since v1.7.0 `selectors` names the select/radio selectors of that palette still without a value (`tl_content` without a type: `["type"]`) |
 | `ContaoAlias` | the alias field's `generateAlias` save callback | aliases of new records as Contao makes them |
 | `DcaCallbacks` (v1.4.0) | record callbacks and field `save_callback`s | every write, see "Callbacks run as in `DC_Table`" |
 

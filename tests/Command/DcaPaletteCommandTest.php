@@ -46,4 +46,36 @@ class DcaPaletteCommandTest extends TestCase
 
         $this->assertSame(['title', 'language'], DcaPaletteCommand::mandatoryOf(['title', 'type', 'language', 'dns'], $dca));
     }
+
+    /**
+     * v1.7.0: `tl_content` without a type answers `["type"]`; `selectors` says that is a
+     * choice still to make. A switch (checkbox) or a selector with a value is not missing.
+     */
+    public function testTheSelectorsWithoutAValueAreNamed(): void
+    {
+        $GLOBALS['TL_DCA']['tl_probe_pal'] = [
+            'palettes' => ['__selector__' => ['type', 'addImage', 'source']],
+            'fields'   => [
+                'type'     => ['inputType' => 'select'],
+                'addImage' => ['inputType' => 'checkbox'],
+                'source'   => ['inputType' => 'radio'],
+            ],
+        ];
+
+        try {
+            $this->assertSame(['selectors' => ['type']], DcaPaletteCommand::missingSelectors('tl_probe_pal', ['type'], []));
+            $this->assertSame(['selectors' => ['type', 'source']], DcaPaletteCommand::missingSelectors('tl_probe_pal', ['type', 'addImage', 'source', 'title'], ['type' => '']));
+            $this->assertSame([], DcaPaletteCommand::missingSelectors('tl_probe_pal', ['type', 'addImage', 'title'], ['type' => 'text']));
+        } finally {
+            unset($GLOBALS['TL_DCA']['tl_probe_pal']);
+        }
+    }
+
+    public function testTheAnswerCarriesThem(): void
+    {
+        $this->assertStringContainsString(
+            '+ self::missingSelectors($table, $fields, $record)',
+            (string) file_get_contents(__DIR__ . '/../../src/Command/DcaPaletteCommand.php'),
+        );
+    }
 }

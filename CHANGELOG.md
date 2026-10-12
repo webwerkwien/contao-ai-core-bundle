@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.7.0 - 2026-10-12
+
+Works with the same backend-bundle and contao-ai-cli; contao-ai-cli v1.6.0 shows the new
+field as a hint.
+
+### Added
+
+- **`contao:dca:palette` names the choice still to make.** Asked without a type,
+  `tl_content` answers `"fields": ["type"]` — correct, and of no use unless one knows that
+  the type picks the palette. The answer now adds `"selectors": ["type"]`: the select and
+  radio fields of that palette that choose another one and have no value in the record.
+  A table without one (`tl_member`) answers its palette as before, without the field.
+  Part of "agents should not guess input" (Michael, 2026-10-12).
+
 ## v1.6.1 - 2026-10-12
 
 Works with the same backend-bundle and contao-ai-cli.

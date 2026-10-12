@@ -65,9 +65,38 @@ class DcaPaletteCommand extends AbstractReadCommand
             'record'    => $record,
             'fields'    => $fields,
             'mandatory' => self::mandatoryOf($fields, $GLOBALS['TL_DCA'][$table]['fields']),
-        ]);
+        ] + self::missingSelectors($table, $fields, $record));
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * `selectors`: the fields of this palette that choose another one and have no value
+     * in the record (v1.7.0) — `tl_content` without a type answers `["type"]` alone, and
+     * this says so instead of leaving a caller to guess. Select and radio only: a
+     * checkbox that opens a sub-palette is a switch, not a missing choice.
+     *
+     * @param list<string>         $fields
+     * @param array<string, mixed> $record
+     *
+     * @return array{selectors?: list<string>}
+     */
+    public static function missingSelectors(string $table, array $fields, array $record): array
+    {
+        $selectors = $GLOBALS['TL_DCA'][$table]['palettes']['__selector__'] ?? [];
+
+        if (!\is_array($selectors)) {
+            return [];
+        }
+
+        $missing = array_values(array_filter(
+            $fields,
+            static fn (string $field): bool => \in_array($field, $selectors, true)
+                && '' === (string) ($record[$field] ?? '')
+                && \in_array($GLOBALS['TL_DCA'][$table]['fields'][$field]['inputType'] ?? null, ['select', 'radio'], true),
+        ));
+
+        return [] === $missing ? [] : ['selectors' => $missing];
     }
 
     /**
