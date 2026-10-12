@@ -1535,22 +1535,6 @@ abstract class AbstractWriteCommand extends Command
     }
 
     /**
-     * Refuse a `customTpl` that is not among the templates Contao offers for the record.
-     *
-     * 🟡 **Measured on 2026-09-16 on c5:** `--set customTpl=content_element/text/
-     * gibtesnicht` was stored with `ok`; the element then silently renders its default.
-     *
-     * `options_callback` fields are not enforced in general (see refuseInvalidOptions()).
-     * `customTpl` is the exception because Contao's `TemplateOptionsListener` needs only
-     * the element type, which the record carries. An empty value clears the template.
-     * When the options cannot be resolved, nothing is refused — the list is not guessed.
-     *
-     * @param array<string, mixed> $fields
-     * @param array<string, mixed> $record the stored row on an update, empty on a create
-     *
-     * @throws \InvalidArgumentException naming the valid templates
-     */
-    /**
      * Refuse a value of a palette selector that Contao does not offer (v1.6.1).
      *
      * 🔴 **Measured on 2026-10-12:** `content create --type texxt` stored a visible
@@ -1588,12 +1572,22 @@ abstract class AbstractWriteCommand extends Command
             // Only selectors whose list is not in the DCA itself: a declared `options`
             // list is checked by refuseInvalidOptions(), a checkbox selector is a flag.
             if (!\in_array($name, $selectors, true) || !\is_array($def) || isset($def['options'])
-                || !\in_array($def['inputType'] ?? null, ['select', 'radio'], true) || !\is_scalar($value)) {
+                || !\in_array($def['inputType'] ?? null, ['select', 'radio'], true) || !\is_scalar($value)
+                // A list of values is no palette choice; a blank where the field offers one is "cleared".
+                || !empty($def['eval']['multiple']) || ('' === (string) $value && !empty($def['eval']['includeBlankOption']))) {
                 continue;
             }
 
             $record ??= $this->storedRow($table, $id);
-            $allowed = $this->optionsResolver->values($table, (string) $name, array_merge($record, $fields), (int) ($record['id'] ?? 0));
+
+            // The value it already has: the back end keeps the current option although a
+            // user may not choose it (PageTypeOptionsListener), and a whole record written
+            // back in the chat would otherwise be refused for a field it did not change.
+            if (\array_key_exists($name, $record) && (string) $record[$name] === (string) $value) {
+                continue;
+            }
+
+            $allowed =$this->optionsResolver->values($table, (string) $name, array_merge($record, $fields), (int) ($record['id'] ?? 0));
 
             // Cannot say — not guessed, as for customTpl.
             if (null === $allowed || [] === $allowed || \in_array((string) $value, $allowed, true)) {
@@ -1616,6 +1610,22 @@ abstract class AbstractWriteCommand extends Command
         }
     }
 
+    /**
+     * Refuse a `customTpl` that is not among the templates Contao offers for the record.
+     *
+     * 🟡 **Measured on 2026-09-16 on c5:** `--set customTpl=content_element/text/
+     * gibtesnicht` was stored with `ok`; the element then silently renders its default.
+     *
+     * `options_callback` fields are not enforced in general (see refuseInvalidOptions()).
+     * `customTpl` is the exception because Contao's `TemplateOptionsListener` needs only
+     * the element type, which the record carries. An empty value clears the template.
+     * When the options cannot be resolved, nothing is refused — the list is not guessed.
+     *
+     * @param array<string, mixed> $fields
+     * @param array<string, mixed> $record the stored row on an update, empty on a create
+     *
+     * @throws \InvalidArgumentException naming the valid templates
+     */
     protected function refuseUnknownTemplates(string $table, array $fields, array $record): void
     {
         $value = $fields['customTpl'] ?? '';

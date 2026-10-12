@@ -93,12 +93,48 @@ class SelectorValueRefusalTest extends TestCase
         (new \ReflectionMethod($command, 'refuseUnknownSelectorValues'))->invoke($command, 'tl_probe_sel', ['type' => 'headline'], 5);
     }
 
+    /** Fable review: the value a record already has is kept, as the back end keeps it. */
+    public function testTheValueTheRecordAlreadyHasIsNotAsked(): void
+    {
+        $resolver = $this->createMock(OptionsResolver::class);
+        $resolver->expects($this->never())->method('values');
+
+        $command = new SelectorProbeCommand();
+        $command->setOptionsResolver($resolver);
+
+        // The probe's stored row has type=text.
+        (new \ReflectionMethod($command, 'refuseUnknownSelectorValues'))->invoke($command, 'tl_probe_sel', ['type' => 'text'], 5);
+    }
+
+    public function testABlankIsClearedWhereTheFieldOffersOneAndAListIsNoChoice(): void
+    {
+        $GLOBALS['TL_DCA']['tl_probe_sel']['fields']['type']['eval'] = ['includeBlankOption' => true];
+        $this->refuse(['text'], ['type' => '']);
+
+        $GLOBALS['TL_DCA']['tl_probe_sel']['fields']['type']['eval'] = ['multiple' => true];
+        $this->refuse(['text'], ['type' => 'a,b']);
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function testABlankWithoutABlankOptionIsRefused(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->refuse(['text'], ['type' => '']);
+    }
+
+    /**
+     * The call itself, inside convertFields(): the method body up to the next method.
+     * (A first version matched the method's own declaration and could not fail.)
+     */
     public function testConvertFieldsRunsTheCheck(): void
     {
-        $this->assertMatchesRegularExpression(
-            '/function convertFields\(.*?refuseUnknownSelectorValues\(/s',
-            (string) file_get_contents(__DIR__ . '/../../src/Command/AbstractWriteCommand.php'),
-        );
+        $source = (string) file_get_contents(__DIR__ . '/../../src/Command/AbstractWriteCommand.php');
+
+        $this->assertMatchesRegularExpression('/function convertFields\(.*?\n    }\n/s', $source);
+        preg_match('/function convertFields\(.*?\n    }\n/s', $source, $body);
+        $this->assertStringContainsString('$this->refuseUnknownSelectorValues($table, $fields, $excludeId);', $body[0]);
     }
 }
 
