@@ -70,7 +70,7 @@ class VersionReadCommand extends Command
 
         // Virtual fields as `record read` shows them (v1.6.0); the stored version keeps
         // its JSON column, and `version restore` writes that back as it is.
-        if (\is_array($data)) {
+        if (\is_array($data) && VirtualFields::supported()) {
             if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
                 Controller::loadDataContainer($table);
             }

@@ -111,6 +111,50 @@ class RedactingConsoleErrorListenerTest extends TestCase
         $this->assertStringNotContainsString('S3CRET', $logged, 'pin is declared by acme:fail, not by contao:ai:run');
     }
 
+    /**
+     * Fable review before v1.6.0: at -vvv the boundary rethrows, so contao:ai:run logs
+     * the error too — with the inner line blanked whole, and a message quoting only the
+     * pin, which a value list of `S3CRET --set name=a --pin …` did not strike.
+     */
+    public function testAtVeryVerboseContaoAiRunStrikesEveryValueOfTheInnerLine(): void
+    {
+        try {
+            $this->runConsole(['contao:ai:run', '-vvv', '--command-line=acme:fail --set password=S3CRET-ONE --set name=a --pin S3CRET-PIN']);
+        } finally {
+            // Symfony exports the verbosity; later tests would run at -vvv.
+            putenv('SHELL_VERBOSITY');
+            unset($_ENV['SHELL_VERBOSITY'], $_SERVER['SHELL_VERBOSITY']);
+        }
+
+        $logged = $this->logged();
+        $this->assertStringContainsString('Error thrown while running command "contao:ai:run', $logged, 'the outer error is logged at -vvv');
+        $this->assertStringNotContainsString('S3CRET', $logged);
+    }
+
+    /** A secret that is no valid UTF-8 cannot be struck by pattern: the message is withheld. */
+    public function testASecretThatIsNoValidUtf8WithholdsTheMessage(): void
+    {
+        // Without a warning: a strict error handler would turn one into an exception
+        // inside the listener.
+        $warnings = [];
+        set_error_handler(static function (int $no, string $message) use (&$warnings): bool {
+            $warnings[] = $message;
+
+            return true;
+        });
+
+        try {
+            $this->runConsole(['acme:fail', '--set', "password=\xB1\x31"]);
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->assertSame([], $warnings);
+        $logged = $this->logged();
+        $this->assertStringContainsString('Message: "' . RedactingConsoleErrorListener::MESSAGE_WITHHELD . '"', $logged);
+        $this->assertStringNotContainsString("\xB1\x31", $logged);
+    }
+
     public function testAMessageWithoutASecretIsLeftAsItIs(): void
     {
         $this->runConsole(['acme:fail', '--set', 'title=x']);

@@ -507,9 +507,22 @@ abstract class AbstractWriteCommand extends Command
         // other values kept (v1.6.0). The model instance takes the fields as they are.
         $set = [] === array_intersect_key($changed, VirtualFields::map($table)) ? $changed : VirtualFields::combine($table, $changed, $this->storedRow($table, $id));
 
-        Database::getInstance()->prepare('UPDATE ' . $table . ' %s WHERE id=?')->set($set)->execute($id);
+        $this->updateRow($table, $id, $set);
 
-        Model\Registry::getInstance()->fetch($table, $id)?->mergeRow($changed);
+        // Contao 5 throws for a table without a registered model; no model, no instance.
+        if (isset($GLOBALS['TL_MODELS'][$table])) {
+            Model\Registry::getInstance()->fetch($table, $id)?->mergeRow($changed);
+        }
+    }
+
+    /**
+     * The UPDATE of writeBack(), on its own so a test can answer for the database.
+     *
+     * @param array<string, mixed> $set
+     */
+    protected function updateRow(string $table, int $id, array $set): void
+    {
+        Database::getInstance()->prepare('UPDATE ' . $table . ' %s WHERE id=?')->set($set)->execute($id);
     }
 
     /**

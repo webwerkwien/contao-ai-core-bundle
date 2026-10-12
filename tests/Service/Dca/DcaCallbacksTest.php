@@ -16,6 +16,7 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\User\InMemoryUser;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\VirtualFields;
 
 /**
  * The record callbacks run as DC_Table runs them (v1.4.0): arguments, data container,
@@ -334,6 +335,31 @@ class DcaCallbacksTest extends TestCase
         $this->assertSame([['type' => 'confirm', 'text' => 'Vom Callback.'], ['type' => 'new', 'text' => 'Neu angelegt.']], $callbacks->drainMessages());
         $this->assertSame(['Vorher gespeichert.'], $session->getFlashBag()->peek('contao.BE.confirm'));
         $this->assertSame([], $session->getFlashBag()->peek('contao.BE.new'));
+    }
+
+    /**
+     * v1.6.0, Fable review: a save_callback sees the virtual field being saved, not the
+     * value its JSON column still holds.
+     */
+    public function testASaveCallbackSeesTheNewValueOfAVirtualField(): void
+    {
+        VirtualFields::$supported = true;
+        $GLOBALS['TL_DCA']['tl_page']['fields']['jsonData'] = ['virtualTarget' => true, 'sql' => ['type' => 'json']];
+        $seen = null;
+        $GLOBALS['TL_DCA']['tl_page']['fields']['holder'] = ['inputType' => 'text', 'targetColumn' => 'jsonData', 'save_callback' => [static function ($value, $dc) use (&$seen) {
+            $seen = $dc->getCurrentRecord()['holder'] ?? null;
+
+            return $value;
+        }]];
+
+        try {
+            $this->callbacks(['id' => 7, 'pid' => 3, 'title' => 'Seite', 'jsonData' => '{"holder":"Alt"}'])
+                ->save('tl_page', 7, ['holder' => 'Neu'], ['id' => 7, 'pid' => 3, 'title' => 'Seite', 'jsonData' => '{"holder":"Alt"}'], [], ['holder']);
+
+            $this->assertSame('Neu', $seen);
+        } finally {
+            VirtualFields::$supported = null;
+        }
     }
 
     public function testSaveCallbacksRunAsDcTableSaveRunsThem(): void

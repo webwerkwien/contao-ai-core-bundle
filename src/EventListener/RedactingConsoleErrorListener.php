@@ -128,6 +128,14 @@ class RedactingConsoleErrorListener extends ErrorListener
         }
 
         $values = array_filter($values, static fn (string $value): bool => '' !== $value);
+
+        // A value that is no valid UTF-8 cannot go into a /u pattern; compiling it would
+        // warn, which a strict error handler turns into an exception in this listener.
+        foreach ($values as $value) {
+            if (!mb_check_encoding($value, 'UTF-8')) {
+                return static fn (string $message): string => '' === $message ? '' : self::MESSAGE_WITHHELD;
+            }
+        }
         usort($values, static fn (string $a, string $b): int => \strlen($b) <=> \strlen($a));
 
         // A value of one or two characters (`--token 7`) only as a word of its own:

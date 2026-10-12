@@ -142,8 +142,9 @@ class RecordCloneCommand extends Command
      */
     private function error(OutputInterface $output, string $message, array $defect = []): int
     {
+        // An oncopy callback that refuses often says why in its messages (v1.6.0).
         $output->writeln(json_encode(
-            ['status' => 'error', 'message' => $message] + $defect,
+            ['status' => 'error', 'message' => $message] + $defect + $this->callbackMessages(),
             JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE
         ));
         return Command::FAILURE;

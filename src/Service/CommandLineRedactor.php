@@ -156,7 +156,22 @@ final class CommandLineRedactor
      */
     private static function blankedValue(string $text, \Closure $isSecret, int $depth, array &$values, bool &$withheld): ?string
     {
-        return self::blankedPair($text, $isSecret, $values) ?? self::blankedLine($text, $isSecret, $depth, $values, $withheld);
+        $pair = self::blankedPair($text, $isSecret, $values);
+
+        if (null === $pair) {
+            return self::blankedLine($text, $isSecret, $depth, $values, $withheld);
+        }
+
+        // Blanked whole, but read as a line as well, for the values alone: the pair's
+        // value runs to the end (`S3CRET --set name=a --pin P1N`), and a message quoting
+        // only `P1N` would not be struck (Fable review before v1.6.0).
+        // Only where the "key" itself has whitespace, i.e. is the start of a line;
+        // `"password=S3 CRET"` is one value with a space in it.
+        if ($depth < self::MAX_DEPTH && 1 === preg_match('/\s/', strstr($text, '=', true) ?: '')) {
+            self::redactLine($text, $isSecret, $depth + 1, $values, $withheld);
+        }
+
+        return $pair;
     }
 
     /**

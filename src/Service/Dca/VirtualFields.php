@@ -60,11 +60,12 @@ final class VirtualFields
         foreach ($fields as $name => $config) {
             $target = \is_array($config) ? ($config['targetColumn'] ?? null) : null;
 
-            if (!\is_string($target) || '' === $target || null !== ($config['sql'] ?? null)) {
+            // Truthy, as DcaExtractor checks: an empty `sql` is no column either.
+            if (!\is_string($target) || '' === $target || ($config['sql'] ?? null)) {
                 continue;
             }
 
-            if (($fields[$target]['virtualTarget'] ?? false) && null !== ($fields[$target]['sql'] ?? null)) {
+            if (($fields[$target]['virtualTarget'] ?? false) && ($fields[$target]['sql'] ?? null)) {
                 $map[(string) $name] = $target;
             }
         }

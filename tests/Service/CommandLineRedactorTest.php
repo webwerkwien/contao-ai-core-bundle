@@ -67,6 +67,13 @@ class CommandLineRedactorTest extends TestCase
         $this->assertSame("contao:ai:run --command-line='acme:x --set name=a --set password=*** --api-key ***' --token=***", $line);
         $this->assertSame(['S3 CRET', 'K3Y', 'T0K'], $values);
         $this->assertSame(['x'], CommandLineRedactor::redacted('acme:x --set pin=x --set pin=x', ['pin'])[1], 'each once');
+
+        // Fable review: an inner line whose first key reads secret is blanked whole, and
+        // its values are still collected one by one — a message may quote just one.
+        [$line, $values] = CommandLineRedactor::redacted("contao:ai:run --command-line='acme:x --set password=S3CRET --set name=a --pin P1N'", ['pin']);
+        $this->assertSame('contao:ai:run --command-line=acme:x --set password=***', $line);
+        $this->assertContains('S3CRET', $values);
+        $this->assertContains('P1N', $values);
         $this->assertSame([], CommandLineRedactor::redacted('acme:x --set title=a')[1]);
         $this->assertNull(CommandLineRedactor::redacted('acme:x --set="sec\'\'ret=S3CRET"')[1], 'withheld: nothing says what to strike');
     }

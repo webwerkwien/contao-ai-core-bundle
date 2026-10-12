@@ -259,7 +259,9 @@ class DcaCallbacks
             ($this->loadLanguageFile)('default');
             ($this->loadLanguageFile)($table);
 
-            $dc = RecordDataContainer::create($table, $id, array_replace($record, $fields), $this->connection);
+            // The stored row expanded first: its JSON column must not win over the
+            // virtual fields being saved (v1.6.0, Fable review).
+            $dc = RecordDataContainer::create($table, $id, array_replace(VirtualFields::expand($table, $record), $fields), $this->connection);
 
             // Only the fields of the record's palette, as only those are submitted in
             // the back end. A page create writes language '' for a non-root page, and

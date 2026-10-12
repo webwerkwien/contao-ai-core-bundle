@@ -12,6 +12,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\RecordCloneCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\VersionRestoreCommand;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cache\CacheTagInvalidator;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\EntityClonerInterface;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 /**
@@ -87,5 +88,29 @@ class RestoreAndCloneCacheTest extends TestCase
         $this->assertSame(['reset', 'invalidate tl_page:7'], $log);
         $this->assertSame(7, $answer['id']);
         $this->assertSame(['contao.sitemap.1'], $answer['cacheTags']);
+    }
+
+    /**
+     * v1.6.0, Fable review: an oncopy callback that refuses tells why in its messages,
+     * and the clone's own error answer has to carry them.
+     */
+    public function testACloneRefusedByACallbackCarriesItsMessages(): void
+    {
+        $cloner = $this->createMock(EntityClonerInterface::class);
+        $cloner->method('supports')->willReturn(true);
+        $cloner->method('clone')->willThrowException(new \InvalidArgumentException('tl_page.oncopy refused. Nothing was written.'));
+
+        $callbacks = $this->createMock(DcaCallbacks::class);
+        $callbacks->method('drainMessages')->willReturnOnConsecutiveCalls([], [['type' => 'error', 'text' => 'Kopie nicht erlaubt.']]);
+
+        $command = new RecordCloneCommand([$cloner]);
+        $command->setDcaCallbacks($callbacks);
+
+        $tester = new CommandTester($command);
+        $tester->execute(['--source-table' => 'tl_page', '--source-id' => '1']);
+        $answer = json_decode($tester->getDisplay(), true);
+
+        $this->assertSame('error', $answer['status']);
+        $this->assertSame([['type' => 'error', 'text' => 'Kopie nicht erlaubt.']], $answer['messages']);
     }
 }
