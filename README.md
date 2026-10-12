@@ -162,8 +162,9 @@ A command that records who changed something — `tl_version`, `tl_log`, its own
 defines an option `--operator` that takes a value. `contao:ai:run --operator <user>` hands
 the user on to it: the back-end chat passes the signed-in user, `contao-ai-cli ext run
 --operator` the name given there. Without the option the command decides itself (usually
-the shell user). A command line that already sets `--operator` — in any form, to another
-user or to nothing — is refused before anything runs; the same user passes. The back-end
+the shell user). Before anything runs, the line is checked for what the command would
+actually receive: if that is not exactly this user — another name, an empty value, a
+padded one — the run is refused; the same user written in the line passes. The back-end
 chat does not let the model set it at all.
 
 ## Audit trail

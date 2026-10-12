@@ -41,16 +41,21 @@ class AiRunOperatorTest extends TestCase
             $this->received[] = ['operator' => $operator, 'id' => $id];
         };
 
+        $plain   = ['mode' => InputOption::VALUE_REQUIRED, 'shortcut' => null, 'ignore' => false, 'default' => null, 'words' => false];
         $targets = [
-            'contao:probe-operator' => ['mode' => InputOption::VALUE_REQUIRED, 'shortcut' => 'o', 'ignore' => false],
-            'contao:probe-ignore'   => ['mode' => InputOption::VALUE_REQUIRED, 'shortcut' => null, 'ignore' => true],
-            'contao:probe-flag'     => ['mode' => InputOption::VALUE_NONE, 'shortcut' => null, 'ignore' => false],
-            'contao:probe-plain'    => ['mode' => null, 'shortcut' => null, 'ignore' => false],
+            'contao:probe-operator' => ['shortcut' => 'o'] + $plain,
+            'contao:probe-ignore'   => ['ignore' => true] + $plain,
+            'contao:probe-flag'     => ['mode' => InputOption::VALUE_NONE] + $plain,
+            'contao:probe-plain'    => ['mode' => null] + $plain,
+            // A shortcut inside a cluster (`-xo`) and a default that is a user (second review).
+            'contao:probe-default'  => ['shortcut' => 'o', 'default' => 'system'] + $plain,
+            // `--operator` behind `--` is an argument, no refusal.
+            'contao:probe-words'    => ['words' => true] + $plain,
         ];
 
         foreach ($targets as $name => $spec) {
             $application->add(new class($name, $spec, $record) extends Command {
-                /** @param array{mode: int|null, shortcut: string|null, ignore: bool} $spec */
+                /** @param array{mode: int|null, shortcut: string|null, ignore: bool, default: string|null, words: bool} $spec */
                 public function __construct(string $name, private readonly array $spec, private readonly \Closure $record)
                 {
                     parent::__construct($name);
@@ -58,9 +63,10 @@ class AiRunOperatorTest extends TestCase
 
                 protected function configure(): void
                 {
-                    $this->addArgument('id', InputArgument::OPTIONAL);
+                    $this->addArgument('id', $this->spec['words'] ? InputArgument::IS_ARRAY : InputArgument::OPTIONAL);
+                    $this->addOption('x', 'x', InputOption::VALUE_NONE);
                     if (null !== $this->spec['mode']) {
-                        $this->addOption('operator', $this->spec['shortcut'], $this->spec['mode']);
+                        $this->addOption('operator', $this->spec['shortcut'], $this->spec['mode'], '', InputOption::VALUE_NONE === $this->spec['mode'] ? null : $this->spec['default']);
                     }
                     if ($this->spec['ignore']) {
                         $this->ignoreValidationErrors();
@@ -141,7 +147,7 @@ class AiRunOperatorTest extends TestCase
         yield 'own token'       => ['contao:probe-operator --operator "editor" 7'];
         yield '= form'          => ['contao:probe-operator --operator=editor 7'];
         yield 'shortcut'        => ['contao:probe-operator -o editor 7'];
-        yield 'with a space'    => ['contao:probe-operator --operator " editor" 7'];
+        yield 'in a cluster'    => ['contao:probe-operator -xo editor 7'];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('theSameUser')]
@@ -149,8 +155,21 @@ class AiRunOperatorTest extends TestCase
     {
         $this->aiRun(['--command-line' => $line, '--operator' => 'editor']);
 
-        $this->assertSame('7', $this->received[0]['id'] ?? null);
-        $this->assertSame('editor', trim((string) ($this->received[0]['operator'] ?? '')));
+        $this->assertSame([['operator' => 'editor', 'id' => '7']], $this->received);
+    }
+
+    public function testADefaultIsReplacedByTheOperator(): void
+    {
+        $this->aiRun(['--command-line' => 'contao:probe-default 7', '--operator' => 'editor']);
+
+        $this->assertSame([['operator' => 'editor', 'id' => '7']], $this->received);
+    }
+
+    public function testAnOperatorBehindTheSeparatorIsAnArgument(): void
+    {
+        $this->aiRun(['--command-line' => 'contao:probe-words 7 -- --operator admin', '--operator' => 'editor']);
+
+        $this->assertSame([['operator' => 'editor', 'id' => ['7', '--operator', 'admin']]], $this->received);
     }
 
     /**
@@ -169,6 +188,9 @@ class AiRunOperatorTest extends TestCase
         yield 'empty = form'                      => ['contao:probe-operator --operator= 7'];
         yield 'ignoring target, before an error'  => ['contao:probe-ignore --operator admin --bogus 7'];
         yield 'ignoring target, after an error'   => ['contao:probe-ignore --bogus --operator admin 7'];
+        yield 'padded name'                       => ['contao:probe-operator --operator " editor" 7'];
+        yield 'cluster, the default as value'     => ['contao:probe-default -xo system 7'];
+        yield 'the default as value'              => ['contao:probe-default --operator system 7'];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('anotherUser')]

@@ -1032,9 +1032,11 @@ option that takes a value, the run's `--operator` is inserted right after the co
 (behind `--` it would be an argument), written as its own token or, starting with `-`, in
 the `=` form. The line in the log carries it too. A line whose own `--operator` names
 another user — or none: an empty value after ours would win — is a refusal; the same user
-passes. Detection reads the bound value and the raw tokens (`--operator`, `=` form, the
-option's shortcuts), so a target with `ignoreValidationErrors()` cannot hide one behind a
-binding error. Before, the operator reached only the log
+passes. Decisive is the outcome, not the input form: the line as it will run is bound the
+way the command binds it (keeping what was parsed before a binding error, as with
+`ignoreValidationErrors()`), and the run is refused unless the command would find exactly
+this user — so shortcut clusters (`-xo system`), a value equal to the option's default and
+a padded name are caught too. The raw-token check before it only decides whether to insert. Before, the operator reached only the log
 entry, and Consho's write commands stored the shell user in `tl_version`.
 
 - **For the console and the back end, not for a front-end request.** `DcaCallbacks` uses

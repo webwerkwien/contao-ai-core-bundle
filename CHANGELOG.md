@@ -16,9 +16,11 @@ operator in the chat itself and works with older cores too.
   have an `--operator` option of their own — fell back to the shell user. In a chat test an
   editor's change was stored in `tl_version` under the web server's account with user id 0.
   When the command defines an `operator` option that takes a value, it now gets the run's
-  operator. A command line that sets `--operator` itself — in any form, to another user or
-  to an empty value — is refused before anything is logged or runs; the same user passes.
-  The log entry and the command get the same operator (trimmed).
+  operator. Before anything is logged or runs, the line is bound the way the command binds
+  it; unless the command would receive exactly this user, the run is refused — another
+  name, an empty or padded value, also through a shortcut cluster or a value equal to the
+  option's default. The same user written in the line passes. The log entry names the same
+  operator the command gets.
 
 ## v1.7.0 - 2026-10-12
 

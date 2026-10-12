@@ -8,6 +8,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Command\LazyCommand;
 use Symfony\Component\Console\Exception\ExceptionInterface as ConsoleExceptionInterface;
 use Symfony\Component\Console\Exception\RuntimeException as ConsoleRuntimeException;
+use Symfony\Component\Console\Input\InputDefinition;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\StringInput;
@@ -243,26 +244,52 @@ class AiRunCommand extends AbstractReadCommand
             $names[] = '-'.$shortcut;
         }
 
-        $given = $input->getOption('operator');
-
-        if ($input->hasParameterOption($names, true) || $given !== $option->getDefault()) {
-            $values = array_map(static fn (mixed $v): string => trim((string) $v), (array) $given);
-
-            if ([] === $values || array_diff($values, [$operator]) !== []) {
-                throw new \InvalidArgumentException(\sprintf('The command line sets --operator itself (%s), contao:ai:run was given "%s". Pass it once, as --operator of contao:ai:run.', [] === $values ? 'unreadable' : '"'.implode('", "', $values).'"', $operator));
+        if ($input->hasParameterOption($names, true) || $input->getOption('operator') !== $option->getDefault()) {
+            $candidate = $line;
+        } else {
+            if (str_starts_with($operator, '-') && (str_contains($operator, "''") || str_contains($operator, '"\''))) {
+                throw new \InvalidArgumentException('--operator starts with - and contains \'\' or "\' - the console cannot hand that on unchanged.');
             }
 
-            return $line;
+            $quoted    = '"'.addcslashes($operator, '"\\').'"';
+            $candidate = $name.' '.(str_starts_with($operator, '-') ? '--operator='.$quoted : '--operator '.$quoted).substr($line, \strlen($name));
         }
 
-        if (str_starts_with($operator, '-') && (str_contains($operator, "''") || str_contains($operator, '"\''))) {
-            throw new \InvalidArgumentException('--operator starts with - and contains \'\' or "\' - the console cannot hand that on unchanged.');
+        // Not the input forms guessed, the outcome checked (second review): the line as it
+        // will run, bound the way the command binds it, must hand over exactly this user.
+        // That covers what the detection above cannot see — a shortcut inside a cluster
+        // (`-xo system`), a value equal to the option's default — and a padded name.
+        $received = self::receivedOperator($definition, $candidate);
+
+        if ([] === $received || array_diff($received, [$operator]) !== []) {
+            throw new \InvalidArgumentException(\sprintf(
+                'The command line sets --operator itself (%s), contao:ai:run was given "%s". Pass it once, as --operator of contao:ai:run.',
+                [] === $received ? 'unreadable' : '"'.implode('", "', $received).'"',
+                $operator,
+            ));
         }
 
-        $quoted = '"'.addcslashes($operator, '"\\').'"';
-        $option = str_starts_with($operator, '-') ? '--operator='.$quoted : '--operator '.$quoted;
+        return $candidate;
+    }
 
-        return $name.' '.$option.substr($line, \strlen($name));
+    /**
+     * What the command would find in its `operator` option for $line — every value, as
+     * strings; empty when it would find none. Bound as Command::run() binds: a target that
+     * ignores binding errors keeps what was parsed before the failing token.
+     *
+     * @return list<string>
+     */
+    private static function receivedOperator(InputDefinition $definition, string $line): array
+    {
+        $input = new StringInput($line);
+
+        try {
+            $input->bind($definition);
+        } catch (ConsoleExceptionInterface) {
+            // what was parsed before the failing token stays, as in Command::run()
+        }
+
+        return array_values(array_map(static fn (mixed $v): string => (string) $v, array_filter((array) $input->getOption('operator'), static fn (mixed $v): bool => null !== $v)));
     }
 
     /** The run's --operator, the same for the log entry and the command it runs. */
