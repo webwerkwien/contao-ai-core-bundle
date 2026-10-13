@@ -186,6 +186,22 @@ class VersionManagerTest extends TestCase
         $this->assertSame(['setEditUrl:contao?do=article&table=tl_content&act=edit&id=4', 'initialize'], $calls);
     }
 
+    /**
+     * The fix rests on Contao's contract: a set edit URL — also '' for a table without a
+     * back-end module — is returned without reading the request (`!== null`). Against
+     * Contao's own class: should that change, this fails with the very "on null" error.
+     */
+    public function testContaoTakesASetEditUrlEvenEmptyWithoutAskingForTheRequest(): void
+    {
+        $getEditUrl = new \ReflectionMethod(Versions::class, 'getEditUrl');
+
+        foreach (['', 'contao?do=page&act=edit&id=14'] as $url) {
+            $versions = (new \ReflectionClass(Versions::class))->newInstanceWithoutConstructor();
+            $versions->setEditUrl($url);
+            $this->assertSame($url, $getEditUrl->invoke($versions));
+        }
+    }
+
     private function restoringConnection(int|false $active): Connection
     {
         $conn = $this->createMock(Connection::class);
