@@ -176,8 +176,9 @@ logged as a warning, *Command "…" refused its input*, instead of CRITICAL next
 crashes. Contao's production log only writes from level error on (fingers crossed): a
 refusal alone no longer appears there, only together with a real error in the same run.
 `contao:ai:run` still records the run in `tl_log` beforehand. Any other exception, a
-subclass of `\InvalidArgumentException` (Symfony uses those for programming errors) and
-any command without a contract stay CRITICAL.
+subclass of `\InvalidArgumentException` (Symfony uses them mostly for programming errors)
+and any command without a contract stay CRITICAL, and so does `contao:ai:run` itself at
+`-vvv`, where it rethrows to show the trace.
 
 ## Audit trail
 

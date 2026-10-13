@@ -452,7 +452,8 @@ subscribes twice. Since v1.7.2 it logs a refusal as a warning instead of CRITICA
 error is exactly `\InvalidArgumentException` (the `defectOf()` rule) and the failing
 command — for `contao:ai:run` the one it runs, the event names it — carries an
 `#[AiContract]`. Keep that rule identical to `defectOf()`: what the answer calls a refusal,
-the log does too.
+the log does too. At `-vvv` the vent of `guarded()` rethrows and `contao:ai:run`, which has
+no contract, logs CRITICAL on top: deliberate, that is the debug path (pinned by a test).
 
 What holds for all of them:
 

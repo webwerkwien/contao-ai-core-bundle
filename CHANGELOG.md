@@ -16,7 +16,8 @@ Works with the same backend-bundle and contao-ai-cli; nothing changes for the ca
   real crashes, and every acceptance meant explaining it. When a command with an
   `#[AiContract]` throws exactly that class, the line is now a warning: *Command "…"
   refused its input*, blanked as before. Through `contao:ai:run` it is the command it runs
-  that counts. Contao's production log writes from level error on, so a refusal alone no
+  that counts; at `-vvv`, where `contao:ai:run` rethrows on purpose to show the trace, it
+  logs the error CRITICAL itself as well. Contao's production log writes from level error on, so a refusal alone no
   longer appears there; `contao:ai:run` still records the run in `tl_log`. Subclasses
   (Symfony's programming errors), other exceptions and commands without a contract stay
   CRITICAL.

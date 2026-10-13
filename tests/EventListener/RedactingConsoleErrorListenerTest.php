@@ -224,7 +224,26 @@ class RedactingConsoleErrorListenerTest extends TestCase
     }
 
     /**
-     * Symfony's subclasses are programming errors; a command without a contract has not
+     * Fable review before v1.7.2: at -vvv the boundary rethrows, and contao:ai:run (no
+     * contract) logs it CRITICAL on top of the target's warning. Deliberate: the debug path.
+     */
+    public function testAtVeryVerboseContaoAiRunLogsTheRefusalCriticalOnTop(): void
+    {
+        try {
+            $this->runConsole(['contao:ai:run', '-vvv', '--command-line=acme:refuse']);
+        } finally {
+            putenv('SHELL_VERBOSITY');
+            unset($_ENV['SHELL_VERBOSITY'], $_SERVER['SHELL_VERBOSITY']);
+        }
+
+        $logged = $this->logged();
+        $this->assertContains('warning', $this->levels());
+        $this->assertStringContainsString('Command "acme:refuse" refused its input', $logged);
+        $this->assertStringContainsString('Error thrown while running command "contao:ai:run -vvv', $logged);
+    }
+
+    /**
+     * Symfony's subclasses are mostly programming errors; a command without a contract has not
      * said it follows the convention; anything else is a defect.
      *
      * @return iterable<string, array{list<string>}>
