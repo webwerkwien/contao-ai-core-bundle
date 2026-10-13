@@ -33,6 +33,9 @@ use Webwerkwien\ContaoAiCoreBundle\Service\CommandLineRedactor;
  * (found on c5 while checking this listener). Only values found on the line are
  * struck: a command that puts some other secret into its exception text puts it
  * into the log.
+ *
+ * A refusal by a command with an #[AiContract] is logged as a warning, not CRITICAL
+ * (v1.7.2, see isRefusal()).
  */
 class RedactingConsoleErrorListener extends ErrorListener
 {
@@ -63,7 +66,39 @@ class RedactingConsoleErrorListener extends ErrorListener
             return;
         }
 
+        if (self::isRefusal($event)) {
+            $this->redactingLogger->warning('Command "{command}" refused its input. Message: "{message}"', ['exception' => $error, 'command' => $inputString, 'message' => $message]);
+
+            return;
+        }
+
         $this->redactingLogger->critical('Error thrown while running command "{command}". Message: "{message}"', ['exception' => $error, 'command' => $inputString, 'message' => $message]);
+    }
+
+    /**
+     * A refusal: a command with an #[AiContract] threw exactly \InvalidArgumentException (v1.7.2).
+     *
+     * That is the convention a refusal follows across the contao-ai packages (see
+     * JsonErrorBoundary), and contao:ai:run answers it as one. Logged as CRITICAL, a typo
+     * in an input stood next to real crashes in var/logs (Consho, c5, 2026-10-13); as a
+     * warning, Contao's prod log (fingers_crossed, action level error) keeps it only when
+     * something fails for real in the same run. Exactly that class, not its subclasses:
+     * Symfony's Console, DependencyInjection and Finder extend it for programming errors.
+     * The contract is the command author's word that the convention holds.
+     */
+    private static function isRefusal(ConsoleErrorEvent $event): bool
+    {
+        $command = $event->getCommand();
+
+        if (null === $command || \InvalidArgumentException::class !== $event->getError()::class) {
+            return false;
+        }
+
+        try {
+            return null !== ContractReader::read($command instanceof LazyCommand ? $command->getCommand()::class : $command::class);
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     public function onConsoleTerminate(ConsoleTerminateEvent $event): void

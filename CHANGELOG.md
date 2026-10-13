@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.7.2 - 2026-10-13
+
+Works with the same backend-bundle and contao-ai-cli; nothing changes for the callers.
+
+### Changed
+
+- **A refused input is no longer CRITICAL in `var/logs`.** Symfony's console error log
+  wrote every exception a command threw as CRITICAL, so a typo in an input — a refusal by
+  the contao-ai convention, `\InvalidArgumentException` with the reason — stood next to
+  real crashes, and every acceptance meant explaining it. When a command with an
+  `#[AiContract]` throws exactly that class, the line is now a warning: *Command "…"
+  refused its input*, blanked as before. Through `contao:ai:run` it is the command it runs
+  that counts. Contao's production log writes from level error on, so a refusal alone no
+  longer appears there; `contao:ai:run` still records the run in `tl_log`. Subclasses
+  (Symfony's programming errors), other exceptions and commands without a contract stay
+  CRITICAL.
+
 ## v1.7.1 - 2026-10-12
 
 Works with the same backend-bundle and contao-ai-cli; backend-bundle v0.16.2 sets the

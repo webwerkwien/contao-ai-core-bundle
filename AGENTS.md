@@ -448,7 +448,11 @@ write commands answer it as `messages` via `callbackMessages()`, also through
 **Console error log (v1.6.0).** `RedactingConsoleErrorListenerPass` swaps the class of
 `console.error_listener` (only when it is Symfony's own) for
 `RedactingConsoleErrorListener`; keep that class out of the service autodiscovery, or it
-subscribes twice.
+subscribes twice. Since v1.7.2 it logs a refusal as a warning instead of CRITICAL: the
+error is exactly `\InvalidArgumentException` (the `defectOf()` rule) and the failing
+command — for `contao:ai:run` the one it runs, the event names it — carries an
+`#[AiContract]`. Keep that rule identical to `defectOf()`: what the answer calls a refusal,
+the log does too.
 
 What holds for all of them:
 

@@ -167,6 +167,18 @@ actually receive: if that is not exactly this user — another name, an empty va
 padded one — the run is refused; the same user written in the line passes. The back-end
 chat does not let the model set it at all.
 
+### Refusals in the console log (v1.7.2)
+
+A command refuses an input by throwing `\InvalidArgumentException` with the reason —
+exactly that class, which `contao:ai:run` answers as a refusal rather than a defect. In
+Symfony's console error log (`var/logs`) a command with an `#[AiContract]` that does so is
+logged as a warning, *Command "…" refused its input*, instead of CRITICAL next to real
+crashes. Contao's production log only writes from level error on (fingers crossed): a
+refusal alone no longer appears there, only together with a real error in the same run.
+`contao:ai:run` still records the run in `tl_log` beforehand. Any other exception, a
+subclass of `\InvalidArgumentException` (Symfony uses those for programming errors) and
+any command without a contract stay CRITICAL.
+
 ## Audit trail
 
 Every successful write leaves two traces.

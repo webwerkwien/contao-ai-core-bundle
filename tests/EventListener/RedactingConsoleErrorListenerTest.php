@@ -33,7 +33,7 @@ class RedactingConsoleErrorListenerTest extends TestCase
     /**
      * @param list<string> $argv
      */
-    private function runConsole(array $argv): void
+    private function runConsole(array $argv): string
     {
         $logger = new class extends AbstractLogger {
             /** @var list<array{string, string}> */
@@ -68,14 +68,24 @@ class RedactingConsoleErrorListenerTest extends TestCase
         $application->setCatchExceptions(true);
         $application->setDispatcher($dispatcher);
         $application->add(new AcmeFailCommand());
+        $application->add(new AcmeRefuseCommand());
+        $application->add(new AcmePlainCommand());
 
         $log = $this->createMock(SystemLog::class);
         $application->add($run = new AiRunCommand());
         $run->setSystemLog($log);
 
-        $application->run(new ArgvInput(['console', ...$argv]), new BufferedOutput());
+        $application->run(new ArgvInput(['console', ...$argv]), $output = new BufferedOutput());
 
         $this->records = $logger->records;
+
+        return $output->fetch();
+    }
+
+    /** @return list<string> the levels logged, in order */
+    private function levels(): array
+    {
+        return array_column($this->records, 0);
     }
 
     private function logged(): string
@@ -189,6 +199,56 @@ class RedactingConsoleErrorListenerTest extends TestCase
         $this->assertStringNotContainsString('pin 7', $logged);
     }
 
+    /**
+     * v1.7.2 (Consho, c5, 2026-10-13): a refused input stood as CRITICAL next to real crashes.
+     * Still struck: the message names the pin.
+     */
+    public function testARefusalOfACommandWithAContractIsAWarning(): void
+    {
+        $this->runConsole(['acme:refuse', '--pin', 'S3CRET-PIN']);
+
+        $logged = $this->logged();
+        $this->assertSame(['warning', 'debug'], $this->levels());
+        $this->assertStringContainsString('Command "acme:refuse --pin ***" refused its input. Message: "--product is required: pin ***"', $logged);
+        $this->assertStringNotContainsString('S3CRET', $logged);
+    }
+
+    public function testThroughContaoAiRunARefusalIsAWarningAndStillAnsweredAsOne(): void
+    {
+        $answer = $this->runConsole(['contao:ai:run', '--command-line=acme:refuse']);
+
+        $this->assertNotContains('critical', $this->levels());
+        $this->assertStringContainsString('Command "acme:refuse" refused its input', $this->logged());
+        $this->assertStringContainsString('"message":"InvalidArgumentException: --product is required', $answer);
+        $this->assertStringNotContainsString('"exception"', $answer, 'a refusal, not a defect');
+    }
+
+    /**
+     * Symfony's subclasses are programming errors; a command without a contract has not
+     * said it follows the convention; anything else is a defect.
+     *
+     * @return iterable<string, array{list<string>}>
+     */
+    public static function staysCritical(): iterable
+    {
+        yield 'a subclass of InvalidArgumentException' => [['acme:refuse', '--as', 'console']];
+        yield 'another exception' => [['acme:refuse', '--as', 'runtime']];
+        yield 'no contract' => [['acme:plain']];
+    }
+
+    /**
+     * @param list<string> $argv
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('staysCritical')]
+    public function testEverythingElseStaysCritical(array $argv): void
+    {
+        $this->runConsole($argv);
+
+        $this->assertContains('critical', $this->levels());
+        $this->assertNotContains('warning', $this->levels());
+        $this->assertStringContainsString('Error thrown while running command "acme:', $this->logged());
+    }
+
     public function testThePassPutsTheClassOnSymfonysService(): void
     {
         $container = new ContainerBuilder();
@@ -228,5 +288,40 @@ final class AcmeFailCommand extends Command
         $pin = $input->getOption('pin');
 
         throw new \RuntimeException('acme:fail failed on purpose', 0, null === $pin ? null : new \LogicException('pin ' . $pin . ' refused at step 17'));
+    }
+}
+
+#[AiContract(writes: false, secrets: ['pin'])]
+final class AcmeRefuseCommand extends Command
+{
+    protected function configure(): void
+    {
+        $this->setName('acme:refuse')
+            ->addOption('pin', null, InputOption::VALUE_REQUIRED)
+            ->addOption('as', null, InputOption::VALUE_REQUIRED, '', 'refusal');
+    }
+
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        $message = '--product is required: pin ' . $input->getOption('pin');
+
+        throw match ($input->getOption('as')) {
+            'console' => new \Symfony\Component\Console\Exception\InvalidArgumentException($message),
+            'runtime' => new \RuntimeException($message),
+            default   => new \InvalidArgumentException($message),
+        };
+    }
+}
+
+final class AcmePlainCommand extends Command
+{
+    protected function configure(): void
+    {
+        $this->setName('acme:plain');
+    }
+
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        throw new \InvalidArgumentException('--product is required');
     }
 }
