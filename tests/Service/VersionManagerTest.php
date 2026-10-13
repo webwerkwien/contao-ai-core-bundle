@@ -165,6 +165,27 @@ class VersionManagerTest extends TestCase
         $this->manager($this->createMock(Connection::class), $versions)->initialize('tl_article', 1);
     }
 
+    /**
+     * v1.7.3 (showcase.conpai.eu): for a record without versions Contao's initialize()
+     * runs create(true), which reads the edit URL from the request — none on the console.
+     * Before initialize(), not after.
+     */
+    public function testInitializeSetsTheEditUrlFirst(): void
+    {
+        $calls    = [];
+        $versions = $this->createMock(Versions::class);
+        $versions->method('setEditUrl')->willReturnCallback(static function (string $url) use (&$calls): void {
+            $calls[] = 'setEditUrl:' . $url;
+        });
+        $versions->method('initialize')->willReturnCallback(static function () use (&$calls): void {
+            $calls[] = 'initialize';
+        });
+
+        $this->manager($this->createMock(Connection::class), $versions)->initialize('tl_content', 4);
+
+        $this->assertSame(['setEditUrl:contao?do=article&table=tl_content&act=edit&id=4', 'initialize'], $calls);
+    }
+
     private function restoringConnection(int|false $active): Connection
     {
         $conn = $this->createMock(Connection::class);

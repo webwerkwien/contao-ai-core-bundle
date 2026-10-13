@@ -118,10 +118,19 @@ class VersionManager
      *
      * Contao's `initialize()`, which stores that version without a user, as the back end
      * does when a record is opened for the first time.
+     *
+     * With the edit URL set, as createVersion() does (v1.7.3): for a record without any
+     * version `initialize()` runs `create(true)`, which reads the URL from the current
+     * request — none on the console, so every first update of such a record failed with
+     * "Call to a member function get() on null" (showcase.conpai.eu, 2026-10-13: a fresh
+     * demo had no versions, 37 of 37 pages refused). In the chat it was the chat's own
+     * endpoint.
      */
     public function initialize(string $table, int $id): void
     {
-        ($this->versions)($table, $id)->initialize();
+        $versions = ($this->versions)($table, $id);
+        $versions->setEditUrl($this->editUrl($table, $id));
+        $versions->initialize();
     }
 
     /**

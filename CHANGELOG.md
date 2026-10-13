@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.7.3 - 2026-10-13
+
+Works with the same backend-bundle and contao-ai-cli.
+
+### Fixed
+
+- **The first update of a record without any version failed on the console** with
+  *Call to a member function get() on null* — since v1.4.0. Before a write the bundle
+  keeps the current state through Contao's `Versions::initialize()`, which for a record
+  without versions creates one, and Contao reads that version's edit URL from the current
+  request: there is none on the console. The update was rolled back, nothing was written.
+  It hit every record never opened in the back end and never written through this bundle
+  — on a freshly installed demo all 37 pages (showcase.conpai.eu). The edit URL is now set
+  beforehand, as for every other version; in the chat it was the chat's own endpoint.
+
 ## v1.7.2 - 2026-10-13
 
 Works with the same backend-bundle and contao-ai-cli; nothing changes for the callers.
