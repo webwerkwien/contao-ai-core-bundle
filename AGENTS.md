@@ -698,6 +698,16 @@ before the write when `pid` or `ptable` changes, and invalidates them after. Con
 
 ## Cloning and creating pages — as the back end does (v0.22.0)
 
+- **A new cloner extends `AbstractDcaCloner`** (v1.8.0: forms, newsletter channels,
+  modules, layouts). It reads and writes over DBAL, never the model layer
+  (`CopiesSourceRows` explains the `tinyint` trap), takes what is not copied from the DCA
+  (`DcaCopyReset`, the rules of `DC_Table::copyChildren()`) instead of a field list, and
+  names the references it left in place. Columns are quoted (`tl_layout.rows` is a reserved
+  word in MySQL 8), booleans go in as integers (DBAL binds `false` as `''`). A cloner for a
+  plugin's table is excluded in `services.yaml` and registered in that plugin's services
+  file with its own `_instanceof`. Copying people (newsletter recipients) needs an explicit
+  option, never a default: consent belongs to the record they agreed to.
+
 - **`record:clone` keeps each content element's visibility.** Pages and articles come out
   unpublished; a hidden element stays hidden, a visible one shows once its page and
   article are published — what Contao's "copy with subpages" does (`tl_content.invisible`

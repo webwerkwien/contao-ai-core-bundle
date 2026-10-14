@@ -4,6 +4,31 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## Unreleased
+
+### Added
+
+- **`contao:record:clone` clones forms, newsletter channels, modules and layouts**, the
+  parts of a second language that are not pages (asked for on showcase.conpai.eu, where
+  they had to be rebuilt by hand). As Contao's own copy:
+  - `tl_form` with all its fields; `alias` is generated anew from the title, `formID` stays
+    empty (two forms with one ID process each other's submissions).
+  - `tl_newsletter_channel` with its newsletters, all unsent and with a new unique alias.
+    **Recipients only with `--with-recipients`**, which is refused for any other table.
+    Contao's copy takes them along, but they consented to the source channel; after a
+    clone into another language they would receive newsletters they never subscribed to.
+    Copied recipients keep `active`, lose `addedOn` and get no versions (neither Contao's
+    copy nor its CSV import writes any).
+  - `tl_module` and `tl_layout`, a plain copy within the same theme.
+
+  Only the name is taken from `--modifications` (`title` or `name`). What is not copied is
+  read from the installation's DCA by the rules of `DC_Table::copyChildren()` (password,
+  `unique`, `doNotCopy`, `fallback`), so it follows Contao 5.3, 5.7 and 6.0 alike.
+  References stay as in the source; the answer names them in `references`, the reset
+  fields in `not_copied`, and the copied rows per child table in `children`. Checked on
+  c5 against 5.3, 5.7 and 6.0. A theme clone is not part of this: Contao's copies the
+  modules and layouts, but the copied layouts still point at the old theme's modules.
+
 ## v1.7.4 - 2026-10-14
 
 Works with the same backend-bundle and contao-ai-cli.
