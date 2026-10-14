@@ -34,10 +34,13 @@ class UndoRestoreCallbacksTest extends TestCase
             'id' => 392, 'fromTable' => 'tl_news', 'query' => 'DELETE FROM tl_news',
             'data' => serialize(['tl_news' => [['id' => 7, 'headline' => 'Erste'], ['id' => 8, 'headline' => 'Zweite']]]),
         ]);
-        $connection->method('quoteIdentifier')->willReturnArgument(0);
+        // Quoted as DBAL quotes: the first version of this test returned the name as it
+        // was, and passed while onundo got the insert's quoted keys — on c5 Consho read
+        // $row['id'], found nothing and queued product 0 (2026-10-14).
+        $connection->method('quoteIdentifier')->willReturnCallback(static fn (string $name): string => '`' . $name . '`');
         $connection->method('transactional')->willReturnCallback(static fn (callable $fn) => $fn());
         $connection->method('insert')->willReturnCallback(static function (string $table, array $row) use (&$log): int {
-            $log[] = 'insert ' . $table . ':' . $row['id'];
+            $log[] = 'insert ' . trim($table, '`') . ':' . $row['`id`'];
 
             return 1;
         });
@@ -53,7 +56,7 @@ class UndoRestoreCallbacksTest extends TestCase
 
         $callbacks = $this->createMock(DcaCallbacks::class);
         $callbacks->method('undo')->willReturnCallback(static function (string $table, array $row, int $undoId) use (&$log, $refusal): void {
-            $log[] = 'onundo ' . $table . ':' . $row['id'] . ' undo ' . $undoId;
+            $log[] = 'onundo ' . $table . ':' . ($row['id'] ?? 'no id') . ' ' . $row['headline'] . ' undo ' . $undoId;
 
             if (null !== $refusal) {
                 throw $refusal;
@@ -78,9 +81,9 @@ class UndoRestoreCallbacksTest extends TestCase
 
         $this->assertSame([
             'insert tl_news:7',
-            'onundo tl_news:7 undo 392',
+            'onundo tl_news:7 Erste undo 392',
             'insert tl_news:8',
-            'onundo tl_news:8 undo 392',
+            'onundo tl_news:8 Zweite undo 392',
             'delete tl_undo',
         ], $log);
         $this->assertSame('ok', json_decode($tester->getDisplay(), true)['status']);

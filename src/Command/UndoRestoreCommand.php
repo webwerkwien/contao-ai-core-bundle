@@ -148,9 +148,11 @@ class UndoRestoreCommand extends AbstractWriteCommand
                 // rather than failing the insert. Compared lower-cased on both
                 // sides because Doctrine lower-cases its column keys.
                 $insert = [];
+                $kept   = [];
                 foreach ($record as $column => $value) {
                     if (\in_array(strtolower((string) $column), $columns, true)) {
                         $insert[$this->connection->quoteIdentifier((string) $column)] = $value;
+                        $kept[(string) $column] = $value;
                     }
                 }
 
@@ -159,7 +161,10 @@ class UndoRestoreCommand extends AbstractWriteCommand
                     continue;
                 }
 
-                $pending[] = [$table, $insert, $record];
+                // $kept for onundo: the row as DC_Table::undo() hands it on, with the
+                // column names as they are — not the quoted keys of the insert, under
+                // which a callback reading $row['id'] found nothing (c5, 2026-10-14).
+                $pending[] = [$table, $insert, $record, $kept];
             }
         }
 
@@ -181,7 +186,7 @@ class UndoRestoreCommand extends AbstractWriteCommand
 
         try {
             $this->connection->transactional(function () use ($pending, $id, $row, &$restored, &$current): void {
-                foreach ($pending as [$table, $insert, $record]) {
+                foreach ($pending as [$table, $insert, $record, $kept]) {
                     $current = $record;
                     $this->connection->insert($this->connection->quoteIdentifier($table), $insert);
                     $restored[$table] = ($restored[$table] ?? 0) + 1;
@@ -191,7 +196,7 @@ class UndoRestoreCommand extends AbstractWriteCommand
                     // refuses rolls the whole restore back, the entry stays replayable (v1.8.1).
                     // Until v1.8.0 they ran after the commit with the command as `$dc`, and a
                     // failure was a warning under an `ok`.
-                    $this->dcaCallbacks?->undo($table, $insert, $id, $row);
+                    $this->dcaCallbacks?->undo($table, $kept, $id, $row);
                 }
 
                 // Inside the transaction as well: either the rows are back and
