@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## Unreleased
+
+Works with the same backend-bundle and contao-ai-cli.
+
+### Fixed
+
+- **A cloned page came out as published as its source.** Both guides said "pages and
+  articles come out unpublished, as Contao's copy with subpages does" — only the articles
+  did, since the page cloner was written. A recursive clone of a language tree on
+  showcase.conpai.eu went public that way. The page cloner now resets what Contao's copy
+  resets (`doNotCopy`): `published`, `fallback`, `disableLanguageRedirect` and
+  `robotsTxt`, on every cloned page. `alias` was already regenerated; `language` and
+  `urlPrefix` stay, since a clone into another language sets both in the same call.
+- **A cloned root became a second main language on its domain** unless the call said
+  `"fallback": ""`. Which language is the main one is the operator's decision: the clone
+  becomes it only with `--modifications '{"fallback":"1"}'` (and the old root then needs
+  `fallback` removed). `{"published":"1"}` still publishes the cloned root right away; its
+  subpages stay unpublished, as in the back end.
+
 ## v1.7.3 - 2026-10-13
 
 Works with the same backend-bundle and contao-ai-cli.

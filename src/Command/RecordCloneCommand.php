@@ -60,7 +60,8 @@ class RecordCloneCommand extends Command
         $this->addOption('modifications', null, InputOption::VALUE_OPTIONAL, implode(' ', [
             'JSON object of root-record field overrides (e.g. {"title":"…"}).',
             'Each cloner accepts a fixed set of fields only:',
-            'tl_page = title, pageTitle, description, published, hide;',
+            'tl_page = title, pageTitle, description, published, hide, and for a root also language, urlPrefix, urlSuffix, fallback, dns',
+            '(cloned pages come out unpublished and never as the main language; {"published":"1"} or {"fallback":"1"} on the root changes that);',
             'tl_faq_category = title, headline;',
             'tl_news_archive and tl_calendar = title.',
             'Anything else is refused and listed back as "ignored_modifications" in the response.',

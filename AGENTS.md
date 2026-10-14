@@ -703,6 +703,13 @@ before the write when `pid` or `ptable` changes, and invalidates them after. Con
   article are published — what Contao's "copy with subpages" does (`tl_content.invisible`
   has no `doNotCopy`, checked on c5 2026-09-17). Up to v0.21.1 every cloned element was
   forced invisible.
+- **A cloned page takes from its source what a back-end copy takes** (v1.7.4,
+  `PageCopyReset`). `published`, `fallback`, `disableLanguageRedirect` and `robotsTxt`
+  carry `doNotCopy` and are reset on every cloned page, before `--modifications` apply.
+  Until v1.7.3 they were copied: the pages of a clone were as public as their source —
+  although the line above said otherwise since v0.22.0 — and a root cloned without
+  `"fallback": ""` became a second main language. Which language is the main one is the
+  operator's choice; ask before cloning a root, never assume the source stays it.
 - **Only a root stores `tl_page.language`.** `contao:page:create --language` applies to
   `--type root`; any other page stores `''` and takes its root's language at runtime, as
   one created in the back end. An explicit `--set language=` is written as given, like any

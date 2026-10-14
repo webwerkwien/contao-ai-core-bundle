@@ -4,6 +4,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Cloner;
 
 use Contao\ArticleModel;
 use Contao\ContentModel;
+use Contao\Controller;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\PageModel;
 use Contao\StringUtil;
@@ -298,8 +299,9 @@ class PageCloner implements EntityClonerInterface
      */
     private function clonePageRow(PageModel $source, array $modifications, ?int $parentNewId): int
     {
-        $clone = new PageModel();
-        $this->copySourceRow($clone, $this->fetchSourceRow('tl_page', (int) $source->id));
+        $clone     = new PageModel();
+        $sourceRow = $this->fetchSourceRow('tl_page', (int) $source->id);
+        $this->copySourceRow($clone, $sourceRow);
         $clone->tstamp = time();
         if (null !== $parentNewId) {
             $clone->pid = $parentNewId;
@@ -307,6 +309,12 @@ class PageCloner implements EntityClonerInterface
         // A subpage stores no language, as in the back end; a root keeps the source's
         // unless a modification below sets it (v0.22.0, Nr. 62).
         $clone->language = PageLanguage::forType((string) $clone->type, (string) $clone->language);
+        // What Contao's copy resets (`doNotCopy`): the clone is unpublished and never a
+        // main language unless the operator says so below (v1.7.4, see PageCopyReset).
+        Controller::loadDataContainer('tl_page');
+        foreach (PageCopyReset::values($sourceRow, $GLOBALS['TL_DCA']['tl_page']['fields'] ?? []) as $key => $value) {
+            $clone->$key = $value;
+        }
         foreach ($modifications as $key => $value) {
             $clone->$key = (string) $value;
         }
