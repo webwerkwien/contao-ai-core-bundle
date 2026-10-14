@@ -59,6 +59,16 @@ defensive check redundant, read the entry in `phpstan.neon.dist` before removing
 it: several of those guards exist because a declared type is a promise the
 runtime does not keep.
 
+**Test doubles return what the real thing returns.** A `Connection::quoteIdentifier()`
+double returns `` `name` ``, not the name: the first undo fix of v1.8.1 handed onundo the
+insert's quoted keys, `$row['id']` was empty, and the test passed because its double did
+not quote (found only on c5). Rows from DBAL are strings, not ints.
+
+**A command that needs a booted framework is skipped here — prove it on c5.** A mutation
+in such a path survives `composer ci`. Where you can, load the DCA only when missing
+(`isset($GLOBALS['TL_DCA'][$table]['fields'])`) so a test can seed it and run the command
+itself.
+
 **For a bug fix, write the failing test first.** Reproduce the bug as a test, run
 it, confirm it fails for the reason you expect, and commit that test before
 touching the implementation. Do not edit test files while making the fix.
