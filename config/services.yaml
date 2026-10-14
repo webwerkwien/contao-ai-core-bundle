@@ -48,6 +48,9 @@ services:
             - ../src/Service/Cloner/News*.php
             - ../src/Service/Cloner/Calendar*.php
             - ../src/Service/Cloner/FaqCategory*.php
+            # Schon von News*.php erfasst, eigene Zeile aus demselben Grund wie bei
+            # den Newsletter-Commands oben.
+            - ../src/Service/Cloner/Newsletter*.php
 
     Webwerkwien\ContaoAiCoreBundle\Command\FolderCreateCommand:
         arguments:

@@ -63,12 +63,17 @@ class RecordCloneCommand extends Command
             'tl_page = title, pageTitle, description, published, hide, and for a root also language, urlPrefix, urlSuffix, fallback, dns',
             '(cloned pages come out unpublished and never as the main language; {"published":"1"} or {"fallback":"1"} on the root changes that);',
             'tl_faq_category = title, headline;',
-            'tl_news_archive and tl_calendar = title.',
+            'tl_news_archive, tl_calendar, tl_form and tl_newsletter_channel = title;',
+            'tl_module and tl_layout = name (both stay in their theme).',
             'Anything else is refused and listed back as "ignored_modifications" in the response.',
             'Note that "alias" is never taken from here — it is always regenerated from the title with a uniqueness suffix.',
         ]), '{}');
         $this->addOperatorOption();
         $this->addOption('recursive',     null, InputOption::VALUE_NONE, 'Walk container-of-container hierarchies (e.g. PageCloner: clone the entire subpage tree, not just the root page).');
+        $this->addOption('with-recipients', null, InputOption::VALUE_NONE, implode(' ', [
+            'tl_newsletter_channel only: copy the recipients as well. Without it the clone has none:',
+            'recipients consented to the source channel, and whoever copies them carries that consent.',
+        ]));
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -99,7 +104,15 @@ class RecordCloneCommand extends Command
 
         $sourceId  = (int) $idRaw;
         $recursive = (bool) $input->getOption('recursive');
-        $clonerOptions = ['recursive' => $recursive];
+        $recipients = (bool) $input->getOption('with-recipients');
+
+        // Refused rather than ignored: a caller who asks for recipients on another
+        // table expects a copy of people, and silence would read as "done".
+        if ($recipients && 'tl_newsletter_channel' !== $table) {
+            return $this->error($output, '--with-recipients gilt nur für tl_newsletter_channel.');
+        }
+
+        $clonerOptions = ['recursive' => $recursive, 'recipients' => $recipients];
 
         foreach ($this->cloners as $cloner) {
             if (!$cloner->supports($table)) {
@@ -118,7 +131,7 @@ class RecordCloneCommand extends Command
 
             $this->systemLog?->write(
                 sprintf('%s %s', $this->getName(), json_encode(
-                    ['sourceTable' => $table, 'sourceId' => $sourceId, 'recursive' => $recursive] + $result,
+                    ['sourceTable' => $table, 'sourceId' => $sourceId, 'recursive' => $recursive, 'withRecipients' => $recipients] + $result,
                     JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
                 )),
                 (string) $this->getName(),
