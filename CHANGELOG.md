@@ -4,6 +4,39 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## Unreleased
+
+### Security
+
+- **No read command hands out passwords, two-factor secrets or API keys any more.**
+  `record list tl_user --fields ai_api_key,password,secret` answered with the chat's API
+  keys in plain text, the password hashes and the two-factor secrets; `version:read`
+  showed the same in every stored version of a user. Whoever runs the CLI can read the
+  database anyway, but the CLI is mostly driven by agents, and what it answers ends up
+  in their transcripts. The rule is Contao's own for the back end's detail view
+  (`DC_Table::show()`): a field with `inputType` `password`, `eval.doNotShow` or
+  `eval.hideInput` shows `********` when set (empty stays empty) — in `record list`,
+  `version:read`, every model read command and `settings read`. It comes from the DCA,
+  so an extension's field declared that way is covered (the backend bundle's
+  `ai_api_key` is). `record list` refuses such a field as `--filter`, `--filter-prefix`
+  or `--order` key: a filter would confirm a guessed key.
+
+### Fixed
+
+- **`undo:restore` broke every `onundo_callback` typed `DataContainer $dc`.** It called
+  them itself with the command as `$dc`, after the commit, and turned a failure into a
+  console warning under an `ok`. Reported from a Consho acceptance on c5: a restored
+  product came back without its list price, visibility, cache tags and stock. The
+  callbacks now run as `DC_Table::undo()` runs them — per row right after its insert,
+  with tl_undo's data container and the row under its column names — inside the
+  restore's transaction: a callback that refuses rolls the restore back, the entry stays
+  replayable, and the answer names the callback and its message.
+- **A refused command was logged with every value of its line.** The warning (v1.7.2)
+  was struck only of the declared secrets; names, addresses and texts stayed in
+  `var/logs` (reported from a Consho session). The warning and the debug exit line after
+  it now name the command and its options only; the message stays. Real failures keep
+  their redacted line.
+
 ## v1.8.0 - 2026-10-14
 
 Works with the same backend-bundle. contao-ai-cli v1.9.0 adds `record clone
