@@ -295,6 +295,18 @@ class DcaClonerTest extends TestCase
         $this->assertSame(['modules'], $result['references']);
     }
 
+    public function testAnEmptyNameIsRefusedBeforeAnythingIsWritten(): void
+    {
+        try {
+            $this->cloner(FormCloner::class)->clone(4, ['title' => '  '], 'k.jones');
+            $this->fail('an empty title was accepted');
+        } catch (\InvalidArgumentException $e) {
+            $this->assertStringContainsString('"title"', $e->getMessage());
+        }
+
+        $this->assertSame([], $this->inserts);
+    }
+
     public function testAMissingSourceIsARefusal(): void
     {
         $this->expectException(\InvalidArgumentException::class);

@@ -9,7 +9,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\CreatesRecord;
  * Every path that creates a record reaches the record callbacks (v1.4.0).
  *
  * The update and delete paths have one address each (ModelWriter, covered by its own
- * tests); creates and clones are spread over two dozen commands and four cloners, so
+ * tests); creates and clones are spread over two dozen commands and the cloners, so
  * these checks read the sources: a create command that does not mark its first version
  * as created, or a cloner that versions a copy without calling oncopy, would be the
  * gap of September again — nothing fails, a rule is just skipped.
@@ -66,6 +66,14 @@ class DcaCallbacksWiringTest extends TestCase
         foreach (glob(self::SRC . 'Service/Cloner/*.php') as $file) {
             $source = (string) file_get_contents($file);
 
+            // The cloners on AbstractDcaCloner (v1.8.0) pass the table as a variable; the
+            // literal search below finds nothing there and would pass empty (Fable review).
+            // Their order is checked by running them: DcaClonerTest.
+            if (str_contains($source, 'extends AbstractDcaCloner')) {
+                $this->assertStringNotContainsString('createInitialVersion(', $source, basename($file) . ' writes versions past AbstractDcaCloner');
+                continue;
+            }
+
             preg_match_all("/createInitialVersion\\('(tl_[a-z_]+)'/", $source, $versioned);
             preg_match_all("/->copy\\('(tl_[a-z_]+)'/", $source, $copied);
 
@@ -73,5 +81,14 @@ class DcaCallbacksWiringTest extends TestCase
 
             $this->assertSame([], array_values($missing), basename($file) . ' copies these tables without calling oncopy');
         }
+    }
+
+    public function testTheSharedClonerCallsOncopyForTheRootAndEveryChild(): void
+    {
+        $source = (string) file_get_contents(self::SRC . 'Service/Cloner/AbstractDcaCloner.php');
+
+        $this->assertStringContainsString('->copy($childTable, $newChildId', $source);
+        $this->assertStringContainsString('->copy($table, $newId, $sourceId)', $source);
+        $this->assertSame(2, substr_count($source, '$this->firstVersion('), 'a first version for the root and for every child');
     }
 }

@@ -25,6 +25,19 @@ class DcaCopyResetTest extends TestCase
         $this->assertSame(['alias' => '', 'formID' => '', 'sent' => false], $values);
     }
 
+    /**
+     * `unique` on its own, without `doNotCopy` — as `tl_member.username` in Contao or an
+     * extension's code field. Every other test field carries both, and removing the
+     * `unique` branch went unnoticed (Fable review before v1.8.0).
+     */
+    public function testAUniqueFieldWithoutDoNotCopyIsEmptiedToo(): void
+    {
+        $fields = ['code' => ['default' => 'x', 'eval' => ['unique' => true], 'sql' => "varchar(32) NOT NULL default ''"]];
+
+        // The empty value, not the default: Contao resets unique fields before it looks at defaults.
+        $this->assertSame(['code' => ''], DcaCopyReset::values(['code' => 'A-17'], $fields));
+    }
+
     public function testADoNotCopyFieldWithADefaultGetsTheDefault(): void
     {
         $fields = [

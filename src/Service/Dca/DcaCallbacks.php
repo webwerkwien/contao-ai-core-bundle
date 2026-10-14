@@ -196,6 +196,12 @@ class DcaCallbacks
     /** After a copy of $sourceId was inserted as $newId; the data container is the source. */
     public function copy(string $table, int $newId, int $sourceId): void
     {
+        // Before the source row is read: a cloned newsletter channel calls this once per
+        // recipient, and tl_newsletter_recipients has no oncopy_callback (v1.8.0).
+        if (empty($GLOBALS['TL_DCA'][$table]['config']['oncopy_callback'])) {
+            return;
+        }
+
         $this->withSession(fn () => $this->run($table, 'oncopy_callback', $sourceId, $this->row($table, $sourceId), static fn (DataContainer $dc): array => [$newId, $dc]));
     }
 

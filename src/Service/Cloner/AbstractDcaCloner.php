@@ -17,6 +17,11 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
  * corrupts `tinyint` values), and what Contao does not copy is read from the DCA
  * (DcaCopyReset) instead of being listed per table.
  *
+ * One deliberate difference: `DC_Table::copy()` takes only the root's columns that have a
+ * DCA field, so an orphaned column gets its SQL default; this copies every stored column,
+ * as `copyChildren()` does for children. Dropping columns by the DCA would empty a record
+ * whenever its DCA failed to load.
+ *
  * What stays as in the source: every reference. A cloned module still points at the
  * same pages, a cloned layout at the same modules. The answer names those fields in
  * `references`, so a caller cloning for another language knows what to adjust with
@@ -106,8 +111,13 @@ abstract class AbstractDcaCloner implements EntityClonerInterface
         ['accepted' => $accepted, 'ignored' => $ignored] = $this->partitionModifications($modifications, [$nameField]);
 
         $name = \array_key_exists($nameField, $accepted)
-            ? (string) $accepted[$nameField]
+            ? trim((string) $accepted[$nameField])
             : ((string) ($source[$nameField] ?? '')) . ' (Kopie)';
+
+        // The back end refuses an empty name (`mandatory`); a clone writes past it.
+        if ('' === $name) {
+            throw new \InvalidArgumentException(\sprintf('"%s" darf nicht leer sein.', $nameField));
+        }
 
         return $this->connection->transactional(function () use ($table, $nameField, $name, $source, $sourceId, $ignored, $operator, $options): array {
             ['id' => $newId, 'row' => $clone] = $this->insertCopy($table, $source, [$nameField => $name]);

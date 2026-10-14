@@ -21,7 +21,8 @@ This file was reconstructed from the git history on 2026-08-13, so entries befor
     copy nor its CSV import writes any).
   - `tl_module` and `tl_layout`, a plain copy within the same theme.
 
-  Only the name is taken from `--modifications` (`title` or `name`). What is not copied is
+  Only the name is taken from `--modifications` (`title` or `name`); an empty one is
+  refused, as the back end refuses it. What is not copied is
   read from the installation's DCA by the rules of `DC_Table::copyChildren()` (password,
   `unique`, `doNotCopy`, `fallback`), so it follows Contao 5.3, 5.7 and 6.0 alike.
   References stay as in the source; the answer names them in `references`, the reset
