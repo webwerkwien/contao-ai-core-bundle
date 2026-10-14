@@ -19,9 +19,14 @@ Works with the same backend-bundle and contao-ai-cli.
   `urlPrefix` stay, since a clone into another language sets both in the same call.
 - **A cloned root became a second main language on its domain** unless the call said
   `"fallback": ""`. Which language is the main one is the operator's decision: the clone
-  becomes it only with `--modifications '{"fallback":"1"}'` (and the old root then needs
-  `fallback` removed). `{"published":"1"}` still publishes the cloned root right away; its
-  subpages stay unpublished, as in the back end.
+  becomes it only with `--modifications '{"fallback":"1"}'`. `{"published":"1"}` still
+  publishes the cloned root right away; its subpages stay unpublished, as in the back end.
+- **A second main language on one domain is refused on clone**, as Contao's back end
+  refuses it (`tl_page::checkFallback()`). A clone runs no save callbacks, so
+  `{"fallback":"1"}` reached that state unchecked. Remove `fallback` from the old root
+  first (`page update <id> --set fallback=`, which runs Contao's check), then clone — or
+  clone as a second language and switch afterwards with `page update`. Nothing is written
+  on a refusal.
 
 ## v1.7.3 - 2026-10-13
 

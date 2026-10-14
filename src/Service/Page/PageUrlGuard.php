@@ -154,6 +154,44 @@ final class PageUrlGuard
     }
 
     /**
+     * A main-language root may be the only one on its domain.
+     *
+     * Contao's own query from `tl_page::checkFallback()`, the save callback of
+     * `fallback` (5.3 to 6.0). A clone does not run save callbacks, so a root cloned
+     * with `{"fallback":"1"}` would otherwise reach the state the back end refuses
+     * (v1.7.4). A root that is not the main language, or a page that is not a root,
+     * is not checked.
+     *
+     * @throws \InvalidArgumentException
+     */
+    public function assertSingleFallback(int $pageId): void
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT id, type, dns, fallback FROM tl_page WHERE id = ?',
+            [$pageId],
+        );
+
+        if (false === $row || 'root' !== ($row['type'] ?? null) || !$row['fallback']) {
+            return;
+        }
+
+        $other = $this->connection->fetchOne(
+            "SELECT id FROM tl_page WHERE type = 'root' AND fallback = 1 AND dns = :dns AND id != :rootId",
+            ['dns' => (string) ($row['dns'] ?? ''), 'rootId' => $pageId],
+        );
+
+        if (false !== $other) {
+            throw new \InvalidArgumentException(\sprintf(
+                'Root page %1$d is already the main language (fallback) of domain "%2$s". Nothing was written. '
+                . 'Contao allows one per domain and refuses a second in the back end (checkFallback). '
+                . 'Remove it there first, e.g. page update %1$d --set fallback=',
+                (int) $other,
+                (string) ($row['dns'] ?? ''),
+            ));
+        }
+    }
+
+    /**
      * No other root may share this root's domain and URL prefix.
      *
      * Contao's own query from `PageUrlListener::validateUrlPrefix()`, identical in

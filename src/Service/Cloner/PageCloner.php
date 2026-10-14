@@ -156,6 +156,9 @@ class PageCloner implements EntityClonerInterface
             } catch (\InvalidArgumentException $e) {
                 throw new \InvalidArgumentException($e->getMessage() . ' When cloning a root, give it its own "urlPrefix" or "dns" in --modifications.', 0, $e);
             }
+            // The clone is never the main language unless asked to (PageCopyReset);
+            // asked to, it may not be a second one on its domain (v1.7.4).
+            $this->pageUrlGuard->assertSingleFallback($newRootId);
             $this->pageUrlGuard->assertAliases([$newRootId]);
             $this->pageUrlGuard->assertTree($newRootId);
             // A cloned error page would be a second one below the same root (v1.2.0).

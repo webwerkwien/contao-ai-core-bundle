@@ -109,6 +109,51 @@ class PageUrlGuardTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
+    public function testASecondMainLanguageOnTheSameDomainIsRefused(): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $connection->method('fetchAssociative')->willReturn(['id' => 150, 'type' => 'root', 'dns' => 'showcase.conpai.eu', 'fallback' => 1]);
+        $connection->expects($this->once())
+            ->method('fetchOne')
+            ->with($this->stringContains('fallback = 1'), ['dns' => 'showcase.conpai.eu', 'rootId' => 150])
+            ->willReturn(1);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/Root page 1 .*showcase\.conpai\.eu.*page update 1 --set fallback=/s');
+
+        $this->guard($connection)->assertSingleFallback(150);
+    }
+
+    public function testTheOnlyMainLanguagePasses(): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $connection->method('fetchAssociative')->willReturn(['id' => 150, 'type' => 'root', 'dns' => '', 'fallback' => 1]);
+        $connection->method('fetchOne')->willReturn(false);
+
+        $this->guard($connection)->assertSingleFallback(150);
+        $this->addToAssertionCount(1);
+    }
+
+    /**
+     * A clone is no main language unless the operator made it one, so the usual
+     * second-language clone is not checked at all.
+     */
+    public function testARootThatIsNotTheMainLanguageIsNotChecked(): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $connection->method('fetchAssociative')->willReturn(['id' => 150, 'type' => 'root', 'dns' => '', 'fallback' => 0]);
+        $connection->expects($this->never())->method('fetchOne');
+
+        $this->guard($connection)->assertSingleFallback(150);
+    }
+
+    public function testTheClonerChecksTheMainLanguageBeforeTheCommit(): void
+    {
+        $source = (string) file_get_contents(__DIR__ . '/../../../src/Service/Cloner/PageCloner.php');
+
+        $this->assertStringContainsString('$this->pageUrlGuard->assertSingleFallback($newRootId);', $source);
+    }
+
     public function testARegularPageIsNotCounted(): void
     {
         $connection = $this->createMock(Connection::class);

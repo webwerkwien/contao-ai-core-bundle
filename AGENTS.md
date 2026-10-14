@@ -709,7 +709,10 @@ before the write when `pid` or `ptable` changes, and invalidates them after. Con
   Until v1.7.3 they were copied: the pages of a clone were as public as their source —
   although the line above said otherwise since v0.22.0 — and a root cloned without
   `"fallback": ""` became a second main language. Which language is the main one is the
-  operator's choice; ask before cloning a root, never assume the source stays it.
+  operator's choice; ask before cloning a root, never assume the source stays it. A clone
+  with `{"fallback":"1"}` on a domain that already has one is refused
+  (`PageUrlGuard::assertSingleFallback()`, Contao's `checkFallback()` query) — a clone runs
+  no save callbacks, so the back end's own check would not fire.
 - **Only a root stores `tl_page.language`.** `contao:page:create --language` applies to
   `--type root`; any other page stores `''` and takes its root's language at runtime, as
   one created in the back end. An explicit `--set language=` is written as given, like any
