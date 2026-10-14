@@ -93,7 +93,7 @@ abstract class AbstractDcaCloner implements EntityClonerInterface
     }
 
     /**
-     * @return array{id: int, table: string, count: int, children: array<string, int>, not_copied: list<string>, references: list<string>, ignored_modifications: list<string>, recipients_copied?: bool}
+     * @return array{id: int, table: string, count: int, children?: array<string, int>, not_copied: list<string>, references: list<string>, ignored_modifications: list<string>, recipients_copied?: bool}
      */
     public function clone(int $sourceId, array $modifications, string $operator, array $options = []): array
     {
@@ -128,11 +128,13 @@ abstract class AbstractDcaCloner implements EntityClonerInterface
 
             $this->dcaCallbacks?->copy($table, $newId, $sourceId);
 
+            // `children` only where there are child tables: an empty PHP array encodes as
+            // a JSON list, the filled one as an object — one key, two types for a caller.
             return [
                 'id'       => $newId,
                 'table'    => $table,
                 'count'    => (int) (array_values($children)[0] ?? 0),
-                'children' => $children,
+            ] + ([] !== $children ? ['children' => $children] : []) + [
                 // What Contao's copy does not take along either, where the source had a value.
                 'not_copied' => $this->notCopied($source, $clone, $nameField),
                 'references' => $this->references($table, $clone),

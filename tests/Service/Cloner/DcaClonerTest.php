@@ -279,7 +279,7 @@ class DcaClonerTest extends TestCase
         $this->assertSame(1, (int) $module['pid']);
         $this->assertSame('Navigation (Kopie)', $module['name']);
         $this->assertSame(0, $result['count']);
-        $this->assertSame([], $result['children']);
+        $this->assertArrayNotHasKey('children', $result, 'an empty list would arrive as JSON [] where others get {}');
         // pid is the theme, not a reference; an empty serialized list is none either.
         $this->assertSame(['jumpTo'], $result['references']);
     }
