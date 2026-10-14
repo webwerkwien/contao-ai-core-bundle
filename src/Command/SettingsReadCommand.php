@@ -6,6 +6,7 @@ use Contao\Config;
 use Contao\Controller;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\System;
+use Webwerkwien\ContaoAiCoreBundle\Service\SensitiveFields;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 
@@ -65,8 +66,15 @@ class SettingsReadCommand extends AbstractReadCommand
         foreach (array_keys($dca) as $field) {
             $field = (string) $field;
 
+            $value = Config::get($field);
+
+            // An extension's key or password in the settings, as SensitiveFields (v1.8.1).
+            if (\is_array($dca[$field]) && SensitiveFields::isSensitive($dca[$field]) && null !== $value && '' !== $value) {
+                $value = SensitiveFields::MASK;
+            }
+
             $settings[$field] = [
-                'value'     => Config::get($field),
+                'value'     => $value,
                 'persisted' => \in_array($field, $persisted, true),
                 'mandatory' => (bool) ($dca[$field]['eval']['mandatory'] ?? false),
                 'inputType' => $dca[$field]['inputType'] ?? null,

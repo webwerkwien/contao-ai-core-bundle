@@ -6,6 +6,7 @@ use Contao\CoreBundle\Framework\ContaoFramework;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\VirtualFields;
+use Webwerkwien\ContaoAiCoreBundle\Service\SensitiveFields;
 
 abstract class AbstractModelReadCommand extends AbstractReadCommand
 {
@@ -43,6 +44,9 @@ abstract class AbstractModelReadCommand extends AbstractReadCommand
             $class::getTable(),
             VirtualFields::expand($class::getTable(), $this->convertFileTreeFieldsToUuid($class::getTable(), $record->row())),
         );
+
+        // After the conversions, which load the DCA (v1.8.1, see SensitiveFields).
+        $row = SensitiveFields::mask($row, $GLOBALS['TL_DCA'][$class::getTable()]['fields'] ?? []);
 
         $this->outputRecord($this->postProcessRow($row));
         return Command::SUCCESS;

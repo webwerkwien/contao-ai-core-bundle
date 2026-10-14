@@ -11,6 +11,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\VirtualFields;
+use Webwerkwien\ContaoAiCoreBundle\Service\SensitiveFields;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 #[AsCommand(name: 'contao:version:read', description: 'Read a specific version snapshot as JSON')]
@@ -68,14 +69,20 @@ class VersionReadCommand extends Command
             return self::FAILURE;
         }
 
+        if (\is_array($data) && !isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
+
         // Virtual fields as `record read` shows them (v1.6.0); the stored version keeps
         // its JSON column, and `version restore` writes that back as it is.
         if (\is_array($data) && VirtualFields::supported()) {
-            if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
-                Controller::loadDataContainer($table);
-            }
-
             $data = VirtualFields::expand($table, $data);
+        }
+
+        // A version of a user holds the password hash, the two-factor secret and the
+        // chat's API key; Contao's version view leaves them out (v1.8.1).
+        if (\is_array($data)) {
+            $data = SensitiveFields::mask($data, $GLOBALS['TL_DCA'][$table]['fields'] ?? []);
         }
 
         // Normalize through JSON roundtrip to handle binary strings and other

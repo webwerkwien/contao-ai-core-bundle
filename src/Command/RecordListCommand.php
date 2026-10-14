@@ -10,12 +10,16 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
+use Webwerkwien\ContaoAiCoreBundle\Service\SensitiveFields;
 
 #[AsCommand(name: 'contao:record:list', description: 'List records from a Contao table with filter, order and pagination')]
 class RecordListCommand extends AbstractReadCommand
 {
     private const DEFAULT_LIMIT = 20;
     private const MAX_LIMIT     = 100;
+
+    /** @var list<string> lower-cased names of the fields shown masked, see SensitiveFields */
+    private array $sensitive = [];
 
     public function __construct(
         private readonly ContaoFramework $framework,
@@ -90,6 +94,10 @@ class RecordListCommand extends AbstractReadCommand
             return $this->outputError("No readable columns for table: $table");
         }
 
+        // Shown masked, and never a filter or sort key: `--filter ai_api_key=sk-…`
+        // would answer whether a guessed key is right (v1.8.1, see SensitiveFields).
+        $this->sensitive = array_map('strtolower', SensitiveFields::of($GLOBALS['TL_DCA'][$table]['fields']));
+
         try {
             $orderClause = $this->buildOrderClause((string) $this->input->getOption('order'), $allowedColumns);
         } catch (\InvalidArgumentException $e) {
@@ -153,7 +161,10 @@ class RecordListCommand extends AbstractReadCommand
         // fix; it is also the only read command that accepts an arbitrary
         // table, which makes it the likeliest to meet an unfamiliar one.
         $rows = array_map(
-            fn (array $row): array => $this->convertStructuredFieldsForRead($table, $this->convertFileTreeFieldsToUuid($table, $row)),
+            fn (array $row): array => SensitiveFields::mask(
+                $this->convertStructuredFieldsForRead($table, $this->convertFileTreeFieldsToUuid($table, $row)),
+                $GLOBALS['TL_DCA'][$table]['fields'],
+            ),
             $rows,
         );
 
@@ -241,6 +252,7 @@ class RecordListCommand extends AbstractReadCommand
             }
             $col = $m[1];
             $dir = isset($m[2]) ? strtoupper($m[2]) : 'ASC';
+            $this->refuseSensitive('order', $col);
             if (!in_array($col, $allowedColumns, true)) {
                 throw new \InvalidArgumentException("order: unknown column: $col");
             }
@@ -258,6 +270,17 @@ class RecordListCommand extends AbstractReadCommand
             $out[] = $this->connection->quoteIdentifier('id').' DESC';
         }
         return implode(', ', $out);
+    }
+
+    /**
+     * A sensitive field as a filter or sort key is refused by name, before the
+     * unknown-column check: compared case-insensitively, as MySQL compares column names.
+     */
+    private function refuseSensitive(string $option, string $column): void
+    {
+        if (\in_array(strtolower($column), $this->sensitive, true)) {
+            throw new \InvalidArgumentException("$option: $column is not shown (password, doNotShow or hideInput in its DCA) and cannot be filtered or sorted by");
+        }
     }
 
     /**
@@ -288,6 +311,7 @@ class RecordListCommand extends AbstractReadCommand
             if (1 !== preg_match('/^[a-zA-Z_][a-zA-Z0-9_]{0,63}$/', $field)) {
                 throw new \InvalidArgumentException("filter: invalid field name: $field");
             }
+            $this->refuseSensitive('filter', $field);
             if (!in_array($field, $allowedColumns, true)) {
                 throw new \InvalidArgumentException("filter: unknown column: $field");
             }
@@ -323,6 +347,7 @@ class RecordListCommand extends AbstractReadCommand
             if (1 !== preg_match('/^[a-zA-Z_][a-zA-Z0-9_]{0,63}$/', $field)) {
                 throw new \InvalidArgumentException("filter-prefix: invalid field name: $field");
             }
+            $this->refuseSensitive('filter-prefix', $field);
             if (!in_array($field, $allowedColumns, true)) {
                 throw new \InvalidArgumentException("filter-prefix: unknown column: $field");
             }
