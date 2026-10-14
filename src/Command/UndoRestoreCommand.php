@@ -31,8 +31,10 @@ use Symfony\Component\Console\Input\InputArgument;
  *     row against the live field list. An undo entry can outlive a migration,
  *     and inserting a column that was since removed would fail the whole
  *     restore over a field nobody misses.
- *  3. **Run `onundo_callback` per row.** How extensions rebuild what a delete
- *     tore down — search index entries, aliases, related records.
+ *  3. **Run `onundo_callback` per row**, right after its insert, with tl_undo's data
+ *     container as `$dc` (DcaCallbacks::undo(), v1.8.1). How extensions rebuild what a
+ *     delete tore down — search index entries, aliases, related records. Inside the
+ *     transaction: a callback that throws rolls the restore back.
  *  4. **Delete the `tl_undo` row only if every insert succeeded.** A partial
  *     restore keeps its entry, so the rest is not lost along with it.
  *  5. **Log `Undone <query>`** to the same channel and with the same wording
@@ -178,11 +180,18 @@ class UndoRestoreCommand extends AbstractWriteCommand
         $current = [];
 
         try {
-            $this->connection->transactional(function () use ($pending, $id, &$restored, &$current): void {
+            $this->connection->transactional(function () use ($pending, $id, $row, &$restored, &$current): void {
                 foreach ($pending as [$table, $insert, $record]) {
                     $current = $record;
                     $this->connection->insert($this->connection->quoteIdentifier($table), $insert);
                     $restored[$table] = ($restored[$table] ?? 0) + 1;
+
+                    // onundo per row right after its insert, as DC_Table::undo(), with
+                    // tl_undo's data container — and inside the transaction: a callback that
+                    // refuses rolls the whole restore back, the entry stays replayable (v1.8.1).
+                    // Until v1.8.0 they ran after the commit with the command as `$dc`, and a
+                    // failure was a warning under an `ok`.
+                    $this->dcaCallbacks?->undo($table, $insert, $id, $row);
                 }
 
                 // Inside the transaction as well: either the rows are back and
@@ -197,10 +206,6 @@ class UndoRestoreCommand extends AbstractWriteCommand
                 $id,
                 $this->explainInsertFailure($e, $current),
             ));
-        }
-
-        foreach ($pending as [$table, , $record]) {
-            $this->runUndoCallbacks($table, $record);
         }
 
         // 🔴 HIER MACHEN WIR ES BESSER ALS DAS BACKEND, mit Absicht (entschieden
@@ -318,41 +323,6 @@ class UndoRestoreCommand extends AbstractWriteCommand
         }
 
         return array_values(array_unique($found));
-    }
-
-    /**
-     * `onundo_callback` is how an extension rebuilds what a delete tore down.
-     *
-     * Skipping it would leave a record that looks restored and is missing its
-     * search index entry or its related rows — the silent-success shape this
-     * project keeps running into.
-     *
-     * @param array<string, mixed> $record
-     */
-    private function runUndoCallbacks(string $table, array $record): void
-    {
-        $callbacks = $GLOBALS['TL_DCA'][$table]['config']['onundo_callback'] ?? null;
-
-        if (!\is_array($callbacks)) {
-            return;
-        }
-
-        foreach ($callbacks as $callback) {
-            try {
-                if (\is_array($callback)) {
-                    System::importStatic($callback[0])->{$callback[1]}($table, $record, $this);
-                } elseif (\is_callable($callback)) {
-                    $callback($table, $record, $this);
-                }
-            } catch (\Throwable $e) {
-                // The row is already back. A failing callback is worth reporting,
-                // but rolling the restore back over it would be worse.
-                $this->logger->warning('contao-ai-core-bundle onundo_callback failed', [
-                    'table' => $table,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
     }
 
     /**

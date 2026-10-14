@@ -222,6 +222,35 @@ class DcaCallbacksTest extends TestCase
         $this->assertSame(['41', '9'], $seen);
     }
 
+    /**
+     * onundo as DC_Table::undo() calls it: the table, the restored row, and the data
+     * container of tl_undo (v1.8.1). Until v1.8.0 contao:undo:restore passed itself as
+     * `$dc`, and every callback typed `DataContainer $dc` failed (Consho on c5, 2026-10-14).
+     */
+    public function testOnundoGetsTheRowAndTlUndosDataContainer(): void
+    {
+        $seen = [];
+        $this->on('onundo_callback', [static function (string $table, array $row, DataContainer $dc) use (&$seen): void {
+            $seen = [$table, $row['title'], $dc->table, $dc->id];
+        }]);
+
+        $this->callbacks()->undo('tl_page', ['id' => 7, 'title' => 'Zurück'], 392, ['id' => 392, 'fromTable' => 'tl_page']);
+
+        $this->assertSame(['tl_page', 'Zurück', 'tl_undo', 392], $seen);
+    }
+
+    public function testAnOnundoCallbackThatThrowsRefusesTheRestoreByName(): void
+    {
+        $this->on('onundo_callback', [static function (): void {
+            throw new \RuntimeException('Preis fehlt.');
+        }]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('tl_page.onundo of tl_undo:392 refused by');
+
+        $this->callbacks()->undo('tl_page', ['id' => 7], 392, ['id' => 392]);
+    }
+
     public function testAnErrorInACallbackIsADefectAndPassesThrough(): void
     {
         $this->on('ondelete_callback', [static function (): void {

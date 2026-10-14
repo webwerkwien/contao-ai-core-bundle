@@ -205,6 +205,23 @@ class DcaCallbacks
         $this->withSession(fn () => $this->run($table, 'oncopy_callback', $sourceId, $this->row($table, $sourceId), static fn (DataContainer $dc): array => [$newId, $dc]));
     }
 
+    /**
+     * After a row of $table was restored from tl_undo entry $undoId, as `DC_Table::undo()`
+     * runs it: `($table, $row, $dc)`, the data container being the one of tl_undo.
+     *
+     * Until v1.8.0 `contao:undo:restore` called these itself and passed the command as
+     * `$dc`. Every callback typed `DataContainer $dc` failed with a TypeError, logged as a
+     * warning while the answer said `ok` — on c5 the Consho price and visibility
+     * projections, cache tags and stock stayed behind (2026-10-14).
+     *
+     * @param array<string, mixed> $row        the restored row
+     * @param array<string, mixed> $undoRecord the tl_undo row
+     */
+    public function undo(string $table, array $row, int $undoId, array $undoRecord): void
+    {
+        $this->withSession(fn () => $this->run($table, 'onundo_callback', $undoId, $undoRecord, static fn (DataContainer $dc): array => [$table, $row, $dc], 'tl_undo'));
+    }
+
     /** After the record was moved. */
     public function cut(string $table, int $id): void
     {
@@ -369,8 +386,10 @@ class DcaCallbacks
     /**
      * @param array<string, mixed>                    $row
      * @param \Closure(DataContainer): list<mixed> $arguments
+     * @param string|null                             $dcTable the data container's table, when it is not
+     *                                                         $table: tl_undo for onundo (v1.8.1)
      */
-    private function run(string $table, string $event, int $id, array $row, \Closure $arguments): void
+    private function run(string $table, string $event, int $id, array $row, \Closure $arguments, ?string $dcTable = null): void
     {
         $callbacks = $GLOBALS['TL_DCA'][$table]['config'][$event] ?? null;
 
@@ -384,7 +403,8 @@ class DcaCallbacks
         ($this->loadLanguageFile)('default');
         ($this->loadLanguageFile)($table);
 
-        $dc   = RecordDataContainer::create($table, $id, $row, $this->connection);
+        $dcTable ??= $table;
+        $dc   = RecordDataContainer::create($dcTable, $id, $row, $this->connection);
         $args = $arguments($dc);
         $name = $table . '.' . substr($event, 0, -\strlen('_callback'));
 
@@ -401,7 +421,7 @@ class DcaCallbacks
 
                 return;
             } catch (\Exception $e) {
-                throw new \InvalidArgumentException(\sprintf('%s of %s:%d refused by %s: %s Nothing was written.', $name, $table, $id, $label, $e->getMessage()), 0, $e);
+                throw new \InvalidArgumentException(\sprintf('%s of %s:%d refused by %s: %s Nothing was written.', $name, $dcTable, $id, $label, $e->getMessage()), 0, $e);
             }
 
             $this->ran[] = $name . ': ' . $label;
