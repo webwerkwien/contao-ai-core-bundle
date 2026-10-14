@@ -35,7 +35,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\CommandLineRedactor;
  * into the log.
  *
  * A refusal by a command with an #[AiContract] is logged as a warning, not CRITICAL
- * (v1.7.2, see isRefusal()).
+ * (v1.7.2, see isRefusal()), and since v1.8.1 with the command and its option names only,
+ * no values (see shape()).
  */
 class RedactingConsoleErrorListener extends ErrorListener
 {
@@ -67,7 +68,11 @@ class RedactingConsoleErrorListener extends ErrorListener
         }
 
         if (self::isRefusal($event)) {
-            $this->redactingLogger->warning('Command "{command}" refused its input. Message: "{message}"', ['exception' => $error, 'command' => $inputString, 'message' => $message]);
+            // The command and its option names, no values (v1.8.1): a refused line carries
+            // whatever the caller typed — names, addresses, texts — and a refusal is the
+            // caller's mistake, not a defect anyone needs to replay from the log (Consho).
+            $this->refused = true;
+            $this->redactingLogger->warning('Command "{command}" refused its input. Message: "{message}"', ['exception' => $error, 'command' => self::shape($event, $inputString), 'message' => $message]);
 
             return;
         }
@@ -119,7 +124,38 @@ class RedactingConsoleErrorListener extends ErrorListener
             return;
         }
 
-        $this->redactingLogger->debug('Command "{command}" exited with code "{code}"', ['command' => $inputString, 'code' => $exitCode]);
+        // After a refusal the same shape as its warning: Contao's fingers-crossed log
+        // flushes this debug line along with a later error of the same run.
+        $command = $this->refused ? self::shape($event, $inputString) : $inputString;
+        $this->refused = false;
+
+        $this->redactingLogger->debug('Command "{command}" exited with code "{code}"', ['command' => $command, 'code' => $exitCode]);
+    }
+
+    /** Set by a refusal, read by the terminate event of the same command. */
+    private bool $refused = false;
+
+    /**
+     * The command name and the names of the options on its line, without any value.
+     *
+     * Through `contao:ai:run` the command it runs logs its own refusal, with its own
+     * line: contao:ai:run has no contract and never reaches this.
+     */
+    private static function shape(ConsoleEvent $event, string $line): string
+    {
+        $name = $event->getCommand()?->getName() ?? (strtok($line, " \t") ?: '');
+
+        return trim($name . ' ' . implode(' ', self::optionNames($line)));
+    }
+
+    /**
+     * @return list<string> `--name` and `-n` as they stand on $line, values cut off
+     */
+    private static function optionNames(string $line): array
+    {
+        preg_match_all('/(?:^|\s)(--?[A-Za-z][A-Za-z0-9_-]*)/', $line, $matches);
+
+        return array_values(array_unique($matches[1]));
     }
 
     /**

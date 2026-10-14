@@ -209,8 +209,23 @@ class RedactingConsoleErrorListenerTest extends TestCase
 
         $logged = $this->logged();
         $this->assertSame(['warning', 'debug'], $this->levels());
-        $this->assertStringContainsString('Command "acme:refuse --pin ***" refused its input. Message: "--product is required: pin ***"', $logged);
+        $this->assertStringContainsString('Command "acme:refuse --pin" refused its input. Message: "--product is required: pin ***"', $logged);
         $this->assertStringNotContainsString('S3CRET', $logged);
+    }
+
+    /**
+     * v1.8.1 (Consho): a refused line carried every value the caller typed — names,
+     * addresses, texts — not only the declared secrets. Now the option names only, in the
+     * warning and in the debug line Contao's log flushes with a later error.
+     */
+    public function testARefusalIsLoggedWithTheOptionNamesOnly(): void
+    {
+        $this->runConsole(['acme:refuse', '--pin', 'S3CRET-PIN', '--note', 'Anna Muster, Hauptstraße 1']);
+
+        $logged = $this->logged();
+        $this->assertStringContainsString('Command "acme:refuse --pin --note" refused its input', $logged);
+        $this->assertStringContainsString('Command "acme:refuse --pin --note" exited with code', $logged);
+        $this->assertStringNotContainsString('Anna', $logged);
     }
 
     public function testThroughContaoAiRunARefusalIsAWarningAndStillAnsweredAsOne(): void
@@ -317,6 +332,7 @@ final class AcmeRefuseCommand extends Command
     {
         $this->setName('acme:refuse')
             ->addOption('pin', null, InputOption::VALUE_REQUIRED)
+            ->addOption('note', null, InputOption::VALUE_REQUIRED)
             ->addOption('as', null, InputOption::VALUE_REQUIRED, '', 'refusal');
     }
 
