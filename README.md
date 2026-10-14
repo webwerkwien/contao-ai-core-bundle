@@ -62,7 +62,7 @@ All commands output JSON and follow a consistent `{"status":"ok", ...}` / `{"sta
 ### Macro commands
 
 - `contao:record:list <table>` — table-agnostic listing with Doctrine-parameterised filters, DCA-validated ORDER BY, pagination, curated default columns per table.
-- `contao:record:clone <table> <id> [--recursive]` — clone a container record (news archive, calendar, FAQ category, page) including all cascading children in one DB transaction. With `--recursive` PageCloner walks subpage trees (depth-cap 10, total-cap 50). Tagged-iterator EntityCloner registry — only registers cloners for plugins actually installed on the target site.
+- `contao:record:clone <table> <id> [--recursive]` — clone a container record (news archive, calendar, FAQ category, page) including all cascading children in one DB transaction. With `--recursive` PageCloner walks subpage trees (depth-cap 10, total-cap 50). Tagged-iterator EntityCloner registry — only registers cloners for plugins actually installed on the target site. Cloned pages and articles come out unpublished and a cloned root is never the main language (`fallback`) by itself, as in Contao's own copy (v1.7.4); pass `{"published":"1"}` or `{"fallback":"1"}` in `--modifications` to change that on the root.
 
 > **`record_rewrite` lives in [contao-ai-backend-bundle](https://github.com/webwerkwien/contao-ai-backend-bundle), not here.** That command needs an LLM API key per call. Keeping core agnostic of LLM dependencies and key handling was a deliberate architecture decision.
 

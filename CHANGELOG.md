@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
-## Unreleased
+## v1.7.4 - 2026-10-14
 
 Works with the same backend-bundle and contao-ai-cli.
 
