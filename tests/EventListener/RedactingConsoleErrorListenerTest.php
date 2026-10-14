@@ -70,6 +70,7 @@ class RedactingConsoleErrorListenerTest extends TestCase
         $application->add(new AcmeFailCommand());
         $application->add(new AcmeRefuseCommand());
         $application->add(new AcmePlainCommand());
+        $application->add(new AcmeGuardedCommand());
 
         $log = $this->createMock(SystemLog::class);
         $application->add($run = new AiRunCommand());
@@ -228,6 +229,21 @@ class RedactingConsoleErrorListenerTest extends TestCase
         $this->assertStringNotContainsString('Anna', $logged);
     }
 
+    /**
+     * Fable review before v1.8.1: this bundle's commands answer a refusal through
+     * JsonErrorBoundary, so no console.error fires — and the debug exit line, the only
+     * one written, still carried every value. Measured with a real application.
+     */
+    public function testACommandAnsweringThroughTheBoundaryIsLoggedWithOptionNamesOnly(): void
+    {
+        $answer = $this->runConsole(['acme:guarded', '--note', 'Anna Muster, Hauptstraße 1']);
+
+        $this->assertStringContainsString('"status":"error"', $answer, 'answered by the boundary');
+        $this->assertSame(['debug'], $this->levels(), 'no console.error, only the exit line');
+        $this->assertStringContainsString('Command "acme:guarded --note" exited with code "1"', $this->logged());
+        $this->assertStringNotContainsString('Anna', $this->logged());
+    }
+
     public function testThroughContaoAiRunARefusalIsAWarningAndStillAnsweredAsOne(): void
     {
         $answer = $this->runConsole(['contao:ai:run', '--command-line=acme:refuse']);
@@ -345,6 +361,24 @@ final class AcmeRefuseCommand extends Command
             'runtime' => new \RuntimeException($message),
             default   => new \InvalidArgumentException($message),
         };
+    }
+}
+
+/** No contract, answers through JsonErrorBoundary — the shape of this bundle's commands. */
+final class AcmeGuardedCommand extends Command
+{
+    use \Webwerkwien\ContaoAiCoreBundle\Command\JsonErrorBoundary;
+
+    protected function configure(): void
+    {
+        $this->setName('acme:guarded')->addOption('note', null, InputOption::VALUE_REQUIRED);
+    }
+
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        return $this->guarded($output, static function (): int {
+            throw new \InvalidArgumentException('--product is required');
+        });
     }
 }
 

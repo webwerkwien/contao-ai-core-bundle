@@ -115,11 +115,13 @@ class UndoRestoreCommand extends AbstractWriteCommand
         // wie Contao es macht — und dann entscheiden, ob dessen Antwort für
         // unseren Aufrufer taugt. Hier tut sie es nicht.
         //
-        // ⚠️ Die `onundo_callback`s laufen bewusst ERST NACH dem Commit. Sie sind
-        // fremder Code und können außerhalb der Datenbank wirken; ein Rollback
-        // holte das nicht zurück. Der frühere Kommentar an dieser Stelle sagte
-        // dasselbe — "rolling the restore back over it would be worse" — und
-        // bleibt damit gültig.
+        // Die `onundo_callback`s laufen seit v1.8.1 IN der Transaktion, je Zeile
+        // direkt nach ihrem Insert, wie DC_Table::undo() (Entscheidung Michael,
+        // 2026-10-14): Bis v1.8.0 liefen sie nach dem Commit, mit dem Befehl als
+        // `$dc`, und ihr Scheitern blieb eine Warnung unter einem `ok`. Was ein
+        // Callback außerhalb der Datenbank tut, holt ein Rollback nicht zurück —
+        // aber eine halbe Wiederherstellung, die als ganze gemeldet wird, wiegt
+        // schwerer; der Undo-Eintrag bleibt dann erhalten.
         $restored  = [];
         $failed    = [];
         $pending   = [];
@@ -206,11 +208,20 @@ class UndoRestoreCommand extends AbstractWriteCommand
         } catch (\Throwable $e) {
             $restored = [];
 
-            return $this->outputError(\sprintf(
+            $message = \sprintf(
                 'Restore rolled back, undo entry %d untouched and still replayable: %s',
                 $id,
                 $this->explainInsertFailure($e, $current),
-            ));
+            );
+
+            // A refusal (a callback's InvalidArgumentException, a taken ID) is the
+            // caller's to act on; anything else — a TypeError in a callback — goes on to
+            // JsonErrorBoundary, which marks it a defect (Fable review before v1.8.1).
+            if (!$e instanceof \InvalidArgumentException && !$e instanceof \Doctrine\DBAL\Exception) {
+                throw new \RuntimeException($message, 0, $e);
+            }
+
+            return $this->outputError($message);
         }
 
         // 🔴 HIER MACHEN WIR ES BESSER ALS DAS BACKEND, mit Absicht (entschieden
@@ -313,7 +324,7 @@ class UndoRestoreCommand extends AbstractWriteCommand
     ];
 
     /**
-     * @param list<array{0: string, 1: mixed, 2: array<string, mixed>}> $pending
+     * @param list<array{0: string, 1: mixed, 2: array<string, mixed>, 3: array<string, mixed>}> $pending
      *
      * @return list<string> e.g. "calendar 12"
      */

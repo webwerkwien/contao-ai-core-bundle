@@ -72,7 +72,9 @@ class RecordListCommand extends AbstractReadCommand
             return $this->outputError("Invalid table name: $table");
         }
 
-        Controller::loadDataContainer($table);
+        if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
+            Controller::loadDataContainer($table);
+        }
         $dcaFields = array_keys($GLOBALS['TL_DCA'][$table]['fields'] ?? []);
         if ([] === $dcaFields) {
             return $this->outputError(
@@ -96,7 +98,9 @@ class RecordListCommand extends AbstractReadCommand
 
         // Shown masked, and never a filter or sort key: `--filter ai_api_key=sk-…`
         // would answer whether a guessed key is right (v1.8.1, see SensitiveFields).
-        $this->sensitive = array_map('strtolower', SensitiveFields::of($GLOBALS['TL_DCA'][$table]['fields']));
+        // With the JSON column of a sensitive virtual field: this command does not
+        // expand them, and would hand out the secret inside (Fable review).
+        $this->sensitive = array_map('strtolower', SensitiveFields::columns($table));
 
         try {
             $orderClause = $this->buildOrderClause((string) $this->input->getOption('order'), $allowedColumns);
@@ -161,9 +165,9 @@ class RecordListCommand extends AbstractReadCommand
         // fix; it is also the only read command that accepts an arbitrary
         // table, which makes it the likeliest to meet an unfamiliar one.
         $rows = array_map(
-            fn (array $row): array => SensitiveFields::mask(
+            fn (array $row): array => SensitiveFields::maskColumns(
                 $this->convertStructuredFieldsForRead($table, $this->convertFileTreeFieldsToUuid($table, $row)),
-                $GLOBALS['TL_DCA'][$table]['fields'],
+                $this->sensitive,
             ),
             $rows,
         );

@@ -1,0 +1,205 @@
+<?php declare(strict_types=1);
+
+namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
+
+use Contao\CoreBundle\Framework\ContaoFramework;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Schema\AbstractSchemaManager;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\Console\Tester\CommandTester;
+use Webwerkwien\ContaoAiCoreBundle\Command\AbstractModelReadCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\PageTreeCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\RecordListCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\SettingsReadCommand;
+use Webwerkwien\ContaoAiCoreBundle\Command\SettingsUpdateCommand;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\VirtualFields;
+
+/**
+ * Every read path masks what Contao's detail view hides — run through the commands (v1.8.1).
+ *
+ * The first version of this release tested SensitiveFields and the filter refusal on
+ * their own; the Fable review removed the mask from `record list`, the model reads and
+ * `settings read` one by one, and the suite stayed green each time. The leak measured
+ * on c5 — `record list tl_user --fields ai_api_key,password,secret` — had no test that
+ * would notice it coming back.
+ */
+class SensitiveReadPathsTest extends TestCase
+{
+    private const TABLE = 'tl_probe_user';
+
+    protected function setUp(): void
+    {
+        VirtualFields::$supported = true;
+        $GLOBALS['TL_DCA'][self::TABLE]['fields'] = [
+            'id'         => ['sql' => 'int(10) unsigned NOT NULL auto_increment'],
+            'username'   => ['inputType' => 'text', 'sql' => "varchar(64) NOT NULL default ''"],
+            'password'   => ['inputType' => 'password', 'sql' => "varchar(255) NOT NULL default ''"],
+            'ai_api_key' => ['inputType' => 'text', 'eval' => ['hideInput' => true, 'doNotShow' => true], 'sql' => "varchar(512) NOT NULL default ''"],
+            // A virtual field holding bank data in a JSON column, as Consho stores it (5.7/6.0).
+            'jsonData'   => ['virtualTarget' => true, 'sql' => 'json NULL'],
+            'iban'       => ['inputType' => 'text', 'targetColumn' => 'jsonData', 'eval' => ['hideInput' => true]],
+            'holder'     => ['inputType' => 'text', 'targetColumn' => 'jsonData'],
+        ];
+    }
+
+    protected function tearDown(): void
+    {
+        VirtualFields::$supported = null;
+        unset($GLOBALS['TL_DCA'][self::TABLE], $GLOBALS['TL_DCA']['tl_settings'], $GLOBALS['TL_DCA']['tl_page'], $GLOBALS['TL_CONFIG']['probeApiKey']);
+    }
+
+    private function row(): array
+    {
+        return [
+            'id'         => 3,
+            'username'   => 'h.lewis',
+            'password'   => '$2y$13$abcdefghijklmnopqrstuv',
+            'ai_api_key' => 'sk-ant-api03-SECRET',
+            'jsonData'   => '{"iban":"AT611904300234573201","holder":"Lewis"}',
+        ];
+    }
+
+    private function recordList(?array &$sql = null): RecordListCommand
+    {
+        $schema = $this->createMock(AbstractSchemaManager::class);
+        $schema->method('listTableColumns')->willReturn(['id' => 1, 'username' => 1, 'password' => 1, 'ai_api_key' => 1, 'jsondata' => 1]);
+
+        $connection = $this->createMock(Connection::class);
+        $connection->method('createSchemaManager')->willReturn($schema);
+        $connection->method('quoteIdentifier')->willReturnCallback(static fn (string $n): string => '`' . $n . '`');
+        $connection->method('fetchAllAssociative')->willReturnCallback(function (string $query) use (&$sql): array {
+            $sql = $query;
+
+            return [$this->row()];
+        });
+        $connection->method('fetchOne')->willReturn(1);
+
+        return new RecordListCommand($this->createMock(ContaoFramework::class), $connection);
+    }
+
+    public function testRecordListMasksTheMeasuredLeak(): void
+    {
+        $tester = new CommandTester($this->recordList());
+        $tester->execute(['table' => self::TABLE, '--fields' => 'id,username,password,ai_api_key']);
+        $row = json_decode($tester->getDisplay(), true)['results'][0];
+
+        $this->assertSame('h.lewis', $row['username']);
+        $this->assertSame('********', $row['password']);
+        $this->assertSame('********', $row['ai_api_key']);
+        $this->assertStringNotContainsString('SECRET', $tester->getDisplay());
+    }
+
+    public function testRecordListMasksTheJsonColumnOfASensitiveVirtualField(): void
+    {
+        $tester = new CommandTester($this->recordList());
+        $tester->execute(['table' => self::TABLE, '--fields' => 'id,jsonData']);
+
+        $this->assertSame('********', json_decode($tester->getDisplay(), true)['results'][0]['jsonData']);
+        $this->assertStringNotContainsString('AT61', $tester->getDisplay());
+    }
+
+    public function testRecordListRefusesAGuessAtAKeyBeforeAnyQuery(): void
+    {
+        $sql    = null;
+        $tester = new CommandTester($this->recordList($sql));
+        $tester->execute(['table' => self::TABLE, '--filter' => ['ai_api_key=sk-ant-api03-SECRET']]);
+
+        $this->assertSame('error', json_decode($tester->getDisplay(), true)['status']);
+        $this->assertNull($sql, 'refused before anything was read');
+    }
+
+    public function testAModelReadMasksItsRecord(): void
+    {
+        VirtualFields::$supported = false;
+
+        $tester = new CommandTester(new ProbeUserReadCommand($this->createMock(ContaoFramework::class)));
+        $tester->execute(['id' => '3']);
+        $row = json_decode($tester->getDisplay(), true);
+
+        $this->assertSame('h.lewis', $row['username']);
+        $this->assertSame('********', $row['password']);
+        $this->assertSame('********', $row['ai_api_key']);
+    }
+
+    public function testSettingsReadMasksAKeyAnExtensionKeepsThere(): void
+    {
+        $GLOBALS['TL_DCA']['tl_settings']['fields'] = [
+            'probeApiKey' => ['inputType' => 'text', 'eval' => ['hideInput' => true]],
+            'adminEmail'  => ['inputType' => 'text'],
+        ];
+        $GLOBALS['TL_CONFIG']['probeApiKey'] = 'key-123456789';
+
+        $tester = new CommandTester(new SettingsReadCommand($this->createMock(ContaoFramework::class)));
+        $tester->execute([]);
+
+        $this->assertSame('********', json_decode($tester->getDisplay(), true)['settings']['probeApiKey']['value']);
+        $this->assertStringNotContainsString('key-1234', $tester->getDisplay());
+    }
+
+    public function testSettingsUpdateAnswersAKeyChangeMasked(): void
+    {
+        $masked = (new \ReflectionMethod(SettingsUpdateCommand::class, 'maskedChange'))
+            ->invoke(null, ['inputType' => 'password'], ['from' => 'old-key', 'to' => 'new-key']);
+        $plain = (new \ReflectionMethod(SettingsUpdateCommand::class, 'maskedChange'))
+            ->invoke(null, ['inputType' => 'text'], ['from' => 'a', 'to' => 'b']);
+
+        $this->assertSame(['from' => '********', 'to' => '********'], $masked);
+        $this->assertSame(['from' => 'a', 'to' => 'b'], $plain);
+    }
+
+    public function testPageTreeRefusesASensitiveFieldAnExtensionAddsToPages(): void
+    {
+        $GLOBALS['TL_DCA']['tl_page']['fields'] = [
+            'title'       => ['inputType' => 'text', 'sql' => "varchar(255) NOT NULL default ''"],
+            'probeSecret' => ['inputType' => 'password', 'sql' => "varchar(255) NOT NULL default ''"],
+        ];
+
+        $command = new PageTreeCommand($this->createMock(ContaoFramework::class), $this->createMock(Connection::class));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('probeSecret is not shown');
+
+        (new \ReflectionMethod($command, 'resolveFields'))->invoke($command, 'title,probeSecret');
+    }
+}
+
+/** A stand-in for a Contao model: what AbstractModelReadCommand calls on one. */
+final class ProbeUserModel
+{
+    public static function getTable(): string
+    {
+        return 'tl_probe_user';
+    }
+
+    public static function findById(int $id): object
+    {
+        return new class {
+            /** @return array<string, mixed> */
+            public function row(): array
+            {
+                return ['id' => 3, 'username' => 'h.lewis', 'password' => '$2y$13$hash', 'ai_api_key' => 'sk-ant-api03-SECRET'];
+            }
+        };
+    }
+}
+
+final class ProbeUserReadCommand extends AbstractModelReadCommand
+{
+    protected static $defaultName = 'probe:user:read';
+
+    protected function configure(): void
+    {
+        $this->setName('probe:user:read');
+        parent::configure();
+    }
+
+    protected function modelClass(): string
+    {
+        return ProbeUserModel::class;
+    }
+
+    protected function entityName(): string
+    {
+        return 'User';
+    }
+}

@@ -2,11 +2,13 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
+use Contao\Controller;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
+use Webwerkwien\ContaoAiCoreBundle\Service\SensitiveFields;
 
 /**
  * The page tree, built on the server, one level at a time.
@@ -262,6 +264,18 @@ class PageTreeCommand extends AbstractReadCommand
     {
         $requested = array_values(array_filter(array_map('trim', explode(',', $raw))));
         $wanted    = array_values(array_unique(array_merge(['id', 'pid'], $requested)));
+
+        // A field whose value no read command shows (v1.8.1, see SensitiveFields): refused
+        // by name. tl_page has none in Contao itself; an extension may add one.
+        if (!isset($GLOBALS['TL_DCA'][self::TABLE]['fields'])) {
+            Controller::loadDataContainer(self::TABLE);
+        }
+        $sensitive = array_map('strtolower', SensitiveFields::columns(self::TABLE));
+        foreach ($requested as $field) {
+            if (\in_array(strtolower($field), $sensitive, true)) {
+                throw new \InvalidArgumentException("fields: $field is not shown (password, doNotShow or hideInput in its DCA)");
+            }
+        }
 
         $actual = array_map('strtolower', array_keys(
             $this->connection->createSchemaManager()->listTableColumns(self::TABLE),

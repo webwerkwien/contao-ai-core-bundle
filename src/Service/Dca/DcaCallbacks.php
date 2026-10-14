@@ -41,6 +41,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\CliUser;
  * | `oncopy`   | `$newId, $dc` (dc = the source)  | per child after its INSERT, the root last    |
  * | `oncut`    | `$dc`                            | after the UPDATE of pid/sorting              |
  * | `ondelete` | `$dc, $undoId`                   | after the tl_undo row, before the DELETE     |
+ * | `onundo`   | `$table, $row, $dc` (dc = tl_undo) | per row after its INSERT, in the transaction (v1.8.1) |
  *
  * **A session is always there.** Callbacks reach for it — `tl_page::scheduleUpdate`
  * writes to it on every save, cut and delete of a page, and the console has none, so

@@ -2,6 +2,8 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Service;
 
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\VirtualFields;
+
 /**
  * Fields whose value no read command hands out: Contao's own rule for the back end's
  * detail view (`DC_Table::show()`, 5.3 to 6.0) — `inputType => 'password'`,
@@ -69,14 +71,52 @@ final class SensitiveFields
      */
     public static function mask(array $row, array $fields): array
     {
-        $sensitive = array_map('strtolower', self::of($fields));
+        return self::maskColumns($row, self::of($fields));
+    }
+
+    /**
+     * The sensitive columns of a table as stored: its sensitive fields, and the JSON
+     * column a sensitive virtual field lives in (Contao 5.7/6.0). A reader that does not
+     * expand virtual fields — `record list` — would otherwise hand out the column whole,
+     * the secret inside it (Fable review before v1.8.1; Consho keeps bank data so).
+     *
+     * @return list<string>
+     */
+    public static function columns(string $table): array
+    {
+        $fields = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
+
+        if (!\is_array($fields)) {
+            return [];
+        }
+
+        $names = self::of($fields);
+
+        foreach (VirtualFields::map($table) as $virtual => $target) {
+            if (\is_array($fields[$virtual] ?? null) && self::isSensitive($fields[$virtual])) {
+                $names[] = $target;
+            }
+        }
+
+        return array_values(array_unique($names));
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @param list<string>         $columns
+     *
+     * @return array<string, mixed>
+     */
+    public static function maskColumns(array $row, array $columns): array
+    {
+        $sensitive = array_map('strtolower', $columns);
 
         if ([] === $sensitive) {
             return $row;
         }
 
         foreach ($row as $key => $value) {
-            if (\in_array(strtolower((string) $key), $sensitive, true) && null !== $value && '' !== $value) {
+            if (\in_array(strtolower((string) $key), $sensitive, true) && null !== $value && '' !== $value && [] !== $value) {
                 $row[$key] = self::MASK;
             }
         }

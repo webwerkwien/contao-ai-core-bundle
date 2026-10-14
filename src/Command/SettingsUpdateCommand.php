@@ -8,6 +8,7 @@ use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\CoreBundle\Monolog\ContaoContext;
 use Contao\StringUtil;
 use Contao\System;
+use Webwerkwien\ContaoAiCoreBundle\Service\SensitiveFields;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 
@@ -119,6 +120,8 @@ class SettingsUpdateCommand extends AbstractWriteCommand
                 'from' => $this->loggable($previous),
                 'to'   => $this->loggable($value),
             ];
+
+            $changed[$field] = self::maskedChange($GLOBALS['TL_DCA']['tl_settings']['fields'][$field] ?? null, $changed[$field]);
         }
 
         if ([] === $changed) {
@@ -172,6 +175,26 @@ class SettingsUpdateCommand extends AbstractWriteCommand
         }
 
         return (string) $previous === (string) $value;
+    }
+
+    /**
+     * A change answered and logged masked, as `settings read` shows the field (v1.8.1):
+     * the old value of a key would otherwise come back through the write (Fable review).
+     *
+     * @param array{from: string, to: string} $change
+     *
+     * @return array{from: string, to: string}
+     */
+    private static function maskedChange(mixed $definition, array $change): array
+    {
+        if (!\is_array($definition) || !SensitiveFields::isSensitive($definition)) {
+            return $change;
+        }
+
+        return [
+            'from' => '' === $change['from'] ? '' : SensitiveFields::MASK,
+            'to'   => '' === $change['to'] ? '' : SensitiveFields::MASK,
+        ];
     }
 
     private function loggable(mixed $value): string

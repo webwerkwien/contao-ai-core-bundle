@@ -36,7 +36,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\CommandLineRedactor;
  *
  * A refusal by a command with an #[AiContract] is logged as a warning, not CRITICAL
  * (v1.7.2, see isRefusal()), and since v1.8.1 with the command and its option names only,
- * no values (see shape()).
+ * no values (see shape()) — as is the debug line of every failed exit.
  */
 class RedactingConsoleErrorListener extends ErrorListener
 {
@@ -71,7 +71,6 @@ class RedactingConsoleErrorListener extends ErrorListener
             // The command and its option names, no values (v1.8.1): a refused line carries
             // whatever the caller typed — names, addresses, texts — and a refusal is the
             // caller's mistake, not a defect anyone needs to replay from the log (Consho).
-            $this->refused = true;
             $this->redactingLogger->warning('Command "{command}" refused its input. Message: "{message}"', ['exception' => $error, 'command' => self::shape($event, $inputString), 'message' => $message]);
 
             return;
@@ -93,17 +92,11 @@ class RedactingConsoleErrorListener extends ErrorListener
      */
     private static function isRefusal(ConsoleErrorEvent $event): bool
     {
-        $command = $event->getCommand();
-
-        if (null === $command || \InvalidArgumentException::class !== $event->getError()::class) {
+        if (\InvalidArgumentException::class !== $event->getError()::class) {
             return false;
         }
 
-        try {
-            return null !== ContractReader::read($command instanceof LazyCommand ? $command->getCommand()::class : $command::class);
-        } catch (\Throwable) {
-            return false;
-        }
+        return self::hasContract($event->getCommand());
     }
 
     public function onConsoleTerminate(ConsoleTerminateEvent $event): void
@@ -124,16 +117,28 @@ class RedactingConsoleErrorListener extends ErrorListener
             return;
         }
 
-        // After a refusal the same shape as its warning: Contao's fingers-crossed log
-        // flushes this debug line along with a later error of the same run.
-        $command = $this->refused ? self::shape($event, $inputString) : $inputString;
-        $this->refused = false;
-
-        $this->redactingLogger->debug('Command "{command}" exited with code "{code}"', ['command' => $command, 'code' => $exitCode]);
+        // Names only, for every command (v1.8.1). This bundle's commands answer refusals
+        // and defects alike through JsonErrorBoundary: no console.error fires, and this
+        // line was the only one written — with every value of the line, found in the
+        // Fable review before v1.8.1. Contao's fingers-crossed log flushes it along with
+        // a later error of the same run, and the back-end chat runs many commands in one
+        // request. Where an exception does reach the console, the CRITICAL entry of
+        // onConsoleError keeps the redacted line; the caller has its own line anyway.
+        $this->redactingLogger->debug('Command "{command}" exited with code "{code}"', ['command' => self::shape($event, $inputString), 'code' => $exitCode]);
     }
 
-    /** Set by a refusal, read by the terminate event of the same command. */
-    private bool $refused = false;
+    private static function hasContract(?Command $command): bool
+    {
+        if (null === $command) {
+            return false;
+        }
+
+        try {
+            return null !== ContractReader::read($command instanceof LazyCommand ? $command->getCommand()::class : $command::class);
+        } catch (\Throwable) {
+            return false;
+        }
+    }
 
     /**
      * The command name and the names of the options on its line, without any value.
