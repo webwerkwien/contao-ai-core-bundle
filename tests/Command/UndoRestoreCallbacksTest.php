@@ -103,4 +103,24 @@ class UndoRestoreCallbacksTest extends TestCase
         $this->assertStringContainsString('Preis fehlt.', $answer['message']);
         $this->assertNotContains('delete tl_undo', $log, 'the entry stays replayable');
     }
+
+    /**
+     * A TypeError in a callback is a defect, not a refusal: rolled back as well, marked
+     * with `exception`, and its own class named in the message (second Fable review).
+     */
+    public function testADefectInACallbackRollsBackAndIsMarkedAsOne(): void
+    {
+        $this->skipWithoutContaoContainer();
+
+        $log    = [];
+        $tester = new CommandTester($this->command($log, new \TypeError('Argument #3 ($dc) must be of type DataContainer')));
+        $tester->execute(['id' => '392']);
+        $answer = json_decode($tester->getDisplay(), true);
+
+        $this->assertSame('error', $answer['status']);
+        $this->assertArrayHasKey('exception', $answer);
+        $this->assertStringContainsString('rolled back', $answer['message']);
+        $this->assertStringContainsString('TypeError: Argument #3', $answer['message']);
+        $this->assertNotContains('delete tl_undo', $log);
+    }
 }

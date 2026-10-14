@@ -98,8 +98,9 @@ class RecordListCommand extends AbstractReadCommand
 
         // Shown masked, and never a filter or sort key: `--filter ai_api_key=sk-…`
         // would answer whether a guessed key is right (v1.8.1, see SensitiveFields).
-        // With the JSON column of a sensitive virtual field: this command does not
-        // expand them, and would hand out the secret inside (Fable review).
+        // With the JSON column of a sensitive virtual field: an equality filter on it
+        // would confirm a guessed secret as well (Fable review). The output masks only
+        // the sensitive keys inside that column, see SensitiveFields::maskTable().
         $this->sensitive = array_map('strtolower', SensitiveFields::columns($table));
 
         try {
@@ -165,9 +166,9 @@ class RecordListCommand extends AbstractReadCommand
         // fix; it is also the only read command that accepts an arbitrary
         // table, which makes it the likeliest to meet an unfamiliar one.
         $rows = array_map(
-            fn (array $row): array => SensitiveFields::maskColumns(
+            fn (array $row): array => SensitiveFields::maskTable(
+                $table,
                 $this->convertStructuredFieldsForRead($table, $this->convertFileTreeFieldsToUuid($table, $row)),
-                $this->sensitive,
             ),
             $rows,
         );

@@ -102,6 +102,62 @@ final class SensitiveFields
     }
 
     /**
+     * $row as stored, masked: sensitive fields by name, and inside the JSON column of a
+     * virtual field only the keys of the sensitive ones — a non-sensitive neighbour in
+     * the same column stays readable (second Fable review before v1.8.1: masking the
+     * whole column hid every field of a Consho payment method in `record list`, the only
+     * read path such a table has). A column that does not decode to an object is masked
+     * whole: what it holds is unknown.
+     *
+     * @param array<string, mixed> $row
+     *
+     * @return array<string, mixed>
+     */
+    public static function maskTable(string $table, array $row): array
+    {
+        $fields = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
+
+        if (!\is_array($fields)) {
+            return $row;
+        }
+
+        $row = self::maskColumns($row, self::of($fields));
+
+        $byTarget = [];
+        foreach (VirtualFields::map($table) as $virtual => $target) {
+            if (\is_array($fields[$virtual] ?? null) && self::isSensitive($fields[$virtual])) {
+                $byTarget[strtolower($target)][] = $virtual;
+            }
+        }
+
+        foreach ($row as $key => $value) {
+            $virtuals = $byTarget[strtolower((string) $key)] ?? null;
+
+            if (null === $virtuals || null === $value || '' === $value) {
+                continue;
+            }
+
+            // A string as stored, or an array where a reader already decoded it.
+            $decoded = \is_array($value) ? $value : (\is_string($value) ? json_decode($value, true) : null);
+
+            if (!\is_array($decoded) || (array_is_list($decoded) && [] !== $decoded)) {
+                $row[$key] = self::MASK;
+                continue;
+            }
+
+            foreach ($virtuals as $virtual) {
+                if (isset($decoded[$virtual]) && '' !== $decoded[$virtual] && [] !== $decoded[$virtual]) {
+                    $decoded[$virtual] = self::MASK;
+                }
+            }
+
+            $row[$key] = \is_array($value) ? $decoded : json_encode($decoded, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+
+        return $row;
+    }
+
+    /**
      * @param array<string, mixed> $row
      * @param list<string>         $columns
      *

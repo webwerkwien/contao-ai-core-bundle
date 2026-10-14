@@ -19,10 +19,12 @@ This file was reconstructed from the git history on 2026-08-13, so entries befor
   `version:read`, every model read command and `settings read`. It comes from the DCA,
   so an extension's field declared that way is covered (the backend bundle's
   `ai_api_key` is). `record list` refuses such a field as `--filter`, `--filter-prefix`
-  or `--order` key: a filter would confirm a guessed key. A virtual field's JSON column
-  (Contao 5.7/6.0) counts as sensitive when one of its virtual fields is, since
-  `record list` reads it unexpanded. `page:tree --fields` refuses sensitive fields, and
-  `settings update` answers and logs a sensitive setting's change masked.
+  or `--order` key: a filter would confirm a guessed key. A sensitive virtual field
+  (Contao 5.7/6.0) is masked inside its JSON column in `record list`, which reads the
+  column unexpanded; a neighbour in the same column stays readable, a column that is no
+  JSON object is masked whole, and the column is refused as filter or sort key.
+  `page:tree --fields` refuses sensitive fields, and `settings update` answers and logs
+  a sensitive setting's change masked.
 
 ### Fixed
 
@@ -39,8 +41,10 @@ This file was reconstructed from the git history on 2026-08-13, so entries befor
   `var/logs` (reported from a Consho session). The warning, and the debug line of every
   failed exit, now name the command and its options only; the message stays. This
   bundle's own commands answer through JsonErrorBoundary, so for them the exit line was
-  the only one written — and carried the whole line. An exception that reaches the
-  console keeps its redacted CRITICAL line. A defect inside an `onundo_callback` is now
+  the only one written — and carried the whole line. The option names come from the
+  command's definition, token by token, so a value like `Hallo --welt` yields no
+  `--welt`. An exception that reaches the console keeps its redacted CRITICAL line; the
+  caller has its own line anyway. A defect inside an `onundo_callback` is now
   marked as one (`exception` in the answer) rather than answered like a refusal.
 
 ## v1.8.0 - 2026-10-14

@@ -208,16 +208,19 @@ class UndoRestoreCommand extends AbstractWriteCommand
         } catch (\Throwable $e) {
             $restored = [];
 
+            $refusal = $e instanceof \InvalidArgumentException || $e instanceof \Doctrine\DBAL\Exception;
             $message = \sprintf(
-                'Restore rolled back, undo entry %d untouched and still replayable: %s',
+                'Restore rolled back, undo entry %d untouched and still replayable: %s%s',
                 $id,
+                // The defect's own class, which the wrapper below would otherwise hide.
+                $refusal ? '' : (new \ReflectionClass($e))->getShortName() . ': ',
                 $this->explainInsertFailure($e, $current),
             );
 
             // A refusal (a callback's InvalidArgumentException, a taken ID) is the
             // caller's to act on; anything else — a TypeError in a callback — goes on to
             // JsonErrorBoundary, which marks it a defect (Fable review before v1.8.1).
-            if (!$e instanceof \InvalidArgumentException && !$e instanceof \Doctrine\DBAL\Exception) {
+            if (!$refusal) {
                 throw new \RuntimeException($message, 0, $e);
             }
 

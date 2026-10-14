@@ -148,9 +148,51 @@ class RedactingConsoleErrorListener extends ErrorListener
      */
     private static function shape(ConsoleEvent $event, string $line): string
     {
-        $name = $event->getCommand()?->getName() ?? (strtok($line, " \t") ?: '');
+        $command = $event->getCommand();
+        $name    = $command?->getName() ?? (strtok($line, " \t") ?: '');
 
-        return trim($name . ' ' . implode(' ', self::optionNames($line)));
+        return trim($name . ' ' . implode(' ', self::givenOptions($event) ?? self::optionNames($line)));
+    }
+
+    /**
+     * The options of the command's definition that stand on the line, asked token by
+     * token (`hasParameterOption`), so a value like `headline=Hallo --welt` yields no
+     * `--welt` (second Fable review: the regex on the quoted line let such fragments of
+     * names and texts through). Null without a command or definition — then the regex.
+     *
+     * @return list<string>|null
+     */
+    private static function givenOptions(ConsoleEvent $event): ?array
+    {
+        $command = $event->getCommand();
+
+        if (null === $command) {
+            return null;
+        }
+
+        try {
+            $definition = ($command instanceof LazyCommand ? $command->getCommand() : $command)->getDefinition();
+            $input      = $event->getInput();
+            $given      = [];
+
+            foreach ($definition->getOptions() as $option) {
+                $names = ['--' . $option->getName()];
+
+                foreach (explode('|', (string) $option->getShortcut()) as $shortcut) {
+                    if ('' !== $shortcut) {
+                        $names[] = '-' . $shortcut;
+                    }
+                }
+
+                if ($input->hasParameterOption($names, true)) {
+                    $given[] = '--' . $option->getName();
+                }
+            }
+
+            return $given;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

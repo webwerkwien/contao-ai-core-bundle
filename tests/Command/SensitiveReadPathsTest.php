@@ -13,6 +13,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\RecordListCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\SettingsReadCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\SettingsUpdateCommand;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\VirtualFields;
+use Webwerkwien\ContaoAiCoreBundle\Service\SensitiveFields;
 
 /**
  * Every read path masks what Contao's detail view hides — run through the commands (v1.8.1).
@@ -89,13 +90,26 @@ class SensitiveReadPathsTest extends TestCase
         $this->assertStringNotContainsString('SECRET', $tester->getDisplay());
     }
 
-    public function testRecordListMasksTheJsonColumnOfASensitiveVirtualField(): void
+    /**
+     * Only the sensitive key inside the JSON column: the holder next to the IBAN stays
+     * readable (second Fable review — masking the whole column hid every field of a
+     * Consho payment method, for which `record list` is the only read path).
+     */
+    public function testRecordListMasksTheSensitiveKeyInsideAVirtualFieldsColumn(): void
     {
         $tester = new CommandTester($this->recordList());
         $tester->execute(['table' => self::TABLE, '--fields' => 'id,jsonData']);
 
-        $this->assertSame('********', json_decode($tester->getDisplay(), true)['results'][0]['jsonData']);
+        $json = json_decode(json_decode($tester->getDisplay(), true)['results'][0]['jsonData'], true);
+        $this->assertSame(['iban' => '********', 'holder' => 'Lewis'], $json);
         $this->assertStringNotContainsString('AT61', $tester->getDisplay());
+    }
+
+    public function testAColumnThatIsNoJsonObjectIsMaskedWhole(): void
+    {
+        $row = SensitiveFields::maskTable(self::TABLE, ['jsonData' => 'not json AT611904300234573201']);
+
+        $this->assertSame('********', $row['jsonData']);
     }
 
     public function testRecordListRefusesAGuessAtAKeyBeforeAnyQuery(): void
@@ -136,15 +150,32 @@ class SensitiveReadPathsTest extends TestCase
         $this->assertStringNotContainsString('key-1234', $tester->getDisplay());
     }
 
+    /**
+     * change() is the only producer of a change entry in the update loop; a real write
+     * needs localconfig.php and a container, so the entry is made here directly.
+     */
     public function testSettingsUpdateAnswersAKeyChangeMasked(): void
     {
-        $masked = (new \ReflectionMethod(SettingsUpdateCommand::class, 'maskedChange'))
-            ->invoke(null, ['inputType' => 'password'], ['from' => 'old-key', 'to' => 'new-key']);
-        $plain = (new \ReflectionMethod(SettingsUpdateCommand::class, 'maskedChange'))
-            ->invoke(null, ['inputType' => 'text'], ['from' => 'a', 'to' => 'b']);
+        $GLOBALS['TL_DCA']['tl_settings']['fields'] = [
+            'probeApiKey' => ['inputType' => 'password'],
+            'adminEmail'  => ['inputType' => 'text'],
+        ];
 
-        $this->assertSame(['from' => '********', 'to' => '********'], $masked);
-        $this->assertSame(['from' => 'a', 'to' => 'b'], $plain);
+        $command = new SettingsUpdateCommand($this->createMock(ContaoFramework::class));
+        $change  = new \ReflectionMethod($command, 'change');
+
+        $this->assertSame(['from' => '********', 'to' => '********'], $change->invoke($command, 'probeApiKey', 'old-key', 'new-key'));
+        $this->assertSame(['from' => '', 'to' => '********'], $change->invoke($command, 'probeApiKey', '', 'new-key'), 'set for the first time');
+        $this->assertSame(['from' => 'a@example.org', 'to' => 'b@example.org'], $change->invoke($command, 'adminEmail', 'a@example.org', 'b@example.org'));
+    }
+
+    public function testTheUpdateLoopBuildsItsEntriesThroughChange(): void
+    {
+        // Rule 24 by the cheapest means: the loop has no second way to fill $changed.
+        $source = (string) file_get_contents(__DIR__ . '/../../src/Command/SettingsUpdateCommand.php');
+
+        $this->assertSame(1, preg_match_all('/\$changed\[\$field\]\s*=/', $source));
+        $this->assertStringContainsString('$changed[$field] = $this->change(', $source);
     }
 
     public function testPageTreeRefusesASensitiveFieldAnExtensionAddsToPages(): void
@@ -154,12 +185,32 @@ class SensitiveReadPathsTest extends TestCase
             'probeSecret' => ['inputType' => 'password', 'sql' => "varchar(255) NOT NULL default ''"],
         ];
 
-        $command = new PageTreeCommand($this->createMock(ContaoFramework::class), $this->createMock(Connection::class));
+        // Through the command: refused as a refusal (JSON, no `exception`), before any query.
+        $connection = $this->createMock(Connection::class);
+        $connection->expects($this->never())->method('createSchemaManager');
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('probeSecret is not shown');
+        $tester = new CommandTester(new PageTreeCommand($this->createMock(ContaoFramework::class), $connection));
+        $tester->execute(['--fields' => 'title,probeSecret']);
+        $answer = json_decode($tester->getDisplay(), true);
 
-        (new \ReflectionMethod($command, 'resolveFields'))->invoke($command, 'title,probeSecret');
+        $this->assertSame('error', $answer['status']);
+        $this->assertStringContainsString('probeSecret is not shown', $answer['message']);
+        $this->assertArrayNotHasKey('exception', $answer, 'a refusal, not a defect');
+    }
+
+    /**
+     * A model read expands virtual fields first and masks them by name: the IBAN goes,
+     * the holder next to it stays (second Fable review — untested until then).
+     */
+    public function testAModelReadMasksASensitiveVirtualFieldByName(): void
+    {
+        $tester = new CommandTester(new ProbeUserReadCommand($this->createMock(ContaoFramework::class)));
+        $tester->execute(['id' => '3']);
+        $row = json_decode($tester->getDisplay(), true);
+
+        $this->assertSame('********', $row['iban']);
+        $this->assertSame('Lewis', $row['holder']);
+        $this->assertArrayNotHasKey('jsonData', $row);
     }
 }
 
@@ -177,7 +228,10 @@ final class ProbeUserModel
             /** @return array<string, mixed> */
             public function row(): array
             {
-                return ['id' => 3, 'username' => 'h.lewis', 'password' => '$2y$13$hash', 'ai_api_key' => 'sk-ant-api03-SECRET'];
+                return [
+                    'id' => 3, 'username' => 'h.lewis', 'password' => '$2y$13$hash', 'ai_api_key' => 'sk-ant-api03-SECRET',
+                    'jsonData' => '{"iban":"AT611904300234573201","holder":"Lewis"}',
+                ];
             }
         };
     }

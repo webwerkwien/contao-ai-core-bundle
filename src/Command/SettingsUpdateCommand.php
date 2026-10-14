@@ -116,12 +116,7 @@ class SettingsUpdateCommand extends AbstractWriteCommand
             Config::persist($field, $value);
             Config::set($field, StringUtil::deserialize($value));
 
-            $changed[$field] = [
-                'from' => $this->loggable($previous),
-                'to'   => $this->loggable($value),
-            ];
-
-            $changed[$field] = self::maskedChange($GLOBALS['TL_DCA']['tl_settings']['fields'][$field] ?? null, $changed[$field]);
+            $changed[$field] = $this->change((string) $field, $previous, $value);
         }
 
         if ([] === $changed) {
@@ -178,15 +173,19 @@ class SettingsUpdateCommand extends AbstractWriteCommand
     }
 
     /**
-     * A change answered and logged masked, as `settings read` shows the field (v1.8.1):
-     * the old value of a key would otherwise come back through the write (Fable review).
-     *
-     * @param array{from: string, to: string} $change
+     * The one place a change entry is made — answered and logged as it is. A sensitive
+     * field comes masked, as `settings read` shows it (v1.8.1): the old value of a key
+     * would otherwise come back through the write (Fable review). One producer, so the
+     * loop cannot build an entry past the mask (second Fable review).
      *
      * @return array{from: string, to: string}
      */
-    private static function maskedChange(mixed $definition, array $change): array
+    private function change(string $field, mixed $previous, mixed $value): array
     {
+        $change = ['from' => $this->loggable($previous), 'to' => $this->loggable($value)];
+
+        $definition = $GLOBALS['TL_DCA']['tl_settings']['fields'][$field] ?? null;
+
         if (!\is_array($definition) || !SensitiveFields::isSensitive($definition)) {
             return $change;
         }

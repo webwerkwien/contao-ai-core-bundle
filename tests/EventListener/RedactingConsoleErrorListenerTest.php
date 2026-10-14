@@ -230,6 +230,20 @@ class RedactingConsoleErrorListenerTest extends TestCase
     }
 
     /**
+     * Second Fable review: the names came from a regex over the quoted line, and a value
+     * like "Hallo --welt" or "Max -Anna Muster" put `--welt -Anna` into the log.
+     */
+    public function testWordsInsideAValueThatLookLikeOptionsStayOut(): void
+    {
+        $this->runConsole(['acme:refuse', '--note', 'Hallo --welt, Max -Anna Muster']);
+
+        $logged = $this->logged();
+        $this->assertStringContainsString('Command "acme:refuse --note" refused its input', $logged);
+        $this->assertStringNotContainsString('welt', $logged);
+        $this->assertStringNotContainsString('Anna', $logged);
+    }
+
+    /**
      * Fable review before v1.8.1: this bundle's commands answer a refusal through
      * JsonErrorBoundary, so no console.error fires — and the debug exit line, the only
      * one written, still carried every value. Measured with a real application.
