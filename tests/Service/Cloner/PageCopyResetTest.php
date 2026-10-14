@@ -92,19 +92,65 @@ class PageCopyResetTest extends TestCase
      * The reset runs for every cloned page and before the operator's modifications, so
      * `{"published": "1"}` or `{"fallback": "1"}` on the root still wins. Without the
      * DCA loaded the reset would find no definition and skip all four in silence.
+     * Read without comments, so a comment naming the call does not pass for it.
      */
     public function testTheClonerResetsBeforeTheModificationsWithTheDcaLoaded(): void
     {
-        $source = (string) file_get_contents(__DIR__ . '/../../../src/Service/Cloner/PageCloner.php');
+        $code = self::codeOf(__DIR__ . '/../../../src/Service/Cloner/PageCloner.php');
 
-        $load      = strpos($source, "Controller::loadDataContainer('tl_page')");
-        $reset     = strpos($source, 'PageCopyReset::values($sourceRow');
-        $modifying = strpos($source, 'foreach ($modifications as $key => $value)');
+        $load      = strpos($code, "Controller::loadDataContainer('tl_page')");
+        $reset     = strpos($code, 'PageCopyReset::values($sourceRow');
+        $modifying = strpos($code, 'foreach ($modifications as $key => $value)');
 
         $this->assertNotFalse($load);
         $this->assertNotFalse($reset);
         $this->assertNotFalse($modifying);
         $this->assertLessThan($reset, $load);
         $this->assertLessThan($modifying, $reset);
+    }
+
+    /**
+     * The definitions in dca() are written down by hand (rule 25). This pins them to
+     * Contao's own file: the four fields carry `doNotCopy` and the SQL types above.
+     */
+    public function testContaosDcaMarksTheFourFieldsAsDoNotCopy(): void
+    {
+        $file = __DIR__ . '/../../../vendor/contao/core-bundle/contao/dca/tl_page.php';
+
+        if (!is_file($file)) {
+            $this->markTestSkipped('contao/core-bundle is not installed.');
+        }
+
+        $dca = (string) file_get_contents($file);
+
+        foreach (PageCopyReset::FIELDS as $field) {
+            $pattern = '/\n\t\t\'' . $field . '\' => array\s*\((.*?)\n\t\t\)/s';
+            $this->assertSame(1, preg_match($pattern, $dca, $m), "{$field} not found in tl_page.php");
+            $this->assertStringContainsString("'doNotCopy'=>true", $m[1], "{$field} no longer carries doNotCopy");
+
+            $expected = $this->dca()[$field]['sql'];
+            $this->assertStringContainsString(
+                \is_array($expected) ? "'type' => 'boolean'" : "'sql'                     => \"{$expected}\"",
+                $m[1],
+                "{$field}: the SQL definition in dca() differs from Contao's",
+            );
+        }
+    }
+
+    public static function codeOf(string $file): string
+    {
+        $code = '';
+
+        foreach (token_get_all((string) file_get_contents($file)) as $token) {
+            if (\is_array($token)) {
+                $code .= \in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true) ? '' : $token[1];
+                continue;
+            }
+            $code .= $token;
+        }
+
+        self::assertGreaterThan(500, \strlen($code), "{$file} read as almost nothing");
+
+        return $code;
     }
 }

@@ -6,6 +6,7 @@ use Contao\CoreBundle\Framework\ContaoFramework;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
 use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageUrlGuard;
+use Webwerkwien\ContaoAiCoreBundle\Tests\Service\Cloner\PageCopyResetTest;
 
 /**
  * A page write may not produce a URL Contao's back end refuses.
@@ -147,11 +148,25 @@ class PageUrlGuardTest extends TestCase
         $this->guard($connection)->assertSingleFallback(150);
     }
 
+    /**
+     * Inside the transaction, so a refusal rolls the clone back: after the clone and
+     * before the closure returns its answer.
+     */
     public function testTheClonerChecksTheMainLanguageBeforeTheCommit(): void
     {
-        $source = (string) file_get_contents(__DIR__ . '/../../../src/Service/Cloner/PageCloner.php');
+        $code = PageCopyResetTest::codeOf(__DIR__ . '/../../../src/Service/Cloner/PageCloner.php');
 
-        $this->assertStringContainsString('$this->pageUrlGuard->assertSingleFallback($newRootId);', $source);
+        $transaction = strpos($code, '$this->connection->transactional(');
+        $clone       = strpos($code, '$newRootId = $this->doClone(');
+        $check       = strpos($code, '$this->pageUrlGuard->assertSingleFallback($newRootId);');
+        $answer      = strpos($code, "'ignored_modifications' => \$ignoredMods");
+
+        $this->assertNotFalse($transaction);
+        $this->assertNotFalse($check);
+        $this->assertNotFalse($answer);
+        $this->assertLessThan($clone, $transaction);
+        $this->assertLessThan($check, $clone);
+        $this->assertLessThan($answer, $check);
     }
 
     public function testARegularPageIsNotCounted(): void
