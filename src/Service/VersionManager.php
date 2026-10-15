@@ -7,6 +7,7 @@ use Contao\Versions;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Webwerkwien\ContaoAiCoreBundle\Command\MissingBundleHint;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\TableName;
 
 /**
  * Versions of records, written and restored by Contao's own `Versions` class.
@@ -88,7 +89,7 @@ class VersionManager
      */
     public function refusal(string $table): ?string
     {
-        if (!preg_match('/^[a-z0-9_]+$/i', $table)) {
+        if (!TableName::isValid($table)) {
             return "Invalid table name: {$table}";
         }
 

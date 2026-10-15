@@ -61,7 +61,7 @@ All commands output JSON and follow a consistent `{"status":"ok", ...}` / `{"sta
 
 ### Macro commands
 
-- `contao:record:list <table>` — table-agnostic listing with Doctrine-parameterised filters, DCA-validated ORDER BY, pagination, curated default columns per table.
+- `contao:record:list <table>` — table-agnostic listing with Doctrine-parameterised filters, DCA-validated ORDER BY, pagination, curated default columns per table. Any table with a DCA, also one without `tl_` (since v1.9.2; Catalog Manager catalogs never have it). An extension that builds its DCA only in a web request — both Catalog Managers do — shows the console less or nothing.
 - `contao:theme:export <id>` / `contao:theme:import <file> [--confirm]` — the theme manager's .cto export and import on the console, Contao's own code; the import previews without `--confirm` and reads only from `system/tmp` (since v1.9.0).
 - `contao:example-website:import <file> --mode=full|data|data_no_truncate [--admins=both|existing] [--confirm]` — an example website as the theme manager imports it, after an automatic database backup; administrators kept by choice (since v1.9.0).
 - `contao:listing:data <id> [--limit] [--offset]` — the rows a listing module shows, as JSON: the module's own table, fields, condition and sort, run server-side; sensitive fields masked (since v1.9.0).

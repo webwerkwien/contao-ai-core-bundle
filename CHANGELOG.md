@@ -4,6 +4,32 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.9.2 - 2026-10-15
+
+Works with the same backend-bundle and contao-ai-cli. Found trying the Catalog Manager (`alnv/catalog-manager` and `alnv/catalog-manager-bundle`) on c5 for an operator who asked how to drive it with an agent.
+
+### Fixed
+
+- **`undo restore` lost an entry it could not restore.** A payload key that failed the
+  table name check was skipped, and the restore then deleted the entry anyway: `ok`, nothing
+  back, the only copy gone. The check also demanded `tl_`, so every entry deleted in the
+  back end from a Catalog Manager catalog met exactly that. Such a key is now refused and
+  the entry stays replayable; a catalog entry is restored.
+- **`record list` reached no table without `tl_`.** The Catalog Manager refuses the prefix
+  for its catalogs (*"tl_" prefix is not allowed*), so every catalog was an "Invalid table
+  name". The name check is a name check now — letters, digits, underscore, at most 64 —
+  and the DCA decides whether it is a Contao table, as `version` already did. The same in
+  `undo read` (taken IDs) and `user-group options --table`. One class, `Service\Dca\TableName`,
+  instead of five patterns.
+
+### Known
+
+- **Both Catalog Managers build a catalog's DCA only in a web request.** On the console,
+  `alnv/catalog-manager-bundle` (v4) gives none — `DCA not found` — and `alnv/catalog-manager`
+  (v2) gives only the catalog's own fields, without `title`, `alias` and the visibility
+  fields. So `record list` and `schema` report what the extension shows the console, not what
+  the back end sees. Loading such a DCA in a back-end scope is a design question of its own.
+
 ## v1.9.1 - 2026-10-15
 
 Works with the same backend-bundle and contao-ai-cli. Found by an agent that made the Contao demo bilingual from the contao-ai-cli guide alone (showcase.conpai.eu).

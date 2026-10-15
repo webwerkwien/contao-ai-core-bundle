@@ -9,6 +9,7 @@ use Contao\System;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\TableName;
 
 /**
  * Which values the permission fields of `tl_user_group` accept.
@@ -88,7 +89,7 @@ class UserGroupOptionsCommand extends AbstractReadCommand
 
     private function outputForTable(string $table): int
     {
-        if (!preg_match('/^tl_[a-z0-9_]+$/', $table)) {
+        if (!TableName::isValid($table)) {
             return $this->outputError(\sprintf('Not a table name: %s', $table));
         }
 

@@ -8,6 +8,7 @@ use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\TableName;
 
 /**
  * What a `tl_undo` entry would put back.
@@ -146,7 +147,7 @@ class UndoReadCommand extends AbstractReadCommand
      */
     private function takenIds(string $table, array $ids): array
     {
-        if ([] === $ids || !preg_match('/^tl_[a-z0-9_]+$/', $table)) {
+        if ([] === $ids || !TableName::isValid($table)) {
             return [];
         }
 

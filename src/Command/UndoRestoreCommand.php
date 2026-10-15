@@ -11,6 +11,7 @@ use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\TableName;
 
 /**
  * Put a deleted record back, the way the back end's "Restore" module does.
@@ -127,7 +128,17 @@ class UndoRestoreCommand extends AbstractWriteCommand
         $pending   = [];
 
         foreach ($data as $table => $rows) {
-            if (!\is_array($rows) || !preg_match('/^tl_[a-z0-9_]+$/', (string) $table)) {
+            if (!\is_array($rows)) {
+                continue;
+            }
+
+            // 🔴 Refused, not skipped (v1.9.2). Until then a key that failed the check
+            // was passed over, and the transaction below deleted the entry anyway: an
+            // `ok` with nothing restored, and the only copy gone. The check also
+            // demanded `tl_`, so a deleted Catalog Manager entry (its tables never have
+            // the prefix) met exactly that — found on c5, 2026-10-15.
+            if (!TableName::isValid((string) $table)) {
+                $failed[(string) $table] = 'not a table name';
                 continue;
             }
 

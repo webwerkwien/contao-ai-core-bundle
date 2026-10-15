@@ -94,6 +94,7 @@ class VersionManagerTest extends TestCase
             'SQL in the name'      => ['tl_user; DROP TABLE tl_user', true, 'Invalid table name'],
             'a schema-qualified'   => ['information_schema.tables', true, 'Invalid table name'],
             'empty'                => ['', true, 'Invalid table name'],
+            'longer than MySQL'    => [str_repeat('a', 65), true, 'Invalid table name'],
             'no DCA'               => ['tl_unknown_table', true, 'has no DCA'],
             'versioning off'       => ['tl_search', true, 'enableVersioning is off'],
             'DCA without a table'  => ['tl_consho_product', false, 'no database table'],

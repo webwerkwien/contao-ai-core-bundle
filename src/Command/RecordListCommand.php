@@ -10,6 +10,7 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\TableName;
 use Webwerkwien\ContaoAiCoreBundle\Service\SensitiveFields;
 
 #[AsCommand(name: 'contao:record:list', description: 'List records from a Contao table with filter, order and pagination')]
@@ -186,9 +187,10 @@ class RecordListCommand extends AbstractReadCommand
         return Command::SUCCESS;
     }
 
+    /** A name, not a `tl_` prefix: Catalog Manager tables never have one (v1.9.2, see TableName). */
     private function isValidTableName(string $table): bool
     {
-        return 1 === preg_match('/^tl_[a-z0-9_]{1,60}$/i', $table);
+        return TableName::isValid($table);
     }
 
     /**

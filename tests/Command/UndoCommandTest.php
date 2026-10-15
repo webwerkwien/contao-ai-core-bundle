@@ -141,20 +141,44 @@ class UndoCommandTest extends TestCase
 
     /**
      * The payload keys are table names taken straight from stored data. Anything
-     * that is not a `tl_*` identifier never reaches a query.
+     * that is not an identifier never reaches a query — and the entry stays.
+     *
+     * 🔴 Until v1.9.2 such a key was skipped and the restore answered `ok` while
+     * deleting the entry: nothing restored, the only copy gone. This test asserted
+     * that `ok`. With the old `tl_` check it hit every deleted Catalog Manager entry,
+     * whose tables never have the prefix (c5, 2026-10-15).
      */
-    public function testAPayloadKeyThatIsNotATableNameIsSkipped(): void
+    public function testAPayloadKeyThatIsNotATableNameIsRefusedAndTheEntryKept(): void
     {
         $connection = $this->connection();
         $connection->method('fetchAssociative')->willReturn([
             'id' => 5, 'query' => '', 'data' => serialize(['DROP TABLE x' => [['id' => 1]]]),
         ]);
         $connection->expects($this->never())->method('insert');
+        $connection->expects($this->never())->method('delete');
 
         $out = $this->runCommand($this->restorer($connection), ['id' => '5']);
 
-        $this->assertSame('ok', $out['status'], 'Nothing usable, but nothing dangerous either.');
-        $this->assertSame(0, $out['rowsTotal']);
+        $this->assertSame('error', $out['status']);
+        $this->assertStringContainsString('not a table name', $out['message']);
+        $this->assertStringContainsString('still replayable', $out['message']);
+    }
+
+    /**
+     * A table without `tl_` is read like any other (v1.9.2) — the check that an ID
+     * is taken again used to give up on it silently.
+     */
+    public function testReadChecksTakenIdsOfATableWithoutTheTlPrefix(): void
+    {
+        $connection = $this->connection();
+        $connection->method('fetchAssociative')->willReturn([
+            'id' => 7, 'query' => '', 'data' => serialize(['ai_produkte' => [['id' => 3, 'title' => 'Stuhl']]]),
+        ]);
+        $connection->method('fetchFirstColumn')->willReturn([3]);
+
+        $out = $this->runCommand($this->reader($connection), ['id' => '7']);
+
+        $this->assertSame([3], $out['tables']['ai_produkte']['idsTaken']);
     }
 
     // --- reading the payload ---

@@ -96,9 +96,25 @@ class RecordListErrorPathTest extends TestCase
      */
     public function testAnInvalidTableNameIsRejectedBeforeAnythingIsLoaded(): void
     {
-        $out = $this->runCommand(['table' => 'not_a_contao_table']);
+        $out = $this->runCommand(['table' => 'tl_page; DROP TABLE tl_page']);
 
         $this->assertSame('error', $out['status']);
-        $this->assertStringContainsString('not_a_contao_table', $out['message']);
+        $this->assertStringContainsString('Invalid table name', $out['message']);
+    }
+
+    /**
+     * A table without `tl_` is a name like any other (v1.9.2): the Catalog Manager
+     * refuses the prefix for its catalogs, and the name check used to turn every one
+     * of them away. Whether it is a Contao table is the DCA's to say.
+     */
+    public function testATableWithoutTheTlPrefixGetsPastTheNameCheck(): void
+    {
+        $this->skipWithoutContaoContainer();
+
+        $out = $this->runCommand(['table' => 'ai_no_such_catalog']);
+
+        $this->assertSame('error', $out['status']);
+        $this->assertStringNotContainsString('Invalid table name', $out['message']);
+        $this->assertStringContainsString('DCA not found', $out['message']);
     }
 }

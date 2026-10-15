@@ -83,6 +83,12 @@ touching the implementation. Do not edit test files while making the fix.
   than `return 0`.
 - A write goes through Contao's record writer, never through raw SQL — that is
   what produces the `tl_version` entry the whole bundle exists for.
+- **A table name is checked with `Service\Dca\TableName::isValid()`, never against
+  `tl_`** (v1.9.2). Extensions name their tables as they like — the Catalog Manager
+  refuses `tl_` for its catalogs — and whether a name is a Contao table is the DCA's to
+  say. A `tl_` pattern made every catalog unreachable for `record list` and made
+  `undo restore` delete entries it had skipped. Theme archives are the one place that
+  still asks for `tl_`: they hold Contao's own theme tables only.
 - Log labels are bilingual: `contao/languages/de/tl_log.xlf` and `en/`, same ids
   in both. Console output is English — it addresses agents and developers, not
   editors. (Where exactly that boundary runs has not been decided; ask before
