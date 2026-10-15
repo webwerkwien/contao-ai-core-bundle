@@ -65,7 +65,18 @@ class ExampleWebsiteImportCommand extends Command
             }
 
             $admins = $input->getOption('admins');
-            $result = $this->exampleWebsite->import($file, $mode, \is_string($admins) ? $admins : null, $entry);
+            try {
+                $result = $this->exampleWebsite->import($file, $mode, \is_string($admins) ? $admins : null, $entry);
+            } catch (\RuntimeException $e) {
+                // A failure after the backup changed the database: it belongs in the log too.
+                $this->systemLog?->write(
+                    \sprintf('%s failed: %s', $this->getName(), $e->getMessage()),
+                    (string) $this->getName(),
+                    $this->resolveOperatorName($input),
+                );
+
+                throw $e;
+            }
 
             $this->systemLog?->write(
                 \sprintf('%s %s', $this->getName(), $this->json(['file' => basename($file), 'mode' => $mode, 'backup' => $result['backup'], 'admins' => $result['admins']])),

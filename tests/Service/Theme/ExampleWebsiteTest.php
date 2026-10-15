@@ -28,6 +28,9 @@ class ExampleWebsiteTest extends TestCase
     /** @var list<string> */
     private array $log = [];
 
+    /** tl_user dropped and not recreated: every lookup on it fails. */
+    private bool $tableGone = false;
+
     protected function setUp(): void
     {
         $this->dir = sys_get_temp_dir() . '/contao-ai-example-' . bin2hex(random_bytes(4));
@@ -75,9 +78,12 @@ class ExampleWebsiteTest extends TestCase
         $connection->method('createSchemaManager')->willReturn($schema);
         $connection->method('quoteIdentifier')->willReturnCallback(static fn (string $n): string => '`' . $n . '`');
         $connection->method('fetchAllAssociative')->willReturnCallback(
-            fn (): array => array_values(array_filter($this->users, static fn (array $u): bool => 1 === (int) $u['admin'] && 'contao-ai' !== $u['username'])),
+            fn (): array => $this->tableGone ? throw new \RuntimeException('Base table tl_user not found') : array_values(array_filter($this->users, static fn (array $u): bool => 1 === (int) $u['admin'] && 'contao-ai' !== $u['username'])),
         );
         $connection->method('fetchAssociative')->willReturnCallback(function (string $sql, array $params): array|false {
+            if ($this->tableGone) {
+                throw new \RuntimeException('Base table tl_user not found');
+            }
             foreach ($this->users as $user) {
                 if ($user['username'] === $params[0]) {
                     return $user;
@@ -235,6 +241,28 @@ class ExampleWebsiteTest extends TestCase
             self::assertStringContainsString('Unknown column foo', $e->getMessage());
         }
         self::assertSame(['contao-ai', 'michael'], $this->usernames());
+    }
+
+    /**
+     * Second review: a `full` import that dropped tl_user and stopped before recreating it
+     * makes the putting back fail too — the backup's name must still be in the error.
+     */
+    public function testWhenThePuttingBackFailsTooTheBackupIsStillNamed(): void
+    {
+        $service = $this->service(function (): array {
+            $this->tableGone = true;
+
+            throw new \RuntimeException('Syntax error near CREATE');
+        });
+
+        try {
+            $service->import('system/tmp/demo.sql', 'full', 'existing');
+            self::fail('expected the failure');
+        } catch (\RuntimeException $e) {
+            self::assertStringContainsString('backup__20261015090000.sql.gz', $e->getMessage());
+            self::assertStringContainsString('could NOT be put back', $e->getMessage());
+            self::assertStringContainsString('Syntax error near CREATE', $e->getMessage());
+        }
     }
 
     /** A row the import did not touch is not deleted and inserted again. */

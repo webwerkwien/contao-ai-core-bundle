@@ -39,6 +39,12 @@ class ExampleWebsite
 
     public const ADMIN_POLICIES = ['both', 'existing'];
 
+    /**
+     * An example website extracted from an archive lands next to it as <archive>-example.sql;
+     * contao-ai-cli removes it by that name (theme_archive.Upload._cleanup).
+     */
+    public const EXTRACTED_SUFFIX = '-example.sql';
+
     public function __construct(
         private readonly ContaoFramework $framework,
         private readonly Connection $connection,
@@ -126,22 +132,34 @@ class ExampleWebsite
             });
         } catch (\Throwable $e) {
             $failure = $e;
-        } finally {
-            // Also after a statement failed half-way: by then `data` has emptied tl_user,
-            // and Contao's own fallback puts back only contao-ai, who cannot log in (review
-            // before v1.9.0). Without the admins and without the backup's name the site
-            // would be locked and the way back unnamed — exactly when it is needed.
+        }
+
+        // Also after a statement failed half-way: by then `data` has emptied tl_user, and
+        // Contao's own fallback puts back only contao-ai, who cannot log in (review before
+        // v1.9.0). And the putting back can fail itself — a `full` import that dropped
+        // tl_user and stopped before recreating it — which must not hide the cause or the
+        // backup's name (second review).
+        $admins = ['kept' => [], 'removed' => [], 'imported' => [], 'renumbered' => []];
+        $restoreFailure = null;
+        try {
             $admins = $this->settleAdmins($kept, $preview['needs_admin_decision'] ? (string) $adminPolicy : 'both');
             if (null !== $cliUser) {
                 $this->putBack($cliUser);
             }
+        } catch (\Throwable $e) {
+            $restoreFailure = $e;
         }
 
-        if (null !== $failure) {
+        if (null !== $failure || null !== $restoreFailure) {
             throw new \RuntimeException(\sprintf(
-                'The import failed after the backup %s was made; the database is half imported. The administrators were put back. Restore with `contao:backup:restore %s` before the next backup is made. Cause: %s',
-                $backup, $backup, $failure->getMessage(),
-            ), 0, $failure);
+                'The import failed after the backup %s was made; the database is half imported. %s Restore with `contao:backup:restore %s` before the next backup is made. Cause: %s',
+                $backup,
+                null === $restoreFailure
+                    ? 'The administrators were put back.'
+                    : 'The administrators could NOT be put back (' . $restoreFailure->getMessage() . ') — restore the backup now.',
+                $backup,
+                ($failure ?? $restoreFailure)->getMessage(),
+            ), 0, $failure ?? $restoreFailure);
         }
 
         return [
@@ -326,7 +344,7 @@ class ExampleWebsite
         }
 
         // Named after the archive, so whoever uploaded it can remove it by name.
-        $target = Path::join($tmp, pathinfo($absolute, PATHINFO_FILENAME) . '-example.sql');
+        $target = Path::join($tmp, pathinfo($absolute, PATHINFO_FILENAME) . self::EXTRACTED_SUFFIX);
         file_put_contents($target, $found[$name]);
 
         return $target;
