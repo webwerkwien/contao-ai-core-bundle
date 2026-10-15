@@ -53,7 +53,7 @@ class ExampleWebsite
     /**
      * What an import would do.
      *
-     * @return array{file: string, mode: string, statements: int, tables: list<string>, truncates: int, user_rows: int, existing_admins: list<string>, needs_admin_decision: bool}
+     * @return array{file: string, mode: string, statements: int, tables: list<string>, truncates: int, user_rows: int, existing_admins: list<string>, needs_admin_decision: bool, warnings: list<string>}
      */
     public function analyse(string $path, string $mode, ?string $entry = null): array
     {
@@ -87,11 +87,12 @@ class ExampleWebsite
             'user_rows'            => $userRows,
             'existing_admins'      => array_map('strval', $admins),
             'needs_admin_decision' => [] !== $admins && $userRows > 0,
+            'warnings'             => $this->warnings($sql, $mode),
         ];
     }
 
     /**
-     * @return array{backup: string, backup_note: string, statements: int, admins: array{kept: list<string>, removed: list<string>, imported: list<string>}, messages: list<array{type: string, text: string}>}
+     * @return array{backup: string, backup_note: string, statements: int, admins: array{kept: list<string>, removed: list<string>, imported: list<string>, renumbered: list<string>}, messages: list<array{type: string, text: string}>}
      */
     public function import(string $path, string $mode, ?string $adminPolicy, ?string $entry = null): array
     {
@@ -112,26 +113,42 @@ class ExampleWebsite
         $cliUser = $this->connection->fetchAssociative('SELECT * FROM tl_user WHERE username = ?', [CliUser::USERNAME]) ?: null;
         $relative = $preview['file'];
 
-        $this->dcaCallbacks->inBackEnd(static function () use ($relative, $mode): void {
-            // Contao's own statement runner; private, so called bound to the class.
-            $theme = new Theme();
-            \Closure::bind(
-                fn () => $this->importExampleWebsite($relative, 'data_no_truncate' === $mode, 'full' !== $mode),
-                $theme,
-                Theme::class,
-            )();
-        });
+        $failure = null;
+        try {
+            $this->dcaCallbacks->inBackEnd(static function () use ($relative, $mode): void {
+                // Contao's own statement runner; private, so called bound to the class.
+                $theme = new Theme();
+                \Closure::bind(
+                    fn () => $this->importExampleWebsite($relative, 'data_no_truncate' === $mode, 'full' !== $mode),
+                    $theme,
+                    Theme::class,
+                )();
+            });
+        } catch (\Throwable $e) {
+            $failure = $e;
+        } finally {
+            // Also after a statement failed half-way: by then `data` has emptied tl_user,
+            // and Contao's own fallback puts back only contao-ai, who cannot log in (review
+            // before v1.9.0). Without the admins and without the backup's name the site
+            // would be locked and the way back unnamed — exactly when it is needed.
+            $admins = $this->settleAdmins($kept, $preview['needs_admin_decision'] ? (string) $adminPolicy : 'both');
+            if (null !== $cliUser) {
+                $this->putBack($cliUser);
+            }
+        }
 
-        $admins = $this->settleAdmins($kept, $preview['needs_admin_decision'] ? (string) $adminPolicy : 'both');
-        if (null !== $cliUser) {
-            $this->putBack($cliUser);
+        if (null !== $failure) {
+            throw new \RuntimeException(\sprintf(
+                'The import failed after the backup %s was made; the database is half imported. The administrators were put back. Restore with `contao:backup:restore %s` before the next backup is made. Cause: %s',
+                $backup, $backup, $failure->getMessage(),
+            ), 0, $failure);
         }
 
         return [
             'backup'     => $backup,
-            // Contao's retention (`contao.backup.keep_intervals`) keeps one backup per day
-            // by default: the next backup made the same day removed this one (measured on
-            // c5, 6.0, 2026-10-15, after two imports in a row).
+            // Contao's retention (`contao.backup.keep_intervals` 1D/7D/14D/1M, `keep_max` 5 by
+            // default) thins out backups made close together: the next backup made the same
+            // day removed this one (measured on c5, 6.0, 2026-10-15, two imports in a row).
             'backup_note' => 'This backup is the way back. Contao keeps one backup per interval: the next backup made today (another import, backup create, migrate) can remove it — restore first, or copy it out of var/backups.',
             'statements' => $preview['statements'],
             'admins'     => $admins,
@@ -142,7 +159,7 @@ class ExampleWebsite
     /**
      * @param list<array<string, mixed>> $kept the admin rows from before
      *
-     * @return array{kept: list<string>, removed: list<string>, imported: list<string>}
+     * @return array{kept: list<string>, removed: list<string>, imported: list<string>, renumbered: list<string>}
      */
     private function settleAdmins(array $kept, string $policy): array
     {
@@ -158,27 +175,42 @@ class ExampleWebsite
             $imported = [];
         }
 
-        // On the same username the existing account wins.
+        // On the same username the existing account wins. A row the import did not touch
+        // stays as it is — deleting and re-inserting it would risk the account for nothing
+        // (review before v1.9.0); only a different row under its name is replaced.
+        $renumbered = [];
         foreach ($kept as $row) {
-            $this->connection->delete('tl_user', ['username' => $row['username']]);
-            $this->putBack($row);
+            $now = $this->connection->fetchAssociative('SELECT * FROM tl_user WHERE username = ?', [$row['username']]);
+            if (false !== $now && $now == $row) {
+                continue;
+            }
+            if (false !== $now) {
+                $this->connection->delete('tl_user', ['username' => $row['username']]);
+            }
+            if ($this->putBack($row)) {
+                $renumbered[] = (string) $row['username'];
+            }
         }
 
-        return ['kept' => $keptNames, 'removed' => $removed, 'imported' => array_map('strval', $imported)];
+        return ['kept' => $keptNames, 'removed' => $removed, 'imported' => array_map('strval', $imported), 'renumbered' => $renumbered];
     }
 
     /**
      * @param array<string, mixed> $row
+     *
+     * @return bool whether the account got a new id (its old one belongs to an imported
+     *              user now; authorship references still point at the old id)
      */
-    private function putBack(array $row): void
+    private function putBack(array $row): bool
     {
         if ((int) $this->connection->fetchOne('SELECT COUNT(*) FROM tl_user WHERE username = ?', [$row['username']]) > 0) {
-            return;
+            return false;
         }
 
-        // Its id may belong to an imported user by now: then it gets a new one.
+        $renumbered = false;
         if ((int) $this->connection->fetchOne('SELECT COUNT(*) FROM tl_user WHERE id = ?', [$row['id']]) > 0) {
             unset($row['id']);
+            $renumbered = true;
         }
 
         // Only the columns the table still has: a `full` import may have recreated it.
@@ -190,6 +222,8 @@ class ExampleWebsite
             $data[$this->connection->quoteIdentifier((string) $column)] = $value;
         }
         $this->connection->insert('tl_user', $data);
+
+        return $renumbered;
     }
 
     /**
@@ -218,6 +252,24 @@ class ExampleWebsite
         ));
 
         return 'full' === $mode ? array_map('strval', $lines) : array_values(array_map('strval', preg_grep('/^INSERT /', $lines) ?: []));
+    }
+
+    /**
+     * In `full` Contao runs every line of the file as a statement, empty ones and
+     * comments included; MySQL refuses an empty query, so such a line ends the import
+     * half-way (review before v1.9.0). Said before, not found after.
+     *
+     * @return list<string>
+     */
+    private function warnings(string $sql, string $mode): array
+    {
+        if ('full' !== $mode) {
+            return [];
+        }
+
+        $odd = \count(preg_grep('/^\s*($|--|#|\/\*(?!!))/', (array) file($sql, FILE_IGNORE_NEW_LINES)) ?: []);
+
+        return 0 === $odd ? [] : [\sprintf('%d empty or comment line(s): Contao runs every line in mode full, and an empty statement stops the import half-way. Use mode data, or remove those lines.', $odd)];
     }
 
     /**
@@ -273,7 +325,8 @@ class ExampleWebsite
             throw new \InvalidArgumentException(\sprintf('No %s in the archive; it holds %s.', $name, implode(', ', array_keys($found))));
         }
 
-        $target = Path::join($tmp, 'contao-ai-example-' . basename($name));
+        // Named after the archive, so whoever uploaded it can remove it by name.
+        $target = Path::join($tmp, pathinfo($absolute, PATHINFO_FILENAME) . '-example.sql');
         file_put_contents($target, $found[$name]);
 
         return $target;

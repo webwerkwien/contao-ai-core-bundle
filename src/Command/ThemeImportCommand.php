@@ -67,14 +67,20 @@ class ThemeImportCommand extends Command
                 $this->resolveOperatorName($input),
             );
 
-            $output->writeln($this->json(['status' => [] === $result['theme_ids'] ? 'error' : 'ok'] + $result + [
+            // No new theme: the bundle's error shape, with Contao's own messages as the why.
+            $failed = [] === $result['theme_ids'];
+            $why = implode(' ', array_column($result['messages'], 'text'));
+            $output->writeln($this->json(['status' => $failed ? 'error' : 'ok'] + ($failed ? [
+                'message' => 'Contao imported no theme.' . ('' !== $why ? ' ' . $why : ''),
+                'code'    => 1,
+            ] : []) + $result + [
                 'overwritten' => $preview['overwrites'],
                 'not_imported' => $preview['example_websites'],
                 // Layout slots Contao's import left empty: their theme elements are not in a .cto.
                 'lost_theme_elements' => $preview['lost_theme_elements'],
             ]));
 
-            return [] === $result['theme_ids'] ? Command::FAILURE : Command::SUCCESS;
+            return $failed ? Command::FAILURE : Command::SUCCESS;
         });
     }
 

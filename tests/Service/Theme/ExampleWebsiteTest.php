@@ -175,7 +175,7 @@ class ExampleWebsiteTest extends TestCase
 
         self::assertSame('backup__20261015090000.sql.gz', $result['backup']);
         self::assertSame(['backup', 'statements'], \array_slice($this->log, 0, 2), 'the backup comes first');
-        self::assertSame(['kept' => ['michael'], 'removed' => ['demo'], 'imported' => []], $result['admins']);
+        self::assertSame(['kept' => ['michael'], 'removed' => ['demo'], 'imported' => [], 'renumbered' => []], $result['admins']);
         self::assertSame(['contao-ai', 'michael'], $this->usernames());
         self::assertSame('hash', $this->user('michael')['password'], 'the account comes back as it was');
     }
@@ -184,7 +184,7 @@ class ExampleWebsiteTest extends TestCase
     {
         $result = $this->service(self::truncateAndAddDemo())->import('system/tmp/demo.sql', 'data', 'both');
 
-        self::assertSame(['kept' => ['michael'], 'removed' => [], 'imported' => ['demo']], $result['admins']);
+        self::assertSame(['kept' => ['michael'], 'removed' => [], 'imported' => ['demo'], 'renumbered' => []], $result['admins']);
         self::assertSame(['contao-ai', 'demo', 'michael'], $this->usernames());
     }
 
@@ -211,8 +211,55 @@ class ExampleWebsiteTest extends TestCase
 
         $result = $this->service(self::truncateAndAddDemo())->import('system/tmp/demo.sql', 'data', null);
 
-        self::assertSame(['kept' => [], 'removed' => [], 'imported' => ['demo']], $result['admins']);
+        self::assertSame(['kept' => [], 'removed' => [], 'imported' => ['demo'], 'renumbered' => []], $result['admins']);
         self::assertSame(['contao-ai', 'demo'], $this->usernames(), 'contao-ai is put back');
+    }
+
+    /**
+     * Review before v1.9.0: a statement failing half-way left `data` with an empty tl_user
+     * and no backup name in the answer.
+     */
+    public function testAFailureHalfWayStillPutsTheAdminsBackAndNamesTheBackup(): void
+    {
+        $service = $this->service(function (): array {
+            $this->users = [];
+
+            throw new \RuntimeException('Unknown column foo');
+        });
+
+        try {
+            $service->import('system/tmp/demo.sql', 'data', 'existing');
+            self::fail('expected the failure');
+        } catch (\RuntimeException $e) {
+            self::assertStringContainsString('backup__20261015090000.sql.gz', $e->getMessage());
+            self::assertStringContainsString('Unknown column foo', $e->getMessage());
+        }
+        self::assertSame(['contao-ai', 'michael'], $this->usernames());
+    }
+
+    /** A row the import did not touch is not deleted and inserted again. */
+    public function testAnUntouchedAdminIsLeftAlone(): void
+    {
+        $this->service()->import('system/tmp/demo.sql', 'data_no_truncate', 'both');
+
+        self::assertNotContains('delete michael', $this->log);
+        self::assertNotContains('insert michael', $this->log);
+    }
+
+    public function testARenumberedAccountIsNamed(): void
+    {
+        $result = $this->service(static fn (): array => [1 => ['id' => 1, 'username' => 'demo', 'admin' => 1, 'password' => 'x']])
+            ->import('system/tmp/demo.sql', 'data', 'both');
+
+        self::assertSame(['michael'], $result['admins']['renumbered']);
+    }
+
+    public function testEmptyLinesAreAWarningInModeFull(): void
+    {
+        file_put_contents($this->dir . '/system/tmp/demo.sql', "/*!40101 SET NAMES utf8 */;\n\n-- a comment\nINSERT INTO `tl_page` (`id`) VALUES (1);\n");
+
+        self::assertStringContainsString('2 empty or comment line(s)', $this->service()->analyse('system/tmp/demo.sql', 'full')['warnings'][0]);
+        self::assertSame([], $this->service()->analyse('system/tmp/demo.sql', 'data')['warnings'], 'data runs only the INSERTs');
     }
 
     public function testAFileOutsideSystemTmpIsRefused(): void

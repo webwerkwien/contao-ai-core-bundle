@@ -2,6 +2,7 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Service\Theme;
 
+use Contao\CoreBundle\Exception\AccessDeniedException;
 use Contao\CoreBundle\Exception\RedirectResponseException;
 use Contao\CoreBundle\Exception\ResponseException;
 use Contao\CoreBundle\Framework\ContaoFramework;
@@ -77,9 +78,25 @@ class ThemeArchive
             }
 
             throw new \RuntimeException('Contao answered the export with something other than a file.', 0, $e);
+        } catch (AccessDeniedException $e) {
+            throw self::withoutConsoleUser($e);
         }
 
         throw new \RuntimeException('Contao finished the export without a file.');
+    }
+
+    /**
+     * Contao's theme manager asks for the export/import right; on the console the user
+     * asked is `contao-ai`, an admin. Refused means it is missing — the migration that
+     * creates it has not run (review before v1.9.0: Contao's own message points elsewhere).
+     */
+    private static function withoutConsoleUser(AccessDeniedException $e): \InvalidArgumentException
+    {
+        return new \InvalidArgumentException(
+            $e->getMessage() . ' On the console the theme manager runs as the user "contao-ai", which contao:migrate creates; run it and try again.',
+            0,
+            $e,
+        );
     }
 
     /**

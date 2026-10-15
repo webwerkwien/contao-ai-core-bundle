@@ -43,8 +43,12 @@ Works with the same backend-bundle and contao-ai-cli.
   first, always, and named in the answer — with a warning that Contao's retention can
   remove it on the next backup the same day (measured). When administrators exist and the
   file brings users, the caller decides: `both` keeps them next to the imported ones,
-  `existing` keeps only them; on the same username the existing account wins; the
-  console user `contao-ai` is always put back. Checked on c5 against 6.0.
+  `existing` keeps only them (imported editors stay); on the same username the existing
+  account wins, an account whose id an imported user took is named in `renumbered`; the
+  console user `contao-ai` is always put back — also when a statement fails half-way,
+  and then the error names the backup to restore. In mode `full` the preview warns about
+  empty and comment lines, which Contao runs as statements and which stop the import.
+  Checked on c5 against 6.0.
 - **`contao:listing:data <id>`** answers the rows a listing module shows, as JSON: the
   module's table, fields, condition (`list_where`, insert tags replaced) and sort, run
   server-side as `ModuleListing` runs them; the caller passes only the id and paging.
