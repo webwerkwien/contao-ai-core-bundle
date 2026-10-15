@@ -28,6 +28,23 @@ Works with the same backend-bundle and contao-ai-cli.
   Not bent: insert tags in text fields (`{{insert_module::12}}` in an HTML module or a
   layout's head) — they are text, not references the DCA declares. Checked on c5 against
   Contao 5.3, 5.7 and 6.0.
+- **`contao:theme:export <id>` and `contao:theme:import <file> [--confirm]`** — the theme
+  manager's `.cto` export and import on the console, running Contao's own `Contao\Theme`
+  (so ids, image sizes and file paths are mapped as in the back end). The export lands in
+  `system/tmp` as `<random>.cto`. The import reads only from `system/tmp`, previews without
+  `--confirm` (theme, rows per table, files in `files/`/`templates/` it would overwrite,
+  fields this database lacks, layout slots that will stay empty) and refuses `.sql`.
+  Contao's own limits carry over and are said: a `.cto` holds no theme elements, so layout
+  slots placing them come out empty (`lost_theme_elements`; Contao itself logs a PHP
+  warning there), and an imported theme with a taken name gets a number appended.
+- **`contao:example-website:import <file> --mode=full|data|data_no_truncate [--admins=both|existing] [--confirm]`**
+  — an example website as the theme manager imports it (Contao's own statement runner),
+  from a `.sql` or the one inside a `.cto`. No default mode. A database backup is made
+  first, always, and named in the answer — with a warning that Contao's retention can
+  remove it on the next backup the same day (measured). When administrators exist and the
+  file brings users, the caller decides: `both` keeps them next to the imported ones,
+  `existing` keeps only them; on the same username the existing account wins; the
+  console user `contao-ai` is always put back. Checked on c5 against 6.0.
 - **`contao:listing:data <id>`** answers the rows a listing module shows, as JSON: the
   module's table, fields, condition (`list_where`, insert tags replaced) and sort, run
   server-side as `ModuleListing` runs them; the caller passes only the id and paging.

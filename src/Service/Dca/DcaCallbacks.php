@@ -385,6 +385,23 @@ class DcaCallbacks
     }
 
     /**
+     * Run $work as the back end would: with a session, the back-end scope and a user
+     * (`contao-ai` on the console, see CliUser); Contao's messages land in drainMessages().
+     * For Contao code that is no callback but assumes the same — the theme manager's
+     * import and export (v1.9.0).
+     *
+     * @template T
+     *
+     * @param \Closure(): T $work
+     *
+     * @return T
+     */
+    public function inBackEnd(\Closure $work): mixed
+    {
+        return $this->withSession(static fn (): mixed => $work());
+    }
+
+    /**
      * @param array<string, mixed>                    $row
      * @param \Closure(DataContainer): list<mixed> $arguments
      * @param string|null                             $dcTable the data container's table, when it is not

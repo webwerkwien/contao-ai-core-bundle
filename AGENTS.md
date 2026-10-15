@@ -717,6 +717,15 @@ before the write when `pid` or `ptable` changes, and invalidates them after. Con
   plugin's table is excluded in `services.yaml` and registered in that plugin's services
   file with its own `_instanceof`. Copying people (newsletter recipients) needs an explicit
   option, never a default: consent belongs to the record they agreed to.
+- **Theme import/export and example websites run Contao's own `Contao\Theme`** (v1.9.0,
+  `ThemeArchive`, `ExampleWebsite`), not a rebuild: the id mapping of an import is
+  Contao's to keep right. The class assumes the back end; `DcaCallbacks::inBackEnd()` gives
+  it a session, the back-end scope and `contao-ai`, and its messages land in
+  `drainMessages()`. The export's `sendToBrowser()` is caught as `ResponseException`, the
+  import's closing redirect as `RedirectResponseException`; the private
+  `importExampleWebsite()` is called through a closure bound to `Theme`. If a Contao
+  version renames these, the c5 round trip on all three versions is what notices — the
+  unit tests stand the Contao parts in.
 - **A theme clone bends references into the theme, never out of it** (v1.9.0,
   `ThemeCloner`). Contao has no theme copy (`tl_theme` is `notCopyable`; the first draft of
   this note claimed Contao's copy left the references behind — there is no such copy, only
