@@ -90,9 +90,12 @@ class ListingDataCommandTest extends TestCase
     {
         $GLOBALS['TL_DCA']['tl_member']['fields']['password'] = ['inputType' => 'password'];
 
-        $out = $this->listing(self::module(), [['id' => 1, 'firstname' => 'A', 'lastname' => 'B', 'password' => '$2y$hash']]);
+        $out = $this->listing(self::module(), [
+            ['id' => 1, 'firstname' => 'A', 'lastname' => 'B', 'password' => '$2y$hash'],
+            ['id' => 2, 'firstname' => 'C', 'lastname' => 'D', 'password' => '$2y$other'],
+        ]);
 
-        self::assertSame('********', $out['results'][0]['password']);
+        self::assertSame(['********', '********'], array_column($out['results'], 'password'), 'every row, not the first');
     }
 
     public function testADateSortIsCastAsTheModuleCastsIt(): void

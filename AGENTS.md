@@ -718,13 +718,18 @@ before the write when `pid` or `ptable` changes, and invalidates them after. Con
   file with its own `_instanceof`. Copying people (newsletter recipients) needs an explicit
   option, never a default: consent belongs to the record they agreed to.
 - **A theme clone bends references into the theme, never out of it** (v1.9.0,
-  `ThemeCloner`). Contao's copy leaves them on the old theme, so editing the copy changed
-  the original site. Which fields name a module comes from the DCA (`relation`/`foreignKey`
-  to tl_module) plus the name `…readerModule` — the news bundle's reader field declares
-  neither, a DCA-only rule misses it. Versions and oncopy callbacks run after the bending,
-  so the first version shows the final row. A new kind of reference inside a theme
-  (another bundle's field pointing at modules or image sizes) needs one of those markers
-  or a line in `namesModule()`; otherwise the copy keeps pointing at the original.
+  `ThemeCloner`). Contao has no theme copy (`tl_theme` is `notCopyable`; the first draft of
+  this note claimed Contao's copy left the references behind — there is no such copy, only
+  export/import). A row copy alone would have left them on the old theme, so editing the
+  copy changed the original site. Recognised: `moduleWizard` and `rootPageDependentSelect`
+  values (module id or `content-<id>`), fields naming a module by DCA
+  (`relation`/`foreignKey` to tl_module) or by the name `…readerModule` — the news bundle's
+  reader field declares neither —, fields relating to tl_content (`cteAlias`), and
+  `imageSize` fields. `rootPageDependentModules` and `cteAlias` were missing in the first
+  version and found by the pre-release review: a DCA-marker rule does not see what a field
+  stores. Versions and oncopy callbacks run after the bending, so the first version shows
+  the final row. A new kind of reference inside a theme needs a branch in
+  `bendReferences()`; otherwise the copy keeps pointing at the original.
 
 - **`record:clone` keeps each content element's visibility.** Pages and articles come out
   unpublished; a hidden element stays hidden, a visible one shows once its page and

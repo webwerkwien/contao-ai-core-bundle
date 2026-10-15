@@ -7,17 +7,21 @@ use Contao\StringUtil;
 /**
  * Clones a theme with everything in it, and points the copies at each other (v1.9.0).
  *
- * Contao's own copy takes the theme's modules, layouts, image sizes (with their items)
- * and theme elements (`tl_content` with `ptable = tl_theme`) along — and leaves every
- * reference as it was: the copied layouts still place the modules of the OLD theme, a
- * copied news list still opens the old reader module, a copied module still uses the old
- * image size. Whoever edits the copy then changes the original site without noticing.
+ * Contao does not copy themes: `tl_theme` is `notCopyable` in 5.3, 5.7 and 6.0, and
+ * `DC_Table::copy()` refuses it. The back end's way to a second theme is export and import
+ * (`.cto`). This clone does that step at once — and goes further than a plain row copy
+ * would: a copy of the rows alone would leave the copied layouts placing the modules of
+ * the OLD theme, a copied news list opening the old reader, a copied module using the old
+ * image size, and whoever edited the copy would change the live site. (Until the
+ * pre-release review this docblock said Contao's own copy behaved like that; it has none.)
  *
  * This copy bends the references that point INTO the theme to their copies:
  *
  * - `tl_layout.modules` (moduleWizard): module ids and theme elements (`content-<id>`)
+ * - `tl_module.rootPageDependentModules`: the same references, keyed by website root
  * - fields that name a module: a `relation`/`foreignKey` to tl_module in the DCA, or a
  *   field named `…readerModule` (news, events and FAQ; the news bundle declares neither)
+ * - fields relating to tl_content (`cteAlias`): a theme element aliasing another one
  * - image size fields (`inputType` imageSize) whose size is one of the theme's
  *
  * References that point OUT of the theme stay: pages keep their layouts, articles their
@@ -44,7 +48,7 @@ class ThemeCloner extends AbstractDcaCloner
     }
 
     /**
-     * @return array{id: int, table: string, count: int, children: array<string, int>, remapped: object, not_copied: list<string>, references: list<string>, ignored_modifications: list<string>}
+     * @return array{id: int, table: string, count: int, children: array<string, int>, remapped: object, not_copied: list<string>, references: list<string>, ignored_modifications: list<string>, note: string}
      */
     public function clone(int $sourceId, array $modifications, string $operator, array $options = []): array
     {
@@ -127,6 +131,9 @@ class ThemeCloner extends AbstractDcaCloner
                 'not_copied' => $this->notCopied($source, $clone, 'name'),
                 'references' => $references,
                 'ignored_modifications' => $ignored,
+                'note' => 'Contao itself offers no theme copy in the back end (only export and import). '
+                    . 'This clone does that step: references inside the theme now point at the copies (see remapped); '
+                    . 'references out of it stay, so no page uses the copy until its layouts are assigned.',
             ];
         });
     }
@@ -190,10 +197,14 @@ class ThemeCloner extends AbstractDcaCloner
 
                     $value = $row[$field];
                     $new   = match (true) {
-                        'moduleWizard' === ($definition['inputType'] ?? null) => self::bendModuleWizard($value, $map),
-                        'imageSize' === ($definition['inputType'] ?? null)    => self::bendImageSize($value, $map['tl_image_size']),
-                        self::namesModule((string) $field, $definition)       => self::bendIds($value, $map['tl_module']),
-                        default                                               => $value,
+                        'moduleWizard' === ($definition['inputType'] ?? null)            => self::bendModuleWizard($value, $map),
+                        'rootPageDependentSelect' === ($definition['inputType'] ?? null) => self::bendRootPageDependent($value, $map),
+                        'imageSize' === ($definition['inputType'] ?? null)               => self::bendImageSize($value, $map['tl_image_size']),
+                        self::namesModule((string) $field, $definition)                  => self::bendIds($value, $map['tl_module']),
+                        // An element aliasing another theme element (`cteAlias`); an article
+                        // element is not in the map and stays.
+                        'tl_content' === ($definition['relation']['table'] ?? null)      => self::bendIds($value, $map['tl_content']),
+                        default                                                          => $value,
                     };
 
                     if ($new !== $value) {
@@ -258,22 +269,48 @@ class ThemeCloner extends AbstractDcaCloner
 
         $bent = $rows;
         foreach ($bent as $i => $entry) {
-            if (!\is_array($entry) || !isset($entry['mod'])) {
-                continue;
-            }
-
-            $mod = (string) $entry['mod'];
-            if (str_starts_with($mod, 'content-')) {
-                $id = (int) substr($mod, 8);
-                if (isset($map['tl_content'][$id])) {
-                    $bent[$i]['mod'] = 'content-' . $map['tl_content'][$id];
-                }
-            } elseif (is_numeric($mod) && isset($map['tl_module'][(int) $mod])) {
-                $bent[$i]['mod'] = (string) $map['tl_module'][(int) $mod];
+            if (\is_array($entry) && isset($entry['mod'])) {
+                $bent[$i]['mod'] = self::bendModuleRef((string) $entry['mod'], $map);
             }
         }
 
         return $bent === $rows ? $value : serialize($bent);
+    }
+
+    /**
+     * `rootPageDependentModules`: `[rootPageId => "12" | "content-7"]`, serialized — the
+     * module (or, since 5.4, theme element) shown below each website root. The field has
+     * neither `relation` nor `foreignKey`; found by the pre-release review.
+     *
+     * @param array<string, array<int, int>> $map
+     */
+    private static function bendRootPageDependent(mixed $value, array $map): mixed
+    {
+        $byRoot = StringUtil::deserialize($value);
+        if (!\is_array($byRoot)) {
+            return $value;
+        }
+
+        $bent = array_map(static fn ($mod) => \is_scalar($mod) ? self::bendModuleRef((string) $mod, $map) : $mod, $byRoot);
+
+        return $bent === $byRoot ? $value : serialize($bent);
+    }
+
+    /**
+     * One module reference as the theme manager stores it: a module id, or `content-<id>`
+     * for a theme element. Not in the theme: unchanged.
+     *
+     * @param array<string, array<int, int>> $map
+     */
+    private static function bendModuleRef(string $mod, array $map): string
+    {
+        if (str_starts_with($mod, 'content-')) {
+            $id = (int) substr($mod, 8);
+
+            return isset($map['tl_content'][$id]) ? 'content-' . $map['tl_content'][$id] : $mod;
+        }
+
+        return is_numeric($mod) && isset($map['tl_module'][(int) $mod]) ? (string) $map['tl_module'][(int) $mod] : $mod;
     }
 
     /**
