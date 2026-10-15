@@ -64,7 +64,8 @@ class RecordCloneCommand extends Command
             '(cloned pages come out unpublished and never as the main language; {"published":"1"} or {"fallback":"1"} on the root changes that);',
             'tl_faq_category = title, headline;',
             'tl_news_archive, tl_calendar, tl_form and tl_newsletter_channel = title;',
-            'tl_module and tl_layout = name (both stay in their theme).',
+            'tl_module and tl_layout = name (both stay in their theme);',
+            'tl_theme = name (with its modules, layouts, image sizes and theme elements, which then point at each other).',
             'Anything else is refused and listed back as "ignored_modifications" in the response.',
             'Note that "alias" is never taken from here — it is always regenerated from the title with a uniqueness suffix.',
         ]), '{}');

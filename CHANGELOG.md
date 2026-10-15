@@ -4,6 +4,30 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## Unreleased
+
+Works with the same backend-bundle and contao-ai-cli.
+
+### Added
+
+- **`contao:record:clone` clones a theme** (`tl_theme`) with its modules, layouts, image
+  sizes (with their items) and theme elements (`tl_content` with `ptable = tl_theme`, nested
+  elements included). Contao's own copy leaves every reference on the old theme — the
+  copied layouts place the old modules, a copied news list opens the old reader. This one
+  bends the references that point into the theme: the module list of each layout (modules
+  and `content-<id>` theme elements), fields naming a module (a `relation`/`foreignKey` to
+  tl_module, or `…readerModule`), and image size fields whose size is one of the theme's.
+  References out of the theme stay, so nothing on the site changes until someone assigns
+  the copied layouts. The answer lists what was bent in `remapped` (`"table.field": rows`).
+  The name is `<name> (Kopie)`, counted on when taken (`tl_theme.name` is unique); a name
+  given in `--modifications` that is taken is refused. Checked on c5 against Contao 5.3,
+  5.7 and 6.0.
+- **`contao:listing:data <id>`** answers the rows a listing module shows, as JSON: the
+  module's table, fields, condition (`list_where`, insert tags replaced) and sort, run
+  server-side as `ModuleListing` runs them; the caller passes only the id and paging.
+  Sensitive fields are masked. contao-ai-cli parsed doctrine:query:sql's ASCII table for
+  this until now.
+
 ## v1.8.1 - 2026-10-14
 
 Security release. Works with the same backend-bundle and contao-ai-cli; update installations that run the CLI or the chat.

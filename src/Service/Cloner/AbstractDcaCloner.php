@@ -162,7 +162,7 @@ abstract class AbstractDcaCloner implements EntityClonerInterface
      *
      * @return array{id: int, row: array<string, mixed>}
      */
-    private function insertCopy(string $table, array $row, array $overrides): array
+    protected function insertCopy(string $table, array $row, array $overrides): array
     {
         unset($row['id']);
 
@@ -198,7 +198,7 @@ abstract class AbstractDcaCloner implements EntityClonerInterface
         );
     }
 
-    private function firstVersion(string $table, int $id, string $operator): void
+    protected function firstVersion(string $table, int $id, string $operator): void
     {
         if ($this->versionsFor($table)) {
             $this->versionManager->createInitialVersion($table, $id, $operator);
@@ -211,7 +211,7 @@ abstract class AbstractDcaCloner implements EntityClonerInterface
      *
      * @return list<string>
      */
-    private function notCopied(array $source, array $clone, string $nameField): array
+    protected function notCopied(array $source, array $clone, string $nameField): array
     {
         $fields = [];
 
@@ -231,7 +231,7 @@ abstract class AbstractDcaCloner implements EntityClonerInterface
      *
      * @return list<string>
      */
-    private function references(string $table, array $row): array
+    protected function references(string $table, array $row): array
     {
         $references = [];
 
@@ -252,7 +252,7 @@ abstract class AbstractDcaCloner implements EntityClonerInterface
     /**
      * @return array<string, mixed>
      */
-    private function fields(string $table): array
+    protected function fields(string $table): array
     {
         if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
             $this->framework->getAdapter(Controller::class)->loadDataContainer($table);
@@ -263,7 +263,7 @@ abstract class AbstractDcaCloner implements EntityClonerInterface
         return \is_array($fields) ? $fields : [];
     }
 
-    private static function isEmpty(mixed $value): bool
+    protected static function isEmpty(mixed $value): bool
     {
         return null === $value || '' === $value || '0' === $value || 0 === $value || 'a:0:{}' === $value;
     }

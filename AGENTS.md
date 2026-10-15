@@ -717,6 +717,14 @@ before the write when `pid` or `ptable` changes, and invalidates them after. Con
   plugin's table is excluded in `services.yaml` and registered in that plugin's services
   file with its own `_instanceof`. Copying people (newsletter recipients) needs an explicit
   option, never a default: consent belongs to the record they agreed to.
+- **A theme clone bends references into the theme, never out of it** (v1.9.0,
+  `ThemeCloner`). Contao's copy leaves them on the old theme, so editing the copy changed
+  the original site. Which fields name a module comes from the DCA (`relation`/`foreignKey`
+  to tl_module) plus the name `…readerModule` — the news bundle's reader field declares
+  neither, a DCA-only rule misses it. Versions and oncopy callbacks run after the bending,
+  so the first version shows the final row. A new kind of reference inside a theme
+  (another bundle's field pointing at modules or image sizes) needs one of those markers
+  or a line in `namesModule()`; otherwise the copy keeps pointing at the original.
 
 - **`record:clone` keeps each content element's visibility.** Pages and articles come out
   unpublished; a hidden element stays hidden, a visible one shows once its page and
