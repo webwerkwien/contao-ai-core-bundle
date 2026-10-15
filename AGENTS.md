@@ -729,7 +729,9 @@ before the write when `pid` or `ptable` changes, and invalidates them after. Con
   version and found by the pre-release review: a DCA-marker rule does not see what a field
   stores. Versions and oncopy callbacks run after the bending, so the first version shows
   the final row. A new kind of reference inside a theme needs a branch in
-  `bendReferences()`; otherwise the copy keeps pointing at the original.
+  `bendReferences()`; otherwise the copy keeps pointing at the original. Known limit, on
+  purpose: insert tags in text (`{{insert_module::12}}`, `{{insert_content::7}}`) stay —
+  rewriting text by pattern would touch content nobody asked to change.
 
 - **`record:clone` keeps each content element's visibility.** Pages and articles come out
   unpublished; a hidden element stays hidden, a visible one shows once its page and

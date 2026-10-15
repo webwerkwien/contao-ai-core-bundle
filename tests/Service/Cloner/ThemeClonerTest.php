@@ -11,8 +11,9 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 /**
  * The theme clone (v1.9.0) against a small in-memory database: everything in the theme is
- * copied, and the references INTO the theme point at the copies — which Contao's own
- * copy leaves on the old theme. References out of the theme stay.
+ * copied, and the references INTO the theme point at the copies — what a plain copy of the
+ * rows would leave on the old theme (Contao has no theme copy: tl_theme is notCopyable).
+ * References out of the theme stay.
  */
 class ThemeClonerTest extends TestCase
 {
@@ -80,7 +81,7 @@ class ThemeClonerTest extends TestCase
                 10 => ['id' => 10, 'pid' => 1, 'tstamp' => 1, 'name' => 'Newsliste', 'news_readerModule' => '11', 'cal_readerModule' => '0', 'jumpTo' => '5', 'imgSize' => serialize(['', '', '50'])],
                 11 => ['id' => 11, 'pid' => 1, 'tstamp' => 1, 'name' => 'Newsleser', 'news_readerModule' => '0', 'cal_readerModule' => '0', 'jumpTo' => '0', 'imgSize' => serialize(['300', '200', 'crop'])],
                 12 => ['id' => 12, 'pid' => 1, 'tstamp' => 1, 'name' => 'Eventliste', 'news_readerModule' => '0', 'cal_readerModule' => '99', 'jumpTo' => '0', 'imgSize' => ''],
-                13 => ['id' => 13, 'pid' => 1, 'tstamp' => 1, 'name' => 'Je Root', 'news_readerModule' => '0', 'cal_readerModule' => '0', 'jumpTo' => '0', 'imgSize' => '', 'rootPageDependentModules' => serialize([1 => '11', 2 => 'content-70', 3 => '99'])],
+                13 => ['id' => 13, 'pid' => 1, 'tstamp' => 1, 'name' => 'Je Root', 'news_readerModule' => '0', 'cal_readerModule' => '0', 'jumpTo' => '0', 'imgSize' => '', 'rootPageDependentModules' => serialize([1 => '11', 2 => 'content-70', 3 => '99', 4 => ''])],
                 99 => ['id' => 99, 'pid' => 2, 'tstamp' => 1, 'name' => 'Fremder Leser', 'news_readerModule' => '0', 'cal_readerModule' => '0', 'jumpTo' => '0', 'imgSize' => ''],
             ],
             'tl_layout' => [20 => ['id' => 20, 'pid' => 1, 'tstamp' => 1, 'name' => 'Standard', 'lightboxSize' => serialize(['', '', '50']), 'modules' => serialize([
@@ -227,7 +228,8 @@ class ThemeClonerTest extends TestCase
 
         // Review before v1.9.0: neither field carries relation/foreignKey to tl_module.
         self::assertSame(
-            serialize([1 => (string) $reader['id'], 2 => 'content-' . $element['id'], 3 => '99']),
+            // 5.3 stores a root without a module as '' (includeBlankOption): it stays.
+            serialize([1 => (string) $reader['id'], 2 => 'content-' . $element['id'], 3 => '99', 4 => '']),
             $this->copyOf('tl_module', 'name', 'Je Root')['rootPageDependentModules'],
         );
         self::assertNotEmpty($this->copyOf('tl_content', 'cteAlias', (string) $element['id']), 'an alias of a theme element follows it');

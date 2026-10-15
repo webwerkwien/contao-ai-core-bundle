@@ -279,7 +279,7 @@ class ThemeCloner extends AbstractDcaCloner
 
     /**
      * `rootPageDependentModules`: `[rootPageId => "12" | "content-7"]`, serialized — the
-     * module (or, since 5.4, theme element) shown below each website root. The field has
+     * module (or, since 5.6, theme element) shown below each website root. The field has
      * neither `relation` nor `foreignKey`; found by the pre-release review.
      *
      * @param array<string, array<int, int>> $map

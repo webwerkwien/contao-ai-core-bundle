@@ -17,14 +17,17 @@ Works with the same backend-bundle and contao-ai-cli.
   step Contao leaves out, and the answer says so in `note`. A plain copy of the rows would
   leave the copied layouts placing the old modules and a copied news list opening the old
   reader; this one bends the references that point into the theme: the module list of each
-  layout and `rootPageDependentModules` (modules and `content-<id>` theme elements), fields
+  layout and `rootPageDependentModules` (modules, and from Contao 5.6 `content-<id>` theme
+  elements), fields
   naming a module (a `relation`/`foreignKey` to tl_module, or `…readerModule`), theme
   elements aliasing each other (`cteAlias`), and image size fields whose size is one of the
   theme's. References out of the theme stay, so nothing on the site changes until someone
   assigns the copied layouts. The answer lists what was bent in `remapped`
   (`"table.field": rows`). The name is `<name> (Kopie)`, counted on when taken
   (`tl_theme.name` is unique); a name given in `--modifications` that is taken is refused.
-  Checked on c5 against Contao 5.3, 5.7 and 6.0.
+  Not bent: insert tags in text fields (`{{insert_module::12}}` in an HTML module or a
+  layout's head) — they are text, not references the DCA declares. Checked on c5 against
+  Contao 5.3, 5.7 and 6.0.
 - **`contao:listing:data <id>`** answers the rows a listing module shows, as JSON: the
   module's table, fields, condition (`list_where`, insert tags replaced) and sort, run
   server-side as `ModuleListing` runs them; the caller passes only the id and paging.
