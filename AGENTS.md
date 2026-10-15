@@ -717,6 +717,15 @@ before the write when `pid` or `ptable` changes, and invalidates them after. Con
   plugin's table is excluded in `services.yaml` and registered in that plugin's services
   file with its own `_instanceof`. Copying people (newsletter recipients) needs an explicit
   option, never a default: consent belongs to the record they agreed to.
+- **`references` goes by the DCA, plus the rules Contao's own DCA does not state**
+  (v1.9.1, `AbstractDcaCloner::references()`): `foreignKey`, `relation`, the tree and
+  wizard input types (`rootPageDependentSelect` included), and `namesModule()` — the same
+  rule `ThemeCloner` bends by, so the two cannot disagree about what names a module. The
+  news bundle declares `news_readerModule` with no relation; an agent working from the
+  guide alone found it missing on a cloned news list while the events list showed its
+  reader. Sixteen zero bytes in a `binary(16)` field are "no file" (`isEmpty()`), or every
+  module of the Contao demo lists `reg_homeDir`. A reference left out is one the caller never repoints; one
+  listed on every record teaches the caller to ignore the list.
 - **Theme import/export and example websites run Contao's own `Contao\Theme`** (v1.9.0,
   `ThemeArchive`, `ExampleWebsite`), not a rebuild: the id mapping of an import is
   Contao's to keep right. The class assumes the back end; `DcaCallbacks::inBackEnd()` gives

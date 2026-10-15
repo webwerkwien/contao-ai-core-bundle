@@ -67,6 +67,11 @@ class DcaClonerTest extends TestCase
                 'name'   => ['sql' => $varchar],
                 'pages'  => ['inputType' => 'pageTree', 'sql' => 'blob NULL'],
                 'jumpTo' => ['inputType' => 'pageTree', 'sql' => 'int(10) unsigned NOT NULL default 0'],
+                // As the news bundle declares it (5.7): no relation, unlike cal_ and faq_readerModule.
+                'news_readerModule' => ['inputType' => 'select', 'options_callback' => ['tl_module_news', 'getReaderModules'], 'sql' => 'int(10) unsigned NOT NULL default 0'],
+                'cal_readerModule'  => ['inputType' => 'select', 'relation' => ['table' => 'tl_module', 'type' => 'hasOne', 'load' => 'lazy'], 'sql' => 'int(10) unsigned NOT NULL default 0'],
+                'reg_homeDir'       => ['inputType' => 'fileTree', 'sql' => 'binary(16) NULL'],
+                'rootPageDependentModules' => ['inputType' => 'rootPageDependentSelect', 'sql' => 'blob NULL'],
             ]],
             'tl_layout' => ['fields' => [
                 'name'    => ['sql' => $varchar],
@@ -89,7 +94,12 @@ class DcaClonerTest extends TestCase
             'tl_newsletter_recipients' => [
                 40 => ['id' => 40, 'pid' => 3, 'tstamp' => 1, 'email' => 'a@example.org', 'active' => '1', 'addedOn' => '1700000000'],
             ],
-            'tl_module' => [7 => ['id' => 7, 'pid' => 1, 'tstamp' => 1, 'name' => 'Navigation', 'pages' => 'a:0:{}', 'jumpTo' => '5']],
+            'tl_module' => [
+                7 => ['id' => 7, 'pid' => 1, 'tstamp' => 1, 'name' => 'Navigation', 'pages' => 'a:0:{}', 'jumpTo' => '5'],
+                9 => ['id' => 9, 'pid' => 1, 'tstamp' => 1, 'name' => 'Newsliste', 'pages' => 'a:0:{}', 'jumpTo' => '0',
+                    'news_readerModule' => '11', 'cal_readerModule' => '0', 'reg_homeDir' => str_repeat("\0", 16),
+                    'rootPageDependentModules' => 'a:2:{i:1;s:2:"12";i:76;s:2:"13";}'],
+            ],
             'tl_layout' => [8 => ['id' => 8, 'pid' => 1, 'tstamp' => 1, 'name' => 'Standard', 'rows' => '3rw', 'modules' => 'a:1:{i:0;a:3:{s:3:"mod";s:1:"7";s:3:"col";s:4:"main";s:6:"enable";s:1:"1";}}']],
         ];
     }
@@ -282,6 +292,19 @@ class DcaClonerTest extends TestCase
         $this->assertArrayNotHasKey('children', $result, 'an empty list would arrive as JSON [] where others get {}');
         // pid is the theme, not a reference; an empty serialized list is none either.
         $this->assertSame(['jumpTo'], $result['references']);
+    }
+
+    /**
+     * Found by an agent working from the guide alone (showcase, 2026-10-15): the news
+     * list's reader module was missing from `references`, the events list's was there,
+     * and every module listed `reg_homeDir`. A reference left out is one the caller
+     * never repoints, and noise on every module teaches the caller to ignore the list.
+     */
+    public function testReaderModulesAndRootDependentModulesAreReferencesAndANullUuidIsNot(): void
+    {
+        $result = $this->cloner(ModuleCloner::class)->clone(9, [], 'k.jones');
+
+        $this->assertSame(['news_readerModule', 'rootPageDependentModules'], $result['references']);
     }
 
     public function testALayoutKeepsItsModulesAndItsReservedWordColumn(): void

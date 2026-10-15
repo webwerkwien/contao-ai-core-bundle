@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.9.1 - 2026-10-15
+
+Works with the same backend-bundle and contao-ai-cli. Found by an agent that made the Contao demo bilingual from the contao-ai-cli guide alone (showcase.conpai.eu).
+
+### Fixed
+
+- **`references` of a cloned module left out `news_readerModule`.** The answer went by
+  the DCA, and the news bundle declares that field with no relation (events and FAQ do).
+  A news list cloned for a second language kept pointing at the first language's reader,
+  and nothing named it. Fields called `…readerModule` count now, the rule the theme clone
+  already bent by; both use the same method. `rootPageDependentModules` counts too.
+- **Cloned modules listed `reg_homeDir` in `references`** where the field holds sixteen
+  zero bytes — every module of the Contao demo. That is "no file" for a `binary(16)` file
+  field; it now counts as empty.
+
+### Added
+
+- **`page_count` in the answer of a page clone**: the pages cloned, root included. `count`
+  stays the number of articles, as before; it read like the number of pages (40 for a tree
+  of 42).
+
 ## v1.9.0 - 2026-10-15
 
 Works with the same backend-bundle and contao-ai-cli; contao-ai-cli v1.10.0 brings the commands to the new server commands (theme clone, theme export/import, example websites, `listing data`).

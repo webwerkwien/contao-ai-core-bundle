@@ -34,7 +34,9 @@ abstract class AbstractDcaCloner implements EntityClonerInterface
     use GeneratesUniqueAlias;
 
     /** Input types whose value points at another record or a file. */
-    private const REFERENCE_INPUT_TYPES = ['pageTree', 'fileTree', 'picker', 'moduleWizard'];
+    private const REFERENCE_INPUT_TYPES = ['pageTree', 'fileTree', 'picker', 'moduleWizard', 'rootPageDependentSelect'];
+
+    private const NULL_UUID = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
     public function __construct(
         protected readonly Connection $connection,
@@ -241,12 +243,29 @@ abstract class AbstractDcaCloner implements EntityClonerInterface
             }
 
             if (isset($definition['foreignKey']) || isset($definition['relation'])
-                || \in_array($definition['inputType'] ?? null, self::REFERENCE_INPUT_TYPES, true)) {
+                || \in_array($definition['inputType'] ?? null, self::REFERENCE_INPUT_TYPES, true)
+                || self::namesModule((string) $field, $definition)) {
                 $references[] = (string) $field;
             }
         }
 
         return $references;
+    }
+
+    /**
+     * A field that names a module: a `relation`/`foreignKey` to tl_module, or a field
+     * named `…readerModule`. The name rule is there because the news bundle declares
+     * `news_readerModule` with neither (Contao 5.7), while events and FAQ declare a
+     * relation; going by the DCA alone left the news list's reader out of `references`
+     * (v1.9.1) — the one the caller then never repointed.
+     *
+     * @param array<string, mixed> $definition
+     */
+    protected static function namesModule(string $field, array $definition): bool
+    {
+        return 'tl_module' === ($definition['relation']['table'] ?? null)
+            || str_starts_with((string) ($definition['foreignKey'] ?? ''), 'tl_module.')
+            || str_ends_with($field, 'readerModule');
     }
 
     /**
@@ -263,8 +282,14 @@ abstract class AbstractDcaCloner implements EntityClonerInterface
         return \is_array($fields) ? $fields : [];
     }
 
+    /**
+     * A binary(16) file reference of sixteen zero bytes is Contao's "no file" too: a
+     * module never pointed at a folder carries it in `reg_homeDir`, and counting it
+     * listed that field as a reference on every module (v1.9.1).
+     */
     protected static function isEmpty(mixed $value): bool
     {
-        return null === $value || '' === $value || '0' === $value || 0 === $value || 'a:0:{}' === $value;
+        return null === $value || '' === $value || '0' === $value || 0 === $value || 'a:0:{}' === $value
+            || self::NULL_UUID === $value;
     }
 }

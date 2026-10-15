@@ -167,7 +167,11 @@ class PageCloner implements EntityClonerInterface
             return [
                 'id'             => $newRootId,
                 'table'          => 'tl_page',
-                'count'          => $stats['articles'], // legacy field — kept for symmetry mit anderen Cloner-Outputs
+                // `count` is the number of ARTICLES, kept for callers of the other cloners'
+                // shape. It read like the number of pages: 40 for a tree of 42 (showcase,
+                // 2026-10-15). `page_count` says that, the root included (v1.9.1).
+                'count'          => $stats['articles'],
+                'page_count'     => 1 + $stats['subpages'],
                 'article_count'  => $stats['articles'],
                 'content_count'  => $stats['contents'],
                 'subpage_count'  => $stats['subpages'],

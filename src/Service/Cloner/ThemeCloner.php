@@ -225,16 +225,6 @@ class ThemeCloner extends AbstractDcaCloner
     }
 
     /**
-     * @param array<string, mixed> $definition
-     */
-    private static function namesModule(string $field, array $definition): bool
-    {
-        return 'tl_module' === ($definition['relation']['table'] ?? null)
-            || str_starts_with((string) ($definition['foreignKey'] ?? ''), 'tl_module.')
-            || str_ends_with($field, 'readerModule');
-    }
-
-    /**
      * A single id or a serialized list of ids; ids that are not in the theme stay.
      *
      * @param array<int, int> $map
