@@ -14,7 +14,8 @@ Works with the same backend-bundle and contao-ai-cli. Found trying the Catalog M
   table name check was skipped, and the restore then deleted the entry anyway: `ok`, nothing
   back, the only copy gone. The check also demanded `tl_`, so every entry deleted in the
   back end from a Catalog Manager catalog met exactly that. Such a key is now refused and
-  the entry stays replayable; a catalog entry is restored.
+  the entry stays replayable; a catalog entry is restored. And a payload that leaves no row
+  to write — whatever the reason — is refused before the transaction that deletes the entry.
 - **`record list` reached no table without `tl_`.** The Catalog Manager refuses the prefix
   for its catalogs (*"tl_" prefix is not allowed*), so every catalog was an "Invalid table
   name". The name check is a name check now — letters, digits, underscore, at most 64 —
@@ -29,6 +30,12 @@ Works with the same backend-bundle and contao-ai-cli. Found trying the Catalog M
   (v2) gives only the catalog's own fields, without `title`, `alias` and the visibility
   fields. So `record list` and `schema` report what the extension shows the console, not what
   the back end sees. Loading such a DCA in a back-end scope is a design question of its own.
+- **Without a DCA on the console, a restored catalog row gets no `onundo_callback`** — there
+  is none loaded to run. The row itself comes back whole; the restore takes its columns
+  from the table, not from the DCA.
+- **The search for file usages (`file delete`, `file move`) still covers `tl_` tables only.**
+  A file referenced only from an extension's own table counts as unused. Widening it needs
+  that extension's DCA on the console, the same question as above.
 
 ## v1.9.1 - 2026-10-15
 

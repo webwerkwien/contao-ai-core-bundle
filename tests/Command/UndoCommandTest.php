@@ -165,6 +165,26 @@ class UndoCommandTest extends TestCase
     }
 
     /**
+     * A payload with no row that could be written never reaches the transaction —
+     * the transaction is what deletes the entry (v1.9.2, Fable review). Asserted on
+     * `transactional`, not `delete`: under this mock the closure never runs, so a
+     * `never()` on `delete` would hold whatever the command did.
+     */
+    public function testAPayloadWithNothingToWriteIsRefusedAndTheEntryKept(): void
+    {
+        $connection = $this->connection();
+        $connection->method('fetchAssociative')->willReturn([
+            'id' => 5, 'query' => '', 'data' => serialize(['tl_news' => 'not rows']),
+        ]);
+        $connection->expects($this->never())->method('transactional');
+
+        $out = $this->runCommand($this->restorer($connection), ['id' => '5']);
+
+        $this->assertSame('error', $out['status']);
+        $this->assertStringContainsString('still replayable', $out['message']);
+    }
+
+    /**
      * A table without `tl_` is read like any other (v1.9.2) — the check that an ID
      * is taken again used to give up on it silently.
      */

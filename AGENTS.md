@@ -87,8 +87,10 @@ touching the implementation. Do not edit test files while making the fix.
   `tl_`** (v1.9.2). Extensions name their tables as they like — the Catalog Manager
   refuses `tl_` for its catalogs — and whether a name is a Contao table is the DCA's to
   say. A `tl_` pattern made every catalog unreachable for `record list` and made
-  `undo restore` delete entries it had skipped. Theme archives are the one place that
-  still asks for `tl_`: they hold Contao's own theme tables only.
+  `undo restore` delete entries it had skipped. Theme archives and example websites
+  still ask for `tl_` on purpose: they hold Contao's own tables only. `FileUsageFinder`
+  does too, and that one is open — an extension table with a file field is not searched
+  (it would also need the extension's DCA on the console, see the CHANGELOG of v1.9.2).
 - Log labels are bilingual: `contao/languages/de/tl_log.xlf` and `en/`, same ids
   in both. Console output is English — it addresses agents and developers, not
   editors. (Where exactly that boundary runs has not been decided; ask before

@@ -193,6 +193,17 @@ class UndoRestoreCommand extends AbstractWriteCommand
             ));
         }
 
+        // One guard for every branch above that passes over a part of the payload
+        // (v1.9.2, Fable review): with nothing left to insert, the transaction below
+        // would only delete the entry and answer `ok`. Contao keeps it in that case.
+        if ([] === $pending) {
+            return $this->outputError(\sprintf(
+                'Restore refused, undo entry %d untouched and still replayable: its payload '
+                . 'holds no row that could be written. Nothing was written.',
+                $id,
+            ));
+        }
+
         // Which row was being written when it failed — otherwise the message
         // degrades to "ID ?" and the operator has to guess which one collided.
         $current = [];
