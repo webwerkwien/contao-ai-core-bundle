@@ -13,6 +13,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Terminal42\ChangeLanguage\PageFinder;
 use Webwerkwien\ContaoAiCoreBundle\Service\Language\ChangeLanguageLinks;
+use Webwerkwien\ContaoAiCoreBundle\Service\Language\LinkTargetDiagnosis;
 
 /**
  * Which translation links are missing or broken (terminal42/contao-changelanguage). Reads only.
@@ -26,6 +27,9 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Language\ChangeLanguageLinks;
  * - `duplicates` — two pages of one tree linked to the same page; the package refuses
  *   that on save, older data can still have it.
  * - `unlinkedArticles` — articles on a linked page without `languageMain`.
+ * - `unlinkableArticles` — such articles that cannot be linked, each with the reason: the
+ *   page in the main language or its root is unpublished, so changelanguage offers no
+ *   target, in the back end either (v1.11.1).
  *
  * And per archive table that is installed: archives whose jumpTo page is in another
  * language's tree without `master`, and entries of a linked archive without
@@ -44,6 +48,7 @@ class LanguageCheckCommand extends Command
     public function __construct(
         private readonly ContaoFramework $framework,
         private readonly Connection $connection,
+        private readonly LinkTargetDiagnosis $diagnosis,
     ) {
         parent::__construct();
     }
@@ -112,6 +117,22 @@ class LanguageCheckCommand extends Command
                 'SELECT id FROM tl_article WHERE languageMain = 0 AND pid IN (' . implode(',', $linked) . ')',
             ));
 
+            // An article whose counterpart page or root is unpublished cannot be linked —
+            // changelanguage offers no target, in the back end either. Reported apart with
+            // the reason, not as a gap to close (v1.11.1, showcase "_Ressourcen").
+            $unlinkable = [];
+            $closable   = [];
+            $causes     = [];
+            foreach ($articles as $articleId) {
+                $pid = (int) $this->connection->fetchOne('SELECT pid FROM tl_article WHERE id = ?', [$articleId]);
+                $causes[$pid] ??= $this->diagnosis->forArticlePage($pid) ?? '';
+                if ('' === $causes[$pid]) {
+                    $closable[] = $articleId;
+                } else {
+                    $unlinkable[] = ['id' => $articleId, 'page' => $pid, 'reason' => $causes[$pid]];
+                }
+            }
+
             $roots[] = [
                 'root'             => ['id' => (int) $root->id, 'title' => $root->title, 'language' => $root->language, 'dns' => $root->dns],
                 'mainRoot'         => ['id' => (int) $master->id, 'title' => $master->title, 'language' => $master->language],
@@ -120,7 +141,8 @@ class LanguageCheckCommand extends Command
                 'unlinked'         => $this->capped($unlinked),
                 'invalid'          => \array_slice($invalid, 0, self::CAP),
                 'duplicates'       => $duplicates,
-                'unlinkedArticles' => $this->capped($articles),
+                'unlinkedArticles' => $this->capped($closable),
+                'unlinkableArticles' => ['count' => \count($unlinkable), 'articles' => \array_slice($unlinkable, 0, self::CAP)],
                 'archives'         => $this->archives($tree),
             ];
         }

@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.11.1 - 2026-10-20
+
+Works with the same backend-bundle and contao-ai-cli.
+
+### Fixed
+
+- **`contao:language:link` names the real reason when an article has no target.** On
+  showcase.conpai.eu the articles of the resource pages "_Ressourcen"/"_Resources" (both
+  unpublished on purpose) could not be linked, and the refusal said the article's page
+  "has to be linked first" — it was linked. changelanguage offers article targets only on
+  a published page and root of the main language, in the back end as well. The refusal
+  now says which page or root is unpublished (or outside its start/stop time), that the
+  page is not linked, or that it is linked to nothing (`LinkTargetDiagnosis`).
+- **`contao:language:check` no longer reports a gap that cannot be closed:** such articles
+  are listed apart under `unlinkableArticles`, each with page and reason;
+  `unlinkedArticles` keeps the ones that can be linked. `language link` still does not
+  write past the back end.
+
 ## v1.11.0 - 2026-10-20
 
 Works with the same backend-bundle and contao-ai-cli; backend-bundle v0.21.0 and

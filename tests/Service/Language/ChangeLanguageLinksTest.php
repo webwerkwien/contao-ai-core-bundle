@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Tests\Service\Language;
 use PHPUnit\Framework\TestCase;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\OptionsResolver;
 use Webwerkwien\ContaoAiCoreBundle\Service\Language\ChangeLanguageLinks;
+use Webwerkwien\ContaoAiCoreBundle\Service\Language\LinkTargetDiagnosis;
 
 /**
  * Field and valid targets of a translation link, as changelanguage defines them
@@ -67,6 +68,35 @@ class ChangeLanguageLinksTest extends TestCase
             'event'   => ['tl_calendar_events', 'language link --table tl_calendar'],
             'faq'     => ['tl_faq', 'language link --table tl_faq_category'],
         ];
+    }
+
+    /**
+     * v1.11.1: with the diagnosis the refusal names the page that is the reason — over the
+     * real class on SQLite, the showcase case — instead of "link the page first".
+     */
+    public function testAnArticleRefusalNamesTheUnpublishedCounterpart(): void
+    {
+        $options = $this->createMock(OptionsResolver::class);
+        $options->method('values')->willReturn([]);
+        $links = new ChangeLanguageLinks($options, new LinkTargetDiagnosis(LinkTargetDiagnosisTest::database()));
+
+        $refusal = (string) $links->refusal('tl_article', 98, ['pid' => 80], 30);
+
+        $this->assertStringContainsString('30 is not a valid languageMain for tl_article:98', $refusal);
+        $this->assertStringContainsString('There are none: Page 80 is linked to page 28 of the main language, but page 28 is unpublished', $refusal);
+        $this->assertStringNotContainsString('has to be linked to its page in the main language first', $refusal);
+    }
+
+    /**
+     * Where the diagnosis knows no reason, the general rule stays.
+     */
+    public function testWithoutAKnownReasonTheGeneralRuleStays(): void
+    {
+        $options = $this->createMock(OptionsResolver::class);
+        $options->method('values')->willReturn([]);
+        $links = new ChangeLanguageLinks($options, new LinkTargetDiagnosis(LinkTargetDiagnosisTest::database()));
+
+        $this->assertStringContainsString('page has to be linked', (string) $links->refusal('tl_article', 99, ['pid' => 77], 30));
     }
 
     public function testOnlyAFallbackRootTakesALanguageRoot(): void

@@ -1070,6 +1070,10 @@ refuse a duplicate. The package's rules on copy, cut and delete run as its callb
 
 ⚠️ changelanguage finds associated pages **only when they and their roots are published**:
 on an unpublished test tree the article options are empty, in the back end as well.
+Since v1.11.1 `Service\Language\LinkTargetDiagnosis` says which page or root it is (the
+counterpart in the main language and its root; the article's own page is not asked, as
+the package does not ask): in the refusal of `language:link` and as `unlinkableArticles`
+in `language:check`. Keep it in step with `PageFinder::addPublishingConditions()`.
 
 **Language versions (v1.11.0).** `contao:language:versions <table> <id>` and
 `Service\Language\LanguageVersions` answer "which versions does this record have": the

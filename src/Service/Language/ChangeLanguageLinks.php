@@ -36,8 +36,10 @@ class ChangeLanguageLinks
 
     public const ARCHIVES = ['tl_news_archive' => 'tl_news', 'tl_calendar' => 'tl_calendar_events', 'tl_faq_category' => 'tl_faq'];
 
-    public function __construct(private readonly OptionsResolver $options)
-    {
+    public function __construct(
+        private readonly OptionsResolver $options,
+        private readonly ?LinkTargetDiagnosis $diagnosis = null,
+    ) {
     }
 
     /**
@@ -86,8 +88,14 @@ class ChangeLanguageLinks
             return null;
         }
 
+        // No article to offer: say which page or root is the reason, not the general rule
+        // (v1.11.1 — on showcase the refusal said "link the page first" for a linked page
+        // whose counterpart is unpublished on purpose).
+        $cause = [] === $values && 'tl_article' === $table ? $this->diagnosis?->forArticlePage((int) ($record['pid'] ?? 0)) : null;
+
         $hint = match (true) {
             [] !== $values      => 'Valid targets: ' . implode(', ', \array_slice($values, 0, 20)) . (\count($values) > 20 ? ', …' : '') . '.',
+            null !== $cause     => 'There are none: ' . $cause,
             'tl_article' === $table => 'There are none: the article\'s page has to be linked to its page in the main language first (language link --table tl_page), and changelanguage finds that page only when both pages and their roots are published.',
             'master' === $field => 'There are none: the archive\'s jumpTo page has to be linked to a page in the main language, and the archive there must not be the master of another one already.',
             default             => 'There are none: the archive has to be linked to its archive in the main language first (language link --table ' . array_search($table, self::ARCHIVES, true) . ').',
