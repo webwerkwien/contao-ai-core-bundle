@@ -10,7 +10,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 
-#[AsCommand(name: 'contao:search:query', description: 'Search the Contao fulltext search index')]
+#[AsCommand(name: 'contao:search:query', description: 'Search the Contao fulltext search index: pages, never one with noindex; for elements by their text use contao:content:find')]
 class SearchQueryCommand extends AbstractReadCommand
 {
     public function __construct(

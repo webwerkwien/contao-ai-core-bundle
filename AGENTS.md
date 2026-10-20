@@ -1128,6 +1128,17 @@ entry, and Consho's write commands stored the shell user in `tl_version`.
   changes is written back to the row and merged into a model instance still in the
   registry.
 
+## Finding an element by its text: `contao:content:find` (v1.10.0)
+
+The search index is not a way to elements: `contao:search:query` answers pages, and a page
+with `noindex` is never in the index at all (Contao's SearchIndexListener; a `noindex` in
+the X-Robots-Tag header wins even over `always_index`). On a staging site or a showcase it
+is empty. `contao:content:find` searches the text columns of `tl_content` (`headline`,
+`text`, `html`) and answers each element with article, page, root and language — what a
+caller needs to change the right one, and the right language. Keep it read-only and
+voter-free like the other commands; the backend bundle filters by Contao's voters. When a
+table or column joins the search, add a test with a known non-match.
+
 ## Layout modules (v0.16.0)
 
 `contao:layout:module --layout --module --col [--remove]` validates module, theme and

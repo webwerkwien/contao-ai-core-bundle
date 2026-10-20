@@ -55,13 +55,14 @@ All commands output JSON and follow a consistent `{"status":"ok", ...}` / `{"sta
 | Layout | `contao:layout:read` |
 | Versions | `contao:version:list` `contao:version:read` `contao:version:create` `contao:version:restore` |
 | Translation links (since v1.4.0, with [terminal42/contao-changelanguage](https://github.com/terminal42/contao-changelanguage) installed) | `contao:language:link` `contao:language:check` |
-| Search | `contao:search:query` |
+| Search | `contao:search:query` (the site's search index: pages, and never one with `noindex`) `contao:content:find` (content elements by their text, since v1.10.0) |
 | Schema / Config | `contao:dca:schema` `contao:listing:config` `contao:listing:data` |
 | Macros (since v0.2.0) | `contao:record:list` `contao:record:clone` |
 
 ### Macro commands
 
 - `contao:record:list <table>` — table-agnostic listing with Doctrine-parameterised filters, DCA-validated ORDER BY, pagination, curated default columns per table. Any table with a DCA, also one without `tl_` (since v1.9.2; Catalog Manager catalogs never have it). An extension that builds its DCA only in a web request — both Catalog Managers do — shows the console less or nothing.
+- `contao:content:find <text> [--limit] [--root]` — content elements whose headline, text or HTML contains the text, case-insensitive, each with article, page, root and its language; `--root` keeps one website or language. Searches `tl_content` itself, so it works where the search index cannot: a page with `noindex` is never indexed (since v1.10.0).
 - `contao:theme:export <id>` / `contao:theme:import <file> [--confirm]` — the theme manager's .cto export and import on the console, Contao's own code; the import previews without `--confirm` and reads only from `system/tmp` (since v1.9.0).
 - `contao:example-website:import <file> --mode=full|data|data_no_truncate [--admins=both|existing] [--confirm]` — an example website as the theme manager imports it, after an automatic database backup; administrators kept by choice (since v1.9.0).
 - `contao:listing:data <id> [--limit] [--offset]` — the rows a listing module shows, as JSON: the module's own table, fields, condition and sort, run server-side; sensitive fields masked (since v1.9.0).

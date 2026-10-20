@@ -4,6 +4,33 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.10.0 - 2026-10-20
+
+Works with the same backend-bundle and contao-ai-cli; backend-bundle v0.20.0 and
+contao-ai-cli v1.12.0 use the new command.
+
+### Added
+
+- **`contao:content:find <text> [--limit] [--root]`** — content elements whose headline,
+  text or HTML contains the text (case-insensitive, also in the form Contao stores, e.g.
+  `&amp;`), each with the field, a plain-text snippet, the element's visibility, its
+  article, page, root and the root's language; nested elements are traced up to their
+  article, elements of a news entry or event name it. `--root` keeps one website or
+  language. Up to 50 results, `more` says when there are more.
+
+  The way to an element until now was the search index or listing table after table. A
+  chat on showcase.conpai.eu needed 9–10 calls and half a minute to change one slider
+  headline (2026-10-19), and the index was no help: a page with `noindex` is never
+  indexed — Contao's SearchIndexListener skips it, and a `noindex` in the X-Robots-Tag
+  header wins even over `always_index` — so on a staging site or a showcase it stays
+  empty. This searches `tl_content` itself. Read-only; like every command here it does
+  not ask Contao's voters (the backend bundle's `content_find` does).
+
+### Changed
+
+- `contao:search:query` says in its description that it answers pages from the search
+  index, never one with `noindex`, and points to `contao:content:find`.
+
 ## v1.9.2 - 2026-10-15
 
 Works with the same backend-bundle and contao-ai-cli. Found trying the Catalog Manager (`alnv/catalog-manager` and `alnv/catalog-manager-bundle`) on c5 for an operator who asked how to drive it with an agent.

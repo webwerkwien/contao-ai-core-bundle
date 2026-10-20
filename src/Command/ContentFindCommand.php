@@ -1,0 +1,228 @@
+<?php declare(strict_types=1);
+
+namespace Webwerkwien\ContaoAiCoreBundle\Command;
+
+use Doctrine\DBAL\Connection;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputOption;
+
+/**
+ * Finds content elements by their text, with where they sit: article, page, root and
+ * its language (v1.10.0).
+ *
+ * The way an agent found an element until now was the search index (`contao:search:query`,
+ * which answers pages, not elements) or listing tables one by one. Both fail where it
+ * matters: a page with `noindex` is never indexed — Contao's SearchIndexListener and the
+ * crawler skip it, so on a staging site or a showcase the index stays empty — and listing
+ * took a chat on showcase 9–10 calls and half a minute to change one slider headline
+ * (2026-10-19). This searches `tl_content` itself.
+ *
+ * Read-only, and like every command here it trusts its operator: it does not ask
+ * Contao's voters. The backend bundle's `content_find` drops what the user may not read.
+ */
+#[AsCommand(name: 'contao:content:find', description: 'Find content elements by their text (headline, text, HTML), with article, page, root and language')]
+class ContentFindCommand extends AbstractReadCommand
+{
+    private const DEFAULT_LIMIT = 20;
+    private const MAX_LIMIT     = 50;
+    private const MIN_LENGTH    = 3;
+
+    /** The text columns searched; all three are core columns of tl_content. */
+    private const FIELDS = ['headline', 'text', 'html'];
+
+    /** @var array<int, array<string, mixed>|null> */
+    private array $pages = [];
+
+    public function __construct(private readonly Connection $connection)
+    {
+        parent::__construct();
+    }
+
+    protected function configure(): void
+    {
+        $this->addArgument('query', InputArgument::REQUIRED, 'Text to find, at least ' . self::MIN_LENGTH . ' characters; matched anywhere, case-insensitive');
+        $this->addOption('limit', null, InputOption::VALUE_REQUIRED, 'Max results (1–' . self::MAX_LIMIT . ')', self::DEFAULT_LIMIT);
+        $this->addOption('root', null, InputOption::VALUE_REQUIRED, 'Only elements below this root page (website root), e.g. the one of a language');
+    }
+
+    protected function doExecute(): int
+    {
+        $query = trim((string) $this->input->getArgument('query'));
+        if (mb_strlen($query) < self::MIN_LENGTH) {
+            return $this->outputError(\sprintf('The search text needs at least %d characters.', self::MIN_LENGTH));
+        }
+        $limit = max(1, min(self::MAX_LIMIT, (int) $this->input->getOption('limit')));
+        $root  = null === $this->input->getOption('root') ? null : (int) $this->input->getOption('root');
+
+        // Contao stores some characters encoded (`&amp;`, `&quot;`); a text typed as the
+        // page shows it is searched in both forms.
+        $needles = array_values(array_unique([$query, htmlspecialchars($query, ENT_QUOTES)]));
+
+        $where = [];
+        $params = [];
+        foreach (self::FIELDS as $field) {
+            foreach ($needles as $needle) {
+                $where[] = "$field LIKE ?";
+                $params[] = '%' . addcslashes($needle, '%_\\') . '%';
+            }
+        }
+
+        // With --root the filter runs after the query (the root comes from the page
+        // tree), so more rows are read than asked for.
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT id, pid, ptable, type, headline, text, html, invisible FROM tl_content WHERE ' . implode(' OR ', $where)
+            . ' ORDER BY id LIMIT ' . (null === $root ? $limit + 1 : self::MAX_LIMIT * 10),
+            $params,
+        );
+
+        $results = [];
+        $more = false;
+        foreach ($rows as $row) {
+            $location = $this->locate((string) $row['ptable'], (int) $row['pid']);
+            if (null !== $root && (int) ($location['root']['id'] ?? 0) !== $root) {
+                continue;
+            }
+            if (\count($results) === $limit) {
+                $more = true;
+                break;
+            }
+            [$field, $snippet] = self::match($row, $query);
+            $results[] = [
+                'id'        => (int) $row['id'],
+                'type'      => (string) $row['type'],
+                'field'     => $field,
+                'snippet'   => $snippet,
+                'invisible' => (bool) $row['invisible'],
+                'ptable'    => (string) $row['ptable'],
+                'pid'       => (int) $row['pid'],
+            ] + $location;
+        }
+
+        $this->outputRecord([
+            'query'   => $query,
+            'count'   => \count($results),
+            'more'    => $more,
+            'results' => $results,
+        ]);
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * The field that holds the text and the words around it, as plain text.
+     *
+     * @param array<string, mixed> $row
+     *
+     * @return array{string, string}
+     */
+    private static function match(array $row, string $query): array
+    {
+        foreach (self::FIELDS as $field) {
+            $text = self::plain($field, (string) ($row[$field] ?? ''));
+            $at = mb_stripos($text, $query);
+            if (false !== $at) {
+                $start = max(0, $at - 60);
+
+                return [$field, ($start > 0 ? '…' : '') . mb_substr($text, $start, mb_strlen($query) + 120) . ($start + mb_strlen($query) + 120 < mb_strlen($text) ? '…' : '')];
+            }
+        }
+
+        // matched only in markup or an encoded form the plain text does not show
+        foreach (self::FIELDS as $field) {
+            if ('' !== trim((string) ($row[$field] ?? ''))) {
+                return [$field, mb_substr(self::plain($field, (string) $row[$field]), 0, 180)];
+            }
+        }
+
+        return ['', ''];
+    }
+
+    private static function plain(string $field, string $value): string
+    {
+        if ('headline' === $field) {
+            $pair = @unserialize($value, ['allowed_classes' => false]);
+            $value = \is_array($pair) ? (string) ($pair['value'] ?? '') : $value;
+        }
+
+        return trim((string) preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($value), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+    }
+
+    /**
+     * Where an element sits: up through nested elements to its article, news entry or
+     * event; for an article the page and the root with its language.
+     *
+     * @return array<string, mixed>
+     */
+    private function locate(string $ptable, int $pid): array
+    {
+        for ($depth = 0; 'tl_content' === $ptable && $depth < 10; ++$depth) {
+            $parent = $this->connection->fetchAssociative('SELECT ptable, pid FROM tl_content WHERE id = ?', [$pid]);
+            if (false === $parent) {
+                return ['parent' => ['table' => 'tl_content', 'id' => $pid]];
+            }
+            [$ptable, $pid] = [(string) $parent['ptable'], (int) $parent['pid']];
+        }
+
+        if ('tl_article' === $ptable || '' === $ptable) {
+            $article = $this->connection->fetchAssociative('SELECT id, pid, title, inColumn, published FROM tl_article WHERE id = ?', [$pid]);
+            if (false === $article) {
+                return ['article' => null];
+            }
+            [$page, $root] = $this->pageAndRoot((int) $article['pid']);
+
+            return [
+                'article' => ['id' => (int) $article['id'], 'title' => (string) $article['title'], 'column' => (string) $article['inColumn'], 'published' => (bool) $article['published']],
+                'page'    => $page,
+                'root'    => $root,
+            ];
+        }
+
+        $label = match ($ptable) {
+            'tl_news'            => 'headline',
+            'tl_calendar_events' => 'title',
+            default              => null,
+        };
+        $parent = null === $label ? false : $this->connection->fetchAssociative("SELECT id, $label AS label FROM $ptable WHERE id = ?", [$pid]);
+
+        return ['parent' => ['table' => $ptable, 'id' => $pid] + (false === $parent ? [] : ['title' => (string) $parent['label']])];
+    }
+
+    /**
+     * @return array{array<string, mixed>|null, array<string, mixed>|null}
+     */
+    private function pageAndRoot(int $pageId): array
+    {
+        $page = $this->page($pageId);
+        if (null === $page) {
+            return [null, null];
+        }
+
+        $root = $page;
+        for ($depth = 0; 'root' !== $root['type'] && (int) $root['pid'] > 0 && $depth < 50; ++$depth) {
+            $up = $this->page((int) $root['pid']);
+            if (null === $up) {
+                break;
+            }
+            $root = $up;
+        }
+
+        return [
+            ['id' => (int) $page['id'], 'title' => (string) $page['title'], 'alias' => (string) $page['alias'], 'published' => (bool) $page['published']],
+            'root' === $root['type'] ? ['id' => (int) $root['id'], 'title' => (string) $root['title'], 'language' => (string) $root['language'], 'dns' => (string) $root['dns']] : null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function page(int $id): ?array
+    {
+        if (!\array_key_exists($id, $this->pages)) {
+            $row = $this->connection->fetchAssociative('SELECT id, pid, type, title, alias, language, dns, published FROM tl_page WHERE id = ?', [$id]);
+            $this->pages[$id] = false === $row ? null : $row;
+        }
+
+        return $this->pages[$id];
+    }
+}
