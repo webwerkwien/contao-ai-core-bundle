@@ -248,16 +248,30 @@ class ContentFindCommandTest extends TestCase
      *
      * @return array<string, mixed>
      */
-    private static function onSite(bool $changelanguage): array
+    private static function onSite(bool $changelanguage, string $query = 'A powerful CMS'): array
     {
         $db = LanguageVersionsTest::database();
         $db->insert('tl_content', ['id' => 160, 'pid' => 40, 'ptable' => 'tl_article', 'type' => 'rsce_slider', 'headline' => 'a:2:{s:5:"value";s:14:"A powerful CMS";s:4:"unit";s:2:"h2";}', 'text' => '', 'html' => '', 'invisible' => 0]);
         $db->insert('tl_content', ['id' => 416, 'pid' => 41, 'ptable' => 'tl_article', 'type' => 'rsce_slider', 'headline' => 'a:2:{s:5:"value";s:25:"Ein leistungsstarkes CMS";s:4:"unit";s:2:"h2";}', 'text' => '', 'html' => '', 'invisible' => 0]);
 
         $tester = new CommandTester(new ContentFindCommand($db, $changelanguage ? new LanguageVersions($db) : null));
-        $tester->execute(['query' => 'A powerful CMS']);
+        $tester->execute(['query' => $query]);
 
         return self::answer($tester);
+    }
+
+    /**
+     * From the linked side: the German element names the English main version and the
+     * French one (review 2026-10-20: only the main side was tested end to end).
+     */
+    public function testAHitOnTheLinkedSideNamesTheMainAndTheOtherVersions(): void
+    {
+        $answer = self::onSite(true, 'Ein leistungsstarkes CMS');
+
+        self::assertSame([416], array_column($answer['results'], 'id'));
+        $versions = $answer['results'][0]['versions'];
+        self::assertSame([[2, 'en', true], [51, 'fr', false]], array_map(static fn (array $v): array => [$v['id'], $v['language'], $v['main']], $versions['page']));
+        self::assertSame([[40, 'en', true]], array_map(static fn (array $v): array => [$v['id'], $v['language'], $v['main']], $versions['article']));
     }
 
     public function testAHitNamesTheLinkedVersionsOfItsPageAndArticle(): void

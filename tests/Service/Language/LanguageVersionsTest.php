@@ -36,6 +36,9 @@ class LanguageVersionsTest extends TestCase
             [90, 76, 3, 'regular', 'Nicht verknüpft', '', 0, 1, 0],
             [91, 76, 4, 'regular', 'Kaputt', '', 0, 1, 999],
             [51, 50, 1, 'regular', 'Accueil', '', 0, 1, 2],
+            // a level deeper: the root is two steps up (review 2026-10-20)
+            [3, 2, 1, 'regular', 'Team', '', 0, 1, 0],
+            [78, 77, 1, 'regular', 'Team DE', '', 0, 1, 3],
         ] as [$id, $pid, $sorting, $type, $title, $language, $fallback, $published, $main]) {
             $db->insert('tl_page', ['id' => $id, 'pid' => $pid, 'sorting' => $sorting, 'type' => $type, 'title' => $title, 'alias' => '', 'language' => $language, 'dns' => '', 'fallback' => $fallback, 'published' => $published, 'languageMain' => $main]);
         }
@@ -70,6 +73,14 @@ class LanguageVersionsTest extends TestCase
 
         self::assertSame('de', $found['record']['language']);
         self::assertSame([[2, 'en', true], [51, 'fr', false]], array_map(static fn (array $v): array => [$v['id'], $v['language'], $v['main']], $found['versions']));
+    }
+
+    public function testASubpageTakesTheLanguageOfTheRootAboveItsParent(): void
+    {
+        $found = (new LanguageVersions(self::database()))->of('tl_page', 78);
+
+        self::assertSame(['id' => 78, 'title' => 'Team DE', 'published' => true, 'language' => 'de', 'root' => 76], $found['record']);
+        self::assertSame([['id' => 3, 'title' => 'Team', 'published' => true, 'language' => 'en', 'root' => 1, 'main' => true]], $found['versions']);
     }
 
     public function testArticlesAreLinkedLikePages(): void

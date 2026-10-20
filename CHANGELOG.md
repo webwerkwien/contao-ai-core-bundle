@@ -14,9 +14,9 @@ contao-ai-cli v1.13.0 use the new command and fields.
 - **`contao:language:versions <table> <id>`** (with terminal42/contao-changelanguage) —
   the linked language versions of a page, article, news entry, event or FAQ: the record
   `languageMain` points to and everything pointing there, each with title, published,
-  root and the root's language. When nothing is linked, the other website roots and a
-  note that a version may still exist without a link. A website root is refused with
-  the reason (roots are linked through `languageRoot`).
+  root and the root's language, and the other website roots (`otherRoots`). When nothing
+  is linked, a note that a version may still exist there without a link. A website root
+  is refused with the reason (roots are linked through `languageRoot`).
 - **`contao:content:find`**: each hit names the linked versions of its page and article
   (`versions.page`, `versions.article`; of its news entry or event: `versions.entry`),
   and the answer lists the website roots with their language when there are several.
@@ -26,6 +26,8 @@ contao-ai-cli v1.13.0 use the new command and fields.
   A chat on showcase.conpai.eu changed the English slider headline and told the user
   the page existed in English only — the linked German start page had the same slider,
   and nothing the chat could call said so (2026-10-20).
+
+## v1.10.0 - 2026-10-20
 
 Works with the same backend-bundle and contao-ai-cli; backend-bundle v0.20.0 and
 contao-ai-cli v1.12.0 use the new command.

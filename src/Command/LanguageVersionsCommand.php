@@ -55,6 +55,11 @@ class LanguageVersionsCommand extends AbstractReadCommand
         $roots = array_values(array_filter($this->versions->roots(), static fn (array $r): bool => $r['id'] !== $own));
 
         $answer = ['table' => $table] + $found + ['otherRoots' => $roots];
+        if (null === $own) {
+            // An entry whose archive has no jumpTo page: its language is unknown, so
+            // "other" cannot be told from "own" (review 2026-10-20).
+            $answer['rootNote'] = 'The record\'s own root could not be determined (its archive has no jumpTo page); otherRoots lists every website root.';
+        }
         if (!$found['linked'] && [] !== $roots) {
             $answer['note'] = 'No version is linked to this record. The other website roots listed may still hold one without a link — do not say there is none; `language check` lists unlinked pages.';
         }

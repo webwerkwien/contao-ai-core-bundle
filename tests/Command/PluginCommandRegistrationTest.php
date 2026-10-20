@@ -63,9 +63,18 @@ class PluginCommandRegistrationTest extends TestCase
      * constructor argument (null without the package) — registered unconditionally on
      * purpose. content:find names linked language versions only where changelanguage is
      * installed (v1.11.0). testOptionalUsersTakeTheServiceAsNullable keeps them honest.
+     *
+     * Only these exact pieces are taken out before the scan; anything else in the file
+     * that names a package still counts (review 2026-10-20: skipping the whole file let
+     * a `use Terminal42\ChangeLanguage\…` through).
+     *
+     * @var array<string, list<string>>
      */
     private const OPTIONAL_USERS = [
-        'ContentFindCommand.php' => '?LanguageVersions $versions = null',
+        'ContentFindCommand.php' => [
+            'use Webwerkwien\\ContaoAiCoreBundle\\Service\\Language\\LanguageVersions;',
+            '?LanguageVersions $versions = null',
+        ],
     ];
 
     private function commandDir(): string
@@ -115,10 +124,7 @@ class PluginCommandRegistrationTest extends TestCase
 
         $found = [];
         foreach ($files as $file) {
-            if (isset(self::OPTIONAL_USERS[basename($file)])) {
-                continue;
-            }
-            $source = (string) file_get_contents($file);
+            $source = str_replace(self::OPTIONAL_USERS[basename($file)] ?? [], '', (string) file_get_contents($file));
 
             foreach (self::PLUGIN_MODELS as $suffix => $models) {
                 foreach ($models as $model) {
@@ -184,9 +190,12 @@ class PluginCommandRegistrationTest extends TestCase
      */
     public function testOptionalUsersTakeTheServiceAsNullable(): void
     {
-        foreach (self::OPTIONAL_USERS as $basename => $parameter) {
-            self::assertStringContainsString($parameter, (string) file_get_contents($this->commandDir() . '/' . $basename), "$basename must take the package's service as nullable with null as default, or be registered conditionally.");
+        foreach (self::OPTIONAL_USERS as $basename => $pieces) {
+            foreach ($pieces as $piece) {
+                self::assertStringContainsString($piece, (string) file_get_contents($this->commandDir() . '/' . $basename), "$basename must take the package's service as nullable with null as default, or be registered conditionally.");
+            }
             self::assertFalse($this->isExcluded($basename), "$basename runs on every installation and must not be excluded from auto-discovery.");
+            self::assertArrayNotHasKey($basename, $this->pluginDependentCommands(), "$basename names a package beyond its optional argument.");
         }
     }
 

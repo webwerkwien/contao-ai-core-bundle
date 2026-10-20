@@ -43,6 +43,9 @@ class ContentFindCommand extends AbstractReadCommand
     /** @var array<int, array<string, mixed>|null> */
     private array $pages = [];
 
+    /** @var array<string, array<int, list<array<string, mixed>>>> */
+    private array $versionCache = [];
+
     public function __construct(
         private readonly Connection $connection,
         private readonly ?LanguageVersions $versions = null,
@@ -59,6 +62,10 @@ class ContentFindCommand extends AbstractReadCommand
 
     protected function doExecute(): int
     {
+        // One command object can serve several runs in one process (the back end's chat
+        // runs commands in-process): caches live for one run, not for the object.
+        $this->pages = $this->versionCache = [];
+
         $query = trim((string) $this->input->getArgument('query'));
         if (mb_strlen($query) < self::MIN_LENGTH) {
             return $this->outputError(\sprintf('The search text needs at least %d characters.', self::MIN_LENGTH));
@@ -160,7 +167,9 @@ class ContentFindCommand extends AbstractReadCommand
             return null;
         }
 
-        $of = fn (string $table, int $id): array => $this->versions->of($table, $id)['versions'] ?? [];
+        // Once per record and run: twenty hits in one article would otherwise read the
+        // same versions twenty times (review 2026-10-20).
+        $of = fn (string $table, int $id): array => $this->versionCache[$table][$id] ??= ($this->versions->of($table, $id)['versions'] ?? []);
 
         if (isset($location['article'])) {
             return [
