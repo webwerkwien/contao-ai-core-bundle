@@ -23,8 +23,47 @@ class LinkTargetDiagnosis
     /** @var array<int, array<string, mixed>|null> */
     private array $pages = [];
 
-    public function __construct(private readonly Connection $connection)
+    /**
+     * @param (\Closure(): int)|null $now the clock, for tests at the start/stop boundary
+     */
+    public function __construct(
+        private readonly Connection $connection,
+        private readonly ?\Closure $now = null,
+    ) {
+    }
+
+    /**
+     * Unlinked articles split into those that can be linked and those that cannot, each
+     * of the latter with page and reason — what `language:check` reports.
+     *
+     * @param list<int> $articleIds
+     *
+     * @return array{closable: list<int>, unlinkable: list<array{id: int, page: int, reason: string}>}
+     */
+    public function forArticles(array $articleIds): array
     {
+        $split = ['closable' => [], 'unlinkable' => []];
+        if ([] === $articleIds) {
+            return $split;
+        }
+
+        $pids = [];
+        foreach ($this->connection->fetchAllAssociative('SELECT id, pid FROM tl_article WHERE id IN (' . implode(',', array_map('intval', $articleIds)) . ')') as $row) {
+            $pids[(int) $row['id']] = (int) $row['pid'];
+        }
+
+        $causes = [];
+        foreach ($articleIds as $id) {
+            $pid = $pids[$id] ?? 0;
+            $causes[$pid] ??= $this->forArticlePage($pid) ?? '';
+            if ('' === $causes[$pid]) {
+                $split['closable'][] = $id;
+            } else {
+                $split['unlinkable'][] = ['id' => $id, 'page' => $pid, 'reason' => $causes[$pid]];
+            }
+        }
+
+        return $split;
     }
 
     /**
@@ -50,12 +89,18 @@ class LinkTargetDiagnosis
             return \sprintf('Page %d is linked to page %d, which does not exist (language check lists it as invalid).', $pageId, $main);
         }
 
+        $root = $this->rootOf($counterpart);
+        $rootWhy = null === $root ? null : $this->notShown($root);
+
         if (null !== ($why = $this->notShown($counterpart))) {
-            return \sprintf('Page %d is linked to page %d of the main language, but page %d %s. changelanguage offers article targets only on published pages and roots — in the back end as well — so this article can be linked once page %d is published.', $pageId, $main, $main, $why, $main);
+            // Both named when both are the reason: publishing the page alone would not do
+            // (review 2026-10-20).
+            return null === $rootWhy
+                ? \sprintf('Page %d is linked to page %d of the main language, but page %d %s. changelanguage offers article targets only on published pages and roots — in the back end as well — so this article can be linked once page %d is published.', $pageId, $main, $main, $why, $main)
+                : \sprintf('Page %d is linked to page %d of the main language, but page %d %s and its website root %d %s. changelanguage offers article targets only on published pages and roots — in the back end as well — so this article can be linked once both are published.', $pageId, $main, $main, $why, (int) $root['id'], $rootWhy);
         }
 
-        $root = $this->rootOf($counterpart);
-        if (null !== $root && null !== ($why = $this->notShown($root))) {
+        if (null !== $root && null !== ($why = $rootWhy)) {
             return \sprintf('Page %d is linked to page %d of the main language, but its website root %d %s. changelanguage offers article targets only on published pages and roots — in the back end as well.', $pageId, $main, (int) $root['id'], $why);
         }
 
@@ -70,7 +115,7 @@ class LinkTargetDiagnosis
     private function notShown(array $page): ?string
     {
         // As PageFinder::addPublishingConditions(): start < now, stop > now + 60 (minutes floored)
-        $now = (int) (floor(time() / 60) * 60);
+        $now = (int) (floor((null === $this->now ? time() : ($this->now)()) / 60) * 60);
 
         return match (true) {
             '1' !== (string) $page['published']                                 => 'is unpublished',

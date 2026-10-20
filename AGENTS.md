@@ -1074,6 +1074,10 @@ Since v1.11.1 `Service\Language\LinkTargetDiagnosis` says which page or root it 
 counterpart in the main language and its root; the article's own page is not asked, as
 the package does not ask): in the refusal of `language:link` and as `unlinkableArticles`
 in `language:check`. Keep it in step with `PageFinder::addPublishingConditions()`.
+Known gaps, both old data and only in the `link` refusal: an article whose page is in the
+main tree itself gets "link the page first" (the page link then says why not), and a
+`languageMain` pointing outside the main tree is named as "page of the main language"
+(`language:check` lists it under `invalid`).
 
 **Language versions (v1.11.0).** `contao:language:versions <table> <id>` and
 `Service\Language\LanguageVersions` answer "which versions does this record have": the

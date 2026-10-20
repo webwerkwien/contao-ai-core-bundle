@@ -120,18 +120,7 @@ class LanguageCheckCommand extends Command
             // An article whose counterpart page or root is unpublished cannot be linked —
             // changelanguage offers no target, in the back end either. Reported apart with
             // the reason, not as a gap to close (v1.11.1, showcase "_Ressourcen").
-            $unlinkable = [];
-            $closable   = [];
-            $causes     = [];
-            foreach ($articles as $articleId) {
-                $pid = (int) $this->connection->fetchOne('SELECT pid FROM tl_article WHERE id = ?', [$articleId]);
-                $causes[$pid] ??= $this->diagnosis->forArticlePage($pid) ?? '';
-                if ('' === $causes[$pid]) {
-                    $closable[] = $articleId;
-                } else {
-                    $unlinkable[] = ['id' => $articleId, 'page' => $pid, 'reason' => $causes[$pid]];
-                }
-            }
+            ['closable' => $closable, 'unlinkable' => $unlinkable] = $this->diagnosis->forArticles($articles);
 
             $roots[] = [
                 'root'             => ['id' => (int) $root->id, 'title' => $root->title, 'language' => $root->language, 'dns' => $root->dns],
