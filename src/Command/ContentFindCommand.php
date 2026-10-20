@@ -8,6 +8,7 @@ use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
+use Webwerkwien\ContaoAiCoreBundle\Service\Language\LanguageVersions;
 
 /**
  * Finds content elements by their text, with where they sit: article, page, root and
@@ -19,6 +20,12 @@ use Symfony\Component\Console\Input\InputOption;
  * crawler skip it, so on a staging site or a showcase the index stays empty — and listing
  * took a chat on showcase 9–10 calls and half a minute to change one slider headline
  * (2026-10-19). This searches `tl_content` itself.
+ *
+ * Since v1.11.0 each hit names the linked versions of its page and article in the other
+ * languages (`versions`), where terminal42/contao-changelanguage is installed: a chat on
+ * showcase had changed the English headline and claimed there was no other language, while
+ * the linked German page had the same slider (2026-10-20). Without the package there are no
+ * links to read; on a site with several roots the answer says so (`versionsNote`).
  *
  * Read-only, and like every command here it trusts its operator: it does not ask
  * Contao's voters. The backend bundle's `content_find` drops what the user may not read.
@@ -36,8 +43,10 @@ class ContentFindCommand extends AbstractReadCommand
     /** @var array<int, array<string, mixed>|null> */
     private array $pages = [];
 
-    public function __construct(private readonly Connection $connection)
-    {
+    public function __construct(
+        private readonly Connection $connection,
+        private readonly ?LanguageVersions $versions = null,
+    ) {
         parent::__construct();
     }
 
@@ -102,7 +111,7 @@ class ContentFindCommand extends AbstractReadCommand
                 break;
             }
             [$field, $snippet] = $match;
-            $results[] = [
+            $hit = [
                 'id'        => (int) $row['id'],
                 'type'      => (string) $row['type'],
                 'field'     => $field,
@@ -111,16 +120,61 @@ class ContentFindCommand extends AbstractReadCommand
                 'ptable'    => (string) $row['ptable'],
                 'pid'       => (int) $row['pid'],
             ] + $location;
+            $versions = $this->versionsOf($location);
+            $results[] = null === $versions ? $hit : $hit + ['versions' => $versions];
         }
 
-        $this->outputRecord([
+        $answer = [
             'query'   => $query,
             'count'   => \count($results),
             'more'    => $more,
             'results' => $results,
-        ]);
+        ];
+
+        // Which languages the site has, so "the other versions" has an answer even where
+        // nothing is linked.
+        $roots = $this->connection->fetchAllAssociative("SELECT id, title, language FROM tl_page WHERE type = 'root' ORDER BY sorting, id");
+        if (\count($roots) > 1) {
+            $answer['roots'] = array_map(static fn (array $r): array => ['id' => (int) $r['id'], 'title' => (string) $r['title'], 'language' => (string) $r['language']], $roots);
+            if (null === $this->versions) {
+                $answer['versionsNote'] = 'terminal42/contao-changelanguage is not installed: versions in other languages are not linked and cannot be listed. The other roots may hold the same content; do not say there is none.';
+            }
+        }
+
+        $this->outputRecord($answer);
 
         return self::SUCCESS;
+    }
+
+    /**
+     * The linked versions of the hit's page and article, or of its news entry or event;
+     * null without changelanguage. An empty list means none is linked.
+     *
+     * @param array<string, mixed> $location
+     *
+     * @return array<string, list<array<string, mixed>>>|null
+     */
+    private function versionsOf(array $location): ?array
+    {
+        if (null === $this->versions) {
+            return null;
+        }
+
+        $of = fn (string $table, int $id): array => $this->versions->of($table, $id)['versions'] ?? [];
+
+        if (isset($location['article'])) {
+            return [
+                'page'    => isset($location['page']['id']) ? $of('tl_page', (int) $location['page']['id']) : [],
+                'article' => $of('tl_article', (int) $location['article']['id']),
+            ];
+        }
+
+        $parent = $location['parent'] ?? null;
+        if (\is_array($parent) && \in_array($parent['table'] ?? null, ['tl_news', 'tl_calendar_events'], true)) {
+            return ['entry' => $of((string) $parent['table'], (int) $parent['id'])];
+        }
+
+        return null;
     }
 
     /**

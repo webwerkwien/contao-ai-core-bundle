@@ -58,6 +58,16 @@ class PluginCommandRegistrationTest extends TestCase
         'changelanguage' => ['Terminal42\\ChangeLanguage\\', 'Service\\Language\\'],
     ];
 
+    /**
+     * Commands of every installation that take a package's service as an optional
+     * constructor argument (null without the package) — registered unconditionally on
+     * purpose. content:find names linked language versions only where changelanguage is
+     * installed (v1.11.0). testOptionalUsersTakeTheServiceAsNullable keeps them honest.
+     */
+    private const OPTIONAL_USERS = [
+        'ContentFindCommand.php' => '?LanguageVersions $versions = null',
+    ];
+
     private function commandDir(): string
     {
         return __DIR__ . '/../../src/Command';
@@ -105,6 +115,9 @@ class PluginCommandRegistrationTest extends TestCase
 
         $found = [];
         foreach ($files as $file) {
+            if (isset(self::OPTIONAL_USERS[basename($file)])) {
+                continue;
+            }
             $source = (string) file_get_contents($file);
 
             foreach (self::PLUGIN_MODELS as $suffix => $models) {
@@ -169,6 +182,14 @@ class PluginCommandRegistrationTest extends TestCase
      * A scan that finds nothing passes just as quietly as a scan that finds
      * everything — the lesson from 2026-08-30, applied to this one too.
      */
+    public function testOptionalUsersTakeTheServiceAsNullable(): void
+    {
+        foreach (self::OPTIONAL_USERS as $basename => $parameter) {
+            self::assertStringContainsString($parameter, (string) file_get_contents($this->commandDir() . '/' . $basename), "$basename must take the package's service as nullable with null as default, or be registered conditionally.");
+            self::assertFalse($this->isExcluded($basename), "$basename runs on every installation and must not be excluded from auto-discovery.");
+        }
+    }
+
     public function testTheScanFoundBothCommandsAndPatterns(): void
     {
         $this->assertGreaterThanOrEqual(

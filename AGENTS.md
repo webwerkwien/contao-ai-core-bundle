@@ -1071,6 +1071,19 @@ refuse a duplicate. The package's rules on copy, cut and delete run as its callb
 ⚠️ changelanguage finds associated pages **only when they and their roots are published**:
 on an unpublished test tree the article options are empty, in the back end as well.
 
+**Language versions (v1.11.0).** `contao:language:versions <table> <id>` and
+`Service\Language\LanguageVersions` answer "which versions does this record have": the
+record `languageMain` points to (or itself), plus everything pointing there, each with its
+root and language (an entry's language through its archive's `jumpTo` page). Reads
+`languageMain` only — no PageFinder, so it also sees unpublished versions. When nothing is
+linked it names the other roots and says a version may still exist unlinked: the point is
+that a caller never claims "there is no other language" without having looked.
+`contao:content:find` takes the service as an **optional** constructor argument and adds
+`versions` (page, article — or entry) per hit; without the package the service is not
+registered, the argument is null, and on a site with several roots the answer carries a
+`versionsNote` instead. `PluginCommandRegistrationTest::OPTIONAL_USERS` lists such
+commands — register a package-bound command conditionally unless it degrades like this.
+
 ## Public write API (v1.4.0 – v1.5.0)
 
 `RecordWriterInterface` (with `create()` since v1.4.0), `DcaCallbacks` and `VersionManager`
@@ -1135,7 +1148,9 @@ with `noindex` is not in the index (Contao's SearchIndexListener and the crawler
 from Contao 5.7 a page can be set to be indexed anyway). On a staging site or a showcase
 it is empty. `contao:content:find` searches the text columns of `tl_content` (`headline`,
 `text`, `html`) and answers each element with article, page, root and language — what a
-caller needs to change the right one, and the right language. Keep it read-only and
+caller needs to change the right one, and the right language. Since v1.11.0 each hit also
+names the linked versions of its page and article, and the answer lists the roots when
+there are several (see "Language versions" above). Keep it read-only and
 voter-free like the other commands; the backend bundle filters by Contao's voters. When a
 table or column joins the search, add a test with a known non-match.
 

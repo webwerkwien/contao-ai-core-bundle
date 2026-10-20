@@ -6,6 +6,8 @@ use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 use Webwerkwien\ContaoAiCoreBundle\Command\ContentFindCommand;
+use Webwerkwien\ContaoAiCoreBundle\Service\Language\LanguageVersions;
+use Webwerkwien\ContaoAiCoreBundle\Tests\Service\Language\LanguageVersionsTest;
 
 /**
  * contao:content:find (v1.10.0): elements by their text, with article, page, root and
@@ -35,7 +37,10 @@ class ContentFindCommandTest extends TestCase
     private function tester(array $contentRows, array $nested = []): CommandTester
     {
         $connection = $this->createMock(Connection::class);
-        $connection->method('fetchAllAssociative')->willReturnCallback(function (string $sql, array $params) use ($contentRows): array {
+        $connection->method('fetchAllAssociative')->willReturnCallback(function (string $sql, array $params = []) use ($contentRows): array {
+            if (str_contains($sql, "type = 'root'")) {
+                return []; // the roots of the site (v1.11.0) — see the SQLite tests at the end
+            }
             $this->queries[] = [$sql, $params];
 
             return $contentRows;
@@ -234,5 +239,45 @@ class ContentFindCommandTest extends TestCase
         self::assertSame(1, $tester->getStatusCode());
         self::assertSame('error', self::answer($tester)['status']);
         self::assertSame([], $this->queries, 'nothing is searched');
+    }
+
+    /**
+     * v1.11.0, the showcase case over a real SQLite site (LanguageVersionsTest): the English
+     * slider is found by its text, and the hit names the linked German page and article —
+     * the chat had claimed there was no other language.
+     *
+     * @return array<string, mixed>
+     */
+    private static function onSite(bool $changelanguage): array
+    {
+        $db = LanguageVersionsTest::database();
+        $db->insert('tl_content', ['id' => 160, 'pid' => 40, 'ptable' => 'tl_article', 'type' => 'rsce_slider', 'headline' => 'a:2:{s:5:"value";s:14:"A powerful CMS";s:4:"unit";s:2:"h2";}', 'text' => '', 'html' => '', 'invisible' => 0]);
+        $db->insert('tl_content', ['id' => 416, 'pid' => 41, 'ptable' => 'tl_article', 'type' => 'rsce_slider', 'headline' => 'a:2:{s:5:"value";s:25:"Ein leistungsstarkes CMS";s:4:"unit";s:2:"h2";}', 'text' => '', 'html' => '', 'invisible' => 0]);
+
+        $tester = new CommandTester(new ContentFindCommand($db, $changelanguage ? new LanguageVersions($db) : null));
+        $tester->execute(['query' => 'A powerful CMS']);
+
+        return self::answer($tester);
+    }
+
+    public function testAHitNamesTheLinkedVersionsOfItsPageAndArticle(): void
+    {
+        $answer = self::onSite(true);
+
+        self::assertSame([160], array_column($answer['results'], 'id'));
+        $versions = $answer['results'][0]['versions'];
+        self::assertSame([[51, 'fr'], [77, 'de']], array_map(static fn (array $v): array => [$v['id'], $v['language']], $versions['page']));
+        self::assertSame([[41, 'de']], array_map(static fn (array $v): array => [$v['id'], $v['language']], $versions['article']));
+        self::assertSame(['en', 'de', 'fr'], array_column($answer['roots'], 'language'));
+        self::assertArrayNotHasKey('versionsNote', $answer);
+    }
+
+    public function testWithoutChangelanguageTheAnswerSaysVersionsCannotBeListed(): void
+    {
+        $answer = self::onSite(false);
+
+        self::assertArrayNotHasKey('versions', $answer['results'][0]);
+        self::assertSame([1, 76, 50], array_column($answer['roots'], 'id'));
+        self::assertStringContainsString('do not say there is none', $answer['versionsNote']);
     }
 }

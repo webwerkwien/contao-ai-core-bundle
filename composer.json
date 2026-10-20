@@ -50,7 +50,7 @@
         "terminal42/contao-changelanguage": "^3.9"
     },
     "suggest": {
-        "terminal42/contao-changelanguage": "Translation links: contao:language:link and contao:language:check (v1.4.0)"
+        "terminal42/contao-changelanguage": "Translation links: contao:language:link, contao:language:check (v1.4.0) and contao:language:versions (v1.11.0)"
     },
     "autoload": {
         "psr-4": {

@@ -8,3 +8,6 @@ services:
     Webwerkwien\ContaoAiCoreBundle\Service\Language\ChangeLanguageLinks: ~
     Webwerkwien\ContaoAiCoreBundle\Command\LanguageLinkCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\LanguageCheckCommand: ~
+    # v1.11.0; content:find nimmt den Dienst optional (null ohne changelanguage)
+    Webwerkwien\ContaoAiCoreBundle\Service\Language\LanguageVersions: ~
+    Webwerkwien\ContaoAiCoreBundle\Command\LanguageVersionsCommand: ~
