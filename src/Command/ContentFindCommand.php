@@ -2,6 +2,8 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
+use Contao\Input;
+use Contao\InputEncodingMode;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputArgument;
@@ -13,7 +15,7 @@ use Symfony\Component\Console\Input\InputOption;
  *
  * The way an agent found an element until now was the search index (`contao:search:query`,
  * which answers pages, not elements) or listing tables one by one. Both fail where it
- * matters: a page with `noindex` is never indexed — Contao's SearchIndexListener and the
+ * matters: a page with `noindex` is not indexed — Contao's SearchIndexListener and the
  * crawler skip it, so on a staging site or a showcase the index stays empty — and listing
  * took a chat on showcase 9–10 calls and half a minute to change one slider headline
  * (2026-10-19). This searches `tl_content` itself.
@@ -55,15 +57,23 @@ class ContentFindCommand extends AbstractReadCommand
         $limit = max(1, min(self::MAX_LIMIT, (int) $this->input->getOption('limit')));
         $root  = null === $this->input->getOption('root') ? null : (int) $this->input->getOption('root');
 
-        // Contao stores some characters encoded (`&amp;`, `&quot;`); a text typed as the
-        // page shows it is searched in both forms.
-        $needles = array_values(array_unique([$query, htmlspecialchars($query, ENT_QUOTES)]));
+        // A root that is no root would find nothing, silently; 0 or text would find only
+        // the elements without one (Fable review 2026-10-20).
+        if (null !== $root && 'root' !== ($this->page($root)['type'] ?? null)) {
+            return $this->outputError(\sprintf('Page %d is not a website root (type root); --root takes the id of one.', $root));
+        }
+
+        // A text typed as the page shows it is searched in the forms Contao stores: as
+        // typed, as a text field stores it (Input::encodeInput, `(` as `&#40;`, `'` as
+        // `&#39;` — Fable review 2026-10-20) and as the rich text editor does (`&amp;`).
+        $needles = self::needles($query);
 
         $where = [];
         $params = [];
         foreach (self::FIELDS as $field) {
             foreach ($needles as $needle) {
-                $where[] = "$field LIKE ?";
+                // LOWER(): case-insensitive also where a column's collation is binary
+                $where[] = "LOWER($field) LIKE LOWER(?)";
                 $params[] = '%' . addcslashes($needle, '%_\\') . '%';
             }
         }
@@ -83,11 +93,15 @@ class ContentFindCommand extends AbstractReadCommand
             if (null !== $root && (int) ($location['root']['id'] ?? 0) !== $root) {
                 continue;
             }
+            $match = self::match($row, $query, $needles);
+            if (null === $match) {
+                continue; // the text only in a serialized headline's frame ("value", "unit")
+            }
             if (\count($results) === $limit) {
                 $more = true;
                 break;
             }
-            [$field, $snippet] = self::match($row, $query);
+            [$field, $snippet] = $match;
             $results[] = [
                 'id'        => (int) $row['id'],
                 'type'      => (string) $row['type'],
@@ -110,13 +124,27 @@ class ContentFindCommand extends AbstractReadCommand
     }
 
     /**
-     * The field that holds the text and the words around it, as plain text.
+     * @return list<string>
+     */
+    private static function needles(string $query): array
+    {
+        return array_values(array_unique([
+            $query,
+            Input::encodeInput($query, InputEncodingMode::encodeAll, false),
+            htmlspecialchars($query, ENT_QUOTES),
+        ]));
+    }
+
+    /**
+     * The field that holds the text and the words around it, as plain text; null when the
+     * text sits only in a serialized headline's frame (`value`, `unit`), not in any value.
      *
      * @param array<string, mixed> $row
+     * @param list<string>         $needles
      *
-     * @return array{string, string}
+     * @return array{string, string}|null
      */
-    private static function match(array $row, string $query): array
+    private static function match(array $row, string $query, array $needles): ?array
     {
         foreach (self::FIELDS as $field) {
             $text = self::plain($field, (string) ($row[$field] ?? ''));
@@ -128,14 +156,24 @@ class ContentFindCommand extends AbstractReadCommand
             }
         }
 
-        // matched only in markup or an encoded form the plain text does not show
+        // Matched only in markup (an attribute, a link) or in an encoded form: the field
+        // whose stored value holds it — the headline's value, not its serialized frame.
+        // Until the Fable review this took the first non-empty field and called "value" a
+        // hit in every headline.
         foreach (self::FIELDS as $field) {
-            if ('' !== trim((string) ($row[$field] ?? ''))) {
-                return [$field, mb_substr(self::plain($field, (string) $row[$field]), 0, 180)];
+            $raw = (string) ($row[$field] ?? '');
+            if ('headline' === $field) {
+                $pair = @unserialize($raw, ['allowed_classes' => false]);
+                $raw = \is_array($pair) ? (string) ($pair['value'] ?? '') : $raw;
+            }
+            foreach ($needles as $needle) {
+                if ('' !== $raw && false !== mb_stripos($raw, $needle)) {
+                    return [$field, mb_substr(self::plain($field, (string) $row[$field]), 0, 180)];
+                }
             }
         }
 
-        return ['', ''];
+        return null;
     }
 
     private static function plain(string $field, string $value): string

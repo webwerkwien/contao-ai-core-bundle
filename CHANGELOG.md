@@ -20,10 +20,9 @@ contao-ai-cli v1.12.0 use the new command.
 
   The way to an element until now was the search index or listing table after table. A
   chat on showcase.conpai.eu needed 9–10 calls and half a minute to change one slider
-  headline (2026-10-19), and the index was no help: a page with `noindex` is never
-  indexed — Contao's SearchIndexListener skips it, and a `noindex` in the X-Robots-Tag
-  header wins even over `always_index` — so on a staging site or a showcase it stays
-  empty. This searches `tl_content` itself. Read-only; like every command here it does
+  headline (2026-10-19), and the index was no help: a page with `noindex` is not
+  indexed — Contao's SearchIndexListener and the crawler skip it (from Contao 5.7 a page
+  can be set to be indexed anyway) — so on a staging site or a showcase it stays empty. This searches `tl_content` itself. Read-only; like every command here it does
   not ask Contao's voters (the backend bundle's `content_find` does).
 
 ### Changed

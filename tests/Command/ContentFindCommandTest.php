@@ -17,15 +17,15 @@ class ContentFindCommandTest extends TestCase
     private array $queries = [];
 
     private const PAGES = [
-        1 => ['id' => 1, 'pid' => 0, 'type' => 'root', 'title' => 'Website DE', 'alias' => 'de', 'language' => 'de', 'dns' => 'example.org', 'published' => 1],
-        2 => ['id' => 2, 'pid' => 0, 'type' => 'root', 'title' => 'Website EN', 'alias' => 'en', 'language' => 'en', 'dns' => 'example.org', 'published' => 1],
-        10 => ['id' => 10, 'pid' => 1, 'type' => 'regular', 'title' => 'Start', 'alias' => 'start', 'language' => '', 'dns' => '', 'published' => 1],
-        20 => ['id' => 20, 'pid' => 2, 'type' => 'regular', 'title' => 'Home', 'alias' => 'home', 'language' => '', 'dns' => '', 'published' => 1],
+        1 => ['id' => '1', 'pid' => '0', 'type' => 'root', 'title' => 'Website DE', 'alias' => 'de', 'language' => 'de', 'dns' => 'example.org', 'published' => '1'],
+        2 => ['id' => '2', 'pid' => '0', 'type' => 'root', 'title' => 'Website EN', 'alias' => 'en', 'language' => 'en', 'dns' => 'example.org', 'published' => '1'],
+        10 => ['id' => '10', 'pid' => '1', 'type' => 'regular', 'title' => 'Start', 'alias' => 'start', 'language' => '', 'dns' => '', 'published' => '1'],
+        20 => ['id' => '20', 'pid' => '2', 'type' => 'regular', 'title' => 'Home', 'alias' => 'home', 'language' => '', 'dns' => '', 'published' => '1'],
     ];
 
     private const ARTICLES = [
-        100 => ['id' => 100, 'pid' => 10, 'title' => 'Start', 'inColumn' => 'main', 'published' => 1],
-        200 => ['id' => 200, 'pid' => 20, 'title' => 'Home', 'inColumn' => 'main', 'published' => 1],
+        100 => ['id' => '100', 'pid' => '10', 'title' => 'Start', 'inColumn' => 'main', 'published' => '1'],
+        200 => ['id' => '200', 'pid' => '20', 'title' => 'Home', 'inColumn' => 'main', 'published' => '1'],
     ];
 
     /**
@@ -63,8 +63,8 @@ class ContentFindCommandTest extends TestCase
         return json_decode($tester->getDisplay(), true, 512, JSON_THROW_ON_ERROR);
     }
 
-    private const SLIDER_DE = ['id' => 416, 'pid' => 100, 'ptable' => 'tl_article', 'type' => 'rsce_slider', 'headline' => 'a:2:{s:5:"value";s:13:"Das beste CMS";s:4:"unit";s:2:"h2";}', 'text' => '', 'html' => '', 'invisible' => 0];
-    private const SLIDER_EN = ['id' => 160, 'pid' => 200, 'ptable' => 'tl_article', 'type' => 'rsce_slider', 'headline' => 'a:2:{s:5:"value";s:14:"A powerful CMS";s:4:"unit";s:2:"h2";}', 'text' => '<p>Built for <strong>editors</strong> &amp; agents.</p>', 'html' => '', 'invisible' => 1];
+    private const SLIDER_DE = ['id' => '416', 'pid' => '100', 'ptable' => 'tl_article', 'type' => 'rsce_slider', 'headline' => 'a:2:{s:5:"value";s:13:"Das beste CMS";s:4:"unit";s:2:"h2";}', 'text' => '', 'html' => '', 'invisible' => '0'];
+    private const SLIDER_EN = ['id' => '160', 'pid' => '200', 'ptable' => 'tl_article', 'type' => 'rsce_slider', 'headline' => 'a:2:{s:5:"value";s:14:"A powerful CMS";s:4:"unit";s:2:"h2";}', 'text' => '<p>Built for <strong>editors</strong> &amp; agents.</p>', 'html' => '', 'invisible' => '1'];
 
     public function testAnElementComesWithArticlePageRootAndLanguage(): void
     {
@@ -105,8 +105,74 @@ class ContentFindCommandTest extends TestCase
         [$sql, $params] = $this->queries[0];
         self::assertContains('%editors & agents%', $params);
         self::assertContains('%editors &amp; agents%', $params);
-        self::assertStringContainsString('headline LIKE ?', $sql);
-        self::assertStringContainsString('html LIKE ?', $sql);
+        self::assertStringContainsString('LOWER(headline) LIKE LOWER(?)', $sql, 'case-insensitive also on a binary collation');
+        self::assertStringContainsString('LOWER(html) LIKE LOWER(?)', $sql);
+    }
+
+    /**
+     * A text field stores what the back end posts through Input::encodeInput: `(` as
+     * `&#40;`, `'` as `&#39;` (Fable review 2026-10-20; htmlspecialchars alone searched
+     * `&#039;` and missed it).
+     */
+    public function testTheFormATextFieldStoresIsSearchedToo(): void
+    {
+        $tester = $this->tester([]);
+        $tester->execute(['query' => "Preise (Michael's)"]);
+
+        self::assertContains('%Preise &#40;Michael&#39;s&#41;%', $this->queries[0][1]);
+    }
+
+    /**
+     * Found in the stored form only: the headline that holds it, and the snippet as the
+     * page shows it.
+     */
+    public function testAHeadlineStoredEncodedIsFound(): void
+    {
+        $row = ['id' => '700', 'pid' => '100', 'ptable' => 'tl_article', 'type' => 'headline', 'headline' => 'a:2:{s:5:"value";s:21:"Preise &#40;2026&#41;";s:4:"unit";s:2:"h2";}', 'text' => '<p>Andere Inhalte</p>', 'html' => '', 'invisible' => '0'];
+        $tester = $this->tester([$row]);
+        $tester->execute(['query' => 'Preise (2026)']);
+        $hit = self::answer($tester)['results'][0];
+
+        self::assertSame('headline', $hit['field']);
+        self::assertSame('Preise (2026)', $hit['snippet']);
+    }
+
+    /**
+     * A match only in markup names the field that holds it, not the first one with text.
+     */
+    public function testAMatchInMarkupNamesItsField(): void
+    {
+        $row = ['id' => '701', 'pid' => '100', 'ptable' => 'tl_article', 'type' => 'html', 'headline' => 'a:2:{s:5:"value";s:5:"Hallo";s:4:"unit";s:2:"h2";}', 'text' => '', 'html' => '<a href="/kontakt-formular">Schreiben Sie uns</a>', 'invisible' => '0'];
+        $tester = $this->tester([$row]);
+        $tester->execute(['query' => 'kontakt-formular']);
+        $hit = self::answer($tester)['results'][0];
+
+        self::assertSame('html', $hit['field']);
+        self::assertSame('Schreiben Sie uns', $hit['snippet']);
+    }
+
+    /**
+     * The known non-match: "value" sits in every serialized headline's frame, and the LIKE
+     * finds it there. That is no hit.
+     */
+    public function testTheWordValueInAHeadlinesFrameIsNoHit(): void
+    {
+        $tester = $this->tester([self::SLIDER_DE, self::SLIDER_EN]);
+        $tester->execute(['query' => 'value']);
+        $answer = self::answer($tester);
+
+        self::assertSame(0, $answer['count']);
+        self::assertSame([], $answer['results']);
+    }
+
+    public function testARootThatIsNoRootIsRefused(): void
+    {
+        $tester = $this->tester([self::SLIDER_DE]);
+        $tester->execute(['query' => 'CMS', '--root' => '10']);
+
+        self::assertSame(1, $tester->getStatusCode());
+        self::assertStringContainsString('is not a website root', self::answer($tester)['message']);
+        self::assertSame([], $this->queries, 'nothing is searched');
     }
 
     public function testWildcardsInTheTextAreLiteral(): void
@@ -140,8 +206,8 @@ class ContentFindCommandTest extends TestCase
 
     public function testANestedElementIsTracedToItsArticle(): void
     {
-        $inner = ['id' => 500, 'pid' => 499, 'ptable' => 'tl_content', 'type' => 'text', 'headline' => '', 'text' => '<p>Kontakt aufnehmen</p>', 'html' => '', 'invisible' => 0];
-        $tester = $this->tester([$inner], [499 => ['ptable' => 'tl_article', 'pid' => 100]]);
+        $inner = ['id' => '500', 'pid' => '499', 'ptable' => 'tl_content', 'type' => 'text', 'headline' => '', 'text' => '<p>Kontakt aufnehmen</p>', 'html' => '', 'invisible' => '0'];
+        $tester = $this->tester([$inner], [499 => ['ptable' => 'tl_article', 'pid' => '100']]);
         $tester->execute(['query' => 'Kontakt']);
         $hit = self::answer($tester)['results'][0];
 
@@ -151,7 +217,7 @@ class ContentFindCommandTest extends TestCase
 
     public function testAnElementOfANewsEntryNamesTheEntry(): void
     {
-        $news = ['id' => 600, 'pid' => 7, 'ptable' => 'tl_news', 'type' => 'text', 'headline' => '', 'text' => '<p>Wir feiern im Garten</p>', 'html' => '', 'invisible' => 0];
+        $news = ['id' => '600', 'pid' => '7', 'ptable' => 'tl_news', 'type' => 'text', 'headline' => '', 'text' => '<p>Wir feiern im Garten</p>', 'html' => '', 'invisible' => '0'];
         $tester = $this->tester([$news]);
         $tester->execute(['query' => 'Garten']);
         $hit = self::answer($tester)['results'][0];
