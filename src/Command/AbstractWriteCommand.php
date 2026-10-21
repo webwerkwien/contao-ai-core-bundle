@@ -799,6 +799,12 @@ abstract class AbstractWriteCommand extends Command
             return $fields;
         }
 
+        // Today convertFields() has loaded the DCA by here; loaded anyway, so the result
+        // does not hang on the order of the calls (review v1.11.2, same kind as its fix).
+        if (!isset($GLOBALS['TL_DCA'][$table]['config'])) {
+            Controller::loadDataContainer($table);
+        }
+
         $dynamic = (bool) ($GLOBALS['TL_DCA'][$table]['config']['dynamicPtable'] ?? false);
         $pid     = (int) ($fields['pid'] ?? $stored['pid']);
         $ptable  = $dynamic ? (string) ($fields['ptable'] ?? $stored['ptable'] ?? '') : '';

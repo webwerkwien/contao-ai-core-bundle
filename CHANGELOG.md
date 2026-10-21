@@ -14,8 +14,8 @@ Works with the same backend-bundle and contao-ai-cli.
   table.** The position was computed before tl_content's DCA was loaded, so the table
   read as one without a per-record parent table (`dynamicPtable`): the element kept its
   stored `ptable` and the parent was checked against it. On web.werk.wien 25 elements
-  taken from an element group "to article 35" ended up below the content elements 35–38
-  of another page — with status ok, invisible in the front end; where no content
+  taken from element groups into the articles 35–38 ended up below the content elements
+  35–38 of another page — with status ok, invisible in the front end; where no content
   element had the article's ID, the move was refused with "No tl_content record … to be
   the parent". The move now loads the DCA first. The unit tests had set the DCA by
   hand; the new one does not, and the case was replayed on the test server (`--to` and
