@@ -2,6 +2,7 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
+use Contao\Controller;
 use Contao\Database;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -210,7 +211,22 @@ trait MovesRecord
 
     private function isDynamicPtable(string $table): bool
     {
+        // The position is computed before any write path has loaded the DCA. Unloaded,
+        // tl_content read as a table without a per-record parent table: --ptable was
+        // dropped and the parent checked against the stored one — on web.werk.wien 25
+        // elements moved "to article 35" ended up below content elements 35–38, with
+        // status ok (v1.11.2). The unit tests had set the DCA by hand.
+        if (!isset($GLOBALS['TL_DCA'][$table]['config'])) {
+            $this->loadDca($table);
+        }
+
         return (bool) ($GLOBALS['TL_DCA'][$table]['config']['dynamicPtable'] ?? false);
+    }
+
+    /** Contao's loader; a method of its own so a test can stand in for it. */
+    protected function loadDca(string $table): void
+    {
+        Controller::loadDataContainer($table);
     }
 
     /**

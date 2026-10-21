@@ -236,6 +236,28 @@ class MoveCommandTest extends TestCase
     }
 
     /**
+     * v1.11.2, the web.werk.wien case: an element in an element group (ptable
+     * tl_content) taken into an article — with the DCA not loaded yet, as on a real
+     * run. Before the fix --ptable was dropped and the element went below the content
+     * element with the article's ID. The other tests set the DCA by hand and could not
+     * see it.
+     */
+    public function testAnElementLeavesItsGroupForAnArticleWithTheDcaNotYetLoaded(): void
+    {
+        unset($GLOBALS['TL_DCA']['tl_content']);
+        $probe = $this->probe([
+            30 => ['id' => 30, 'pid' => 7, 'ptable' => 'tl_content', 'sorting' => 64],   // in group 7
+            40 => ['id' => 40, 'pid' => 35, 'ptable' => 'tl_article', 'sorting' => 128], // in article 35
+        ]);
+
+        $this->assertSame(['pid' => 35, 'sorting' => 128, 'ptable' => 'tl_article'], $this->atEnd($probe, 'tl_content', 30, 35, 'tl_article'));
+        $this->assertSame(['tl_content'], $probe->loaded);
+
+        unset($GLOBALS['TL_DCA']['tl_content']);
+        $this->assertSame(['pid' => 35, 'sorting' => 256, 'ptable' => 'tl_article'], $this->after($probe, 'tl_content', 30, 40));
+    }
+
+    /**
      * The move commands are the update commands with another entry point, so every
      * rule of the write path applies — the page tree and URL rules included.
      */
@@ -309,5 +331,15 @@ class PageMoveProbe extends PageMoveCommand
     protected function writeSorting(string $table, int $id, int $sorting): void
     {
         $this->written[$id] = $sorting;
+    }
+
+    /** @var list<string> */
+    public array $loaded = [];
+
+    /** As Contao's loader does it for these two tables. */
+    protected function loadDca(string $table): void
+    {
+        $this->loaded[]                         = $table;
+        $GLOBALS['TL_DCA'][$table]['config'] = 'tl_content' === $table ? ['dynamicPtable' => true] : [];
     }
 }

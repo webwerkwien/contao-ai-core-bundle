@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.11.2 - 2026-10-21
+
+Works with the same backend-bundle and contao-ai-cli.
+
+### Fixed
+
+- **`contao:content:move` dropped `--ptable`, and `--after` the sibling's parent
+  table.** The position was computed before tl_content's DCA was loaded, so the table
+  read as one without a per-record parent table (`dynamicPtable`): the element kept its
+  stored `ptable` and the parent was checked against it. On web.werk.wien 25 elements
+  taken from an element group "to article 35" ended up below the content elements 35–38
+  of another page — with status ok, invisible in the front end; where no content
+  element had the article's ID, the move was refused with "No tl_content record … to be
+  the parent". The move now loads the DCA first. The unit tests had set the DCA by
+  hand; the new one does not, and the case was replayed on the test server (`--to` and
+  `--after`, element group → article).
+
 ## v1.11.1 - 2026-10-20
 
 Works with the same backend-bundle and contao-ai-cli.
