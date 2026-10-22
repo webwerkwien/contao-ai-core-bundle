@@ -53,7 +53,7 @@ class PageCreateCommand extends AbstractWriteCommand implements CreatesRecord
 
     protected function doExecute(array $fields): int
     {
-        $after = $this->afterOption(['pid']);
+        $after = $this->afterOption(['pid'], $fields);
         if (\is_string($after)) {
             return $this->outputError($after);
         }

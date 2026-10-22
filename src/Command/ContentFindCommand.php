@@ -113,7 +113,12 @@ class ContentFindCommand extends AbstractReadCommand
         $capped  = false;
         while (\count($found) < $wanted) {
             if ($scanned >= self::MAX_SCAN) {
-                $capped = true;
+                // Exactly MAX_SCAN matching rows is not "more" (review v1.12.0): one row
+                // further decides.
+                $capped = [] !== $this->connection->fetchAllAssociative(
+                    'SELECT id FROM tl_content WHERE ' . implode(' OR ', $where) . ' ORDER BY id LIMIT 1 OFFSET ' . $scanned,
+                    $params,
+                );
                 break;
             }
             $rows = $this->connection->fetchAllAssociative(

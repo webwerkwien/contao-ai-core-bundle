@@ -18,8 +18,10 @@ From the Consho documentation work on consho.eu (2026-10-22).
   parent (and, for an element, its parent table), as `move --after` places it: halfway to
   the next sibling, behind the last one, or the siblings renumbered in steps of 128 like
   the back end's paste. With `--after` the parent is the sibling's, so `--pid` (and
-  `--ptable`) are refused. Until now a new element between two others meant computing
-  `--set sorting=` by hand. Move and create share one rule (`SiblingPositions`).
+  `--ptable`) are refused, and so are `--set pid=`, `ptable=` and `sorting=`, which would
+  override the slot. An article takes the sibling's layout column unless `--inColumn` is
+  given. Until now a new element between two others meant computing `--set sorting=` by
+  hand. Move and create share one rule (`SiblingPositions`).
 - **`contao:content:find --offset`** — skips results for the next page; the answer
   names the `offset`. Up to 50 results per call, and until now no way past them when
   `more` said there were more. Rows are read in batches of 200 until enough results are

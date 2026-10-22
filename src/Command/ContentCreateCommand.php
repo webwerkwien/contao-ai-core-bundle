@@ -29,7 +29,7 @@ class ContentCreateCommand extends AbstractWriteCommand implements CreatesRecord
 
     protected function doExecute(array $fields): int
     {
-        $after = $this->afterOption(['pid', 'ptable']);
+        $after = $this->afterOption(['pid', 'ptable'], $fields);
         if (\is_string($after)) {
             return $this->outputError($after);
         }

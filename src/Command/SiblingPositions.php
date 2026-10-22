@@ -153,16 +153,18 @@ trait SiblingPositions
      * --after of a create command: the sibling's ID, null when not given, or an error
      * text. With --after the parent is the sibling's, so --pid (and --ptable) go.
      *
-     * @param list<string> $excludes options that must not come with --after
+     * @param list<string>         $excludes options that must not come with --after
+     * @param array<string, mixed> $set      the --set pairs: pid, ptable and sorting there
+     *                                        would override the slot (review v1.12.0)
      *
      * @return int|string|null
      */
-    protected function afterOption(array $excludes): int|string|null
+    protected function afterOption(array $excludes, array $set = []): int|string|null
     {
         $after = (string) ($this->input->getOption('after') ?? '');
 
         if ('' === $after) {
-            return null;
+            return $this->input->hasParameterOption('--after') ? '--after needs a record ID.' : null;
         }
 
         if (!ctype_digit($after) || 0 === (int) $after) {
@@ -172,6 +174,12 @@ trait SiblingPositions
         foreach ($excludes as $option) {
             if ($this->input->hasParameterOption('--' . $option)) {
                 return \sprintf('--after takes the parent of the sibling; leave out --%s.', $option);
+            }
+        }
+
+        foreach (['pid', 'ptable', 'sorting'] as $field) {
+            if (\array_key_exists($field, $set)) {
+                return \sprintf('--after takes the parent and position of the sibling; leave out --set %s=.', $field);
             }
         }
 

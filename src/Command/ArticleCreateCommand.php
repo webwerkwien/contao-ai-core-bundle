@@ -30,7 +30,7 @@ class ArticleCreateCommand extends AbstractWriteCommand implements CreatesRecord
 
     protected function doExecute(array $fields): int
     {
-        $after = $this->afterOption(['pid']);
+        $after = $this->afterOption(['pid'], $fields);
         if (\is_string($after)) {
             return $this->outputError($after);
         }
@@ -52,13 +52,19 @@ class ArticleCreateCommand extends AbstractWriteCommand implements CreatesRecord
         }
         $pid = (int) ($slot['pid'] ?? $pid);
 
+        // Behind an article of the left column is in the left column, unless told otherwise
+        // (review v1.12.0: it went to main).
+        $inColumn = null !== $after && !$this->input->hasParameterOption('--inColumn')
+            ? (string) ($this->storedRow('tl_article', $after)['inColumn'] ?? 'main')
+            : (string) $this->input->getOption('inColumn');
+
         $fields = $this->preparedFields('tl_article', [
             'pid'       => $pid,
             // Behind the last article of the page. Was 0 until v0.13.0.
             'sorting'   => $slot['sorting'] ?? $this->nextSorting('tl_article', $pid),
             'title'     => $title,
             'alias'     => $this->resolveAlias('tl_article', '', $title, record: ['title' => $title, 'pid' => $pid]),
-            'inColumn'  => $this->input->getOption('inColumn'),
+            'inColumn'  => $inColumn,
             'author'    => $this->resolveAuthorId(),
             'published' => '0',
         ], $fields);
