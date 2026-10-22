@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.12.0 - 2026-10-22
+
+Works with the same backend-bundle and contao-ai-cli; backend-bundle v0.22.0 and
+contao-ai-cli v1.14.0 use the new options.
+
+From the Consho documentation work on consho.eu (2026-10-22).
+
+### Added
+
+- **`--after <sibling ID>` for `contao:page:create`, `contao:article:create` and
+  `contao:content:create`** — the new record goes directly behind the sibling, below its
+  parent (and, for an element, its parent table), as `move --after` places it: halfway to
+  the next sibling, behind the last one, or the siblings renumbered in steps of 128 like
+  the back end's paste. With `--after` the parent is the sibling's, so `--pid` (and
+  `--ptable`) are refused. Until now a new element between two others meant computing
+  `--set sorting=` by hand. Move and create share one rule (`SiblingPositions`).
+- **`contao:content:find --offset`** — skips results for the next page; the answer
+  names the `offset`. Up to 50 results per call, and until now no way past them when
+  `more` said there were more. Rows are read in batches of 200 until enough results are
+  together (the `--root` filter and headline-frame matches run after the query), at most
+  5,000 matching rows; where that stops the search, `more` is true and `scanNote` says so.
+
 ## v1.11.2 - 2026-10-21
 
 Works with the same backend-bundle and contao-ai-cli.

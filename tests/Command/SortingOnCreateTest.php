@@ -71,8 +71,9 @@ class SortingOnCreateTest extends TestCase
     {
         $source = (string) file_get_contents(__DIR__ . '/../../src/Command/' . $file);
 
+        // Since v1.12.0 page, article and content take the slot behind --after first.
         $this->assertMatchesRegularExpression(
-            "/'sorting'\s*=>\s*\\\$this->nextSorting\(/",
+            "/'sorting'\s*=>\s*(?:\\\$slot\['sorting'\]\s*\?\?\s*)?\\\$this->nextSorting\(/",
             $source,
             "{$file} must hand 'sorting' => \$this->nextSorting(...) to preparedFields(), so --set can still override it",
         );

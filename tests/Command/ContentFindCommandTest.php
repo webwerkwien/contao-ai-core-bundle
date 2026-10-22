@@ -206,7 +206,18 @@ class ContentFindCommandTest extends TestCase
 
         self::assertSame(1, $answer['count']);
         self::assertTrue($answer['more']);
-        self::assertStringEndsWith(' LIMIT 2', $this->queries[0][0]);
+        self::assertSame(0, $answer['offset']);
+        // read in batches since v1.12.0 (--offset), the first from the start
+        self::assertStringEndsWith(' LIMIT 200 OFFSET 0', $this->queries[0][0]);
+    }
+
+    public function testAnOffsetThatIsNoNumberIsRefusedBeforeAnythingIsSearched(): void
+    {
+        $tester = $this->tester([self::SLIDER_DE]);
+        $tester->execute(['query' => 'CMS', '--offset' => '-3']);
+
+        self::assertSame('error', self::answer($tester)['status']);
+        self::assertSame([], $this->queries);
     }
 
     public function testANestedElementIsTracedToItsArticle(): void
@@ -284,6 +295,57 @@ class ContentFindCommandTest extends TestCase
         self::assertSame([[41, 'de']], array_map(static fn (array $v): array => [$v['id'], $v['language']], $versions['article']));
         self::assertSame(['en', 'de', 'fr'], array_column($answer['roots'], 'language'));
         self::assertArrayNotHasKey('versionsNote', $answer);
+    }
+
+    /**
+     * v1.12.0, --offset over a real SQLite site: pages of results, across the batch
+     * boundary of 200 rows, and with --root counting only that root's results.
+     *
+     * @return array<string, mixed>
+     */
+    private static function paged(array $options, int $english = 5, int $german = 0): array
+    {
+        $db = LanguageVersionsTest::database();
+        $id = 1000;
+        foreach ([[40, $english], [41, $german]] as [$article, $count]) {
+            for ($i = 0; $i < $count; ++$i) {
+                $db->insert('tl_content', ['id' => ++$id, 'pid' => $article, 'ptable' => 'tl_article', 'type' => 'text', 'headline' => '', 'text' => "<p>paging probe $i</p>", 'html' => '', 'invisible' => 0]);
+            }
+        }
+        $tester = new CommandTester(new ContentFindCommand($db));
+        $tester->execute(['query' => 'paging probe'] + $options);
+
+        return self::answer($tester);
+    }
+
+    public function testTheOffsetPagesThroughTheResults(): void
+    {
+        $first = self::paged(['--limit' => '2']);
+        $second = self::paged(['--limit' => '2', '--offset' => '2']);
+        $last = self::paged(['--limit' => '2', '--offset' => '4']);
+        $beyond = self::paged(['--limit' => '2', '--offset' => '5']);
+
+        self::assertSame([[1001, 1002], true], [array_column($first['results'], 'id'), $first['more']]);
+        self::assertSame([[1003, 1004], true], [array_column($second['results'], 'id'), $second['more']]);
+        self::assertSame([[1005], false], [array_column($last['results'], 'id'), $last['more']]);
+        self::assertSame([[], false, 5], [$beyond['results'], $beyond['more'], $beyond['offset']]);
+    }
+
+    public function testPagingCrossesTheBatchBoundary(): void
+    {
+        $answer = self::paged(['--limit' => '10', '--offset' => '198'], 205);
+
+        self::assertSame(range(1199, 1205), array_column($answer['results'], 'id'));
+        self::assertFalse($answer['more']);
+    }
+
+    public function testWithARootTheOffsetCountsOnlyItsResults(): void
+    {
+        // 3 English (root 1), then 4 German (root 76); page 2 of the German ones
+        $answer = self::paged(['--root' => '76', '--limit' => '2', '--offset' => '2'], 3, 4);
+
+        self::assertSame([1006, 1007], array_column($answer['results'], 'id'));
+        self::assertFalse($answer['more']);
     }
 
     public function testWithoutChangelanguageTheAnswerSaysVersionsCannotBeListed(): void

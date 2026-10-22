@@ -17,6 +17,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageUrlGuard;
 #[AsCommand(name: 'contao:page:create', description: 'Create a Contao page')]
 class PageCreateCommand extends AbstractWriteCommand implements CreatesRecord
 {
+    use SiblingPositions;
+
     private ?PageUrlGuard $pageUrlGuard = null;
 
     private ?PageTreeRules $pageTreeRules = null;
@@ -46,21 +48,36 @@ class PageCreateCommand extends AbstractWriteCommand implements CreatesRecord
         $this->addOption('pid',      null, InputOption::VALUE_OPTIONAL, 'Parent page ID', 0);
         $this->addOption('alias',    null, InputOption::VALUE_OPTIONAL, 'Page alias (auto-generated if omitted)', '');
         $this->addOption('language', null, InputOption::VALUE_OPTIONAL, 'Page language', 'de');
+        $this->addOption('after',    null, InputOption::VALUE_REQUIRED, 'Sibling page ID — the new page goes directly behind it, below the same parent (instead of --pid)');
     }
 
     protected function doExecute(array $fields): int
     {
-        $this->framework->initialize();
+        $after = $this->afterOption(['pid']);
+        if (\is_string($after)) {
+            return $this->outputError($after);
+        }
 
         $title = $this->input->getOption('title');
         if (!$title) {
             return $this->outputError('--title is required');
         }
 
+        $this->framework->initialize();
+
+        // Directly behind the sibling, below its parent (v1.12.0). The page tree rules
+        // below still decide whether the page may stand there (a root only at the top).
+        try {
+            $slot = null === $after ? null : $this->slotAfter('tl_page', $after, null, 'put the new page');
+        } catch (\InvalidArgumentException $e) {
+            return $this->outputError($e->getMessage());
+        }
+        $pid = (int) ($slot['pid'] ?? $this->input->getOption('pid'));
+
         $fields = $this->preparedFields('tl_page', [
-            'pid'      => (int) $this->input->getOption('pid'),
+            'pid'      => $pid,
             // Behind the last sibling, roots included (pid 0). Was 0 until v0.13.0.
-            'sorting'  => $this->nextSorting('tl_page', (int) $this->input->getOption('pid')),
+            'sorting'  => $slot['sorting'] ?? $this->nextSorting('tl_page', $pid),
             'title'    => $title,
             'type'     => $this->input->getOption('type'),
             // Only a root stores a language, as in the back end (v0.22.0, Nr. 62).

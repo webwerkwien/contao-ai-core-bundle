@@ -36,6 +36,9 @@ class ContentFindCommand extends AbstractReadCommand
     private const DEFAULT_LIMIT = 20;
     private const MAX_LIMIT     = 50;
     private const MIN_LENGTH    = 3;
+    /** Rows read per query, and at most in all (v1.12.0, --offset). */
+    private const BATCH         = 200;
+    private const MAX_SCAN      = 5000;
 
     /** The text columns searched; all three are core columns of tl_content. */
     private const FIELDS = ['headline', 'text', 'html'];
@@ -58,6 +61,7 @@ class ContentFindCommand extends AbstractReadCommand
         $this->addArgument('query', InputArgument::REQUIRED, 'Text to find, at least ' . self::MIN_LENGTH . ' characters; matched anywhere, case-insensitive');
         $this->addOption('limit', null, InputOption::VALUE_REQUIRED, 'Max results (1–' . self::MAX_LIMIT . ')', self::DEFAULT_LIMIT);
         $this->addOption('root', null, InputOption::VALUE_REQUIRED, 'Only elements below this root page (website root), e.g. the one of a language');
+        $this->addOption('offset', null, InputOption::VALUE_REQUIRED, 'Results to skip, for the next page when "more" is true', 0);
     }
 
     protected function doExecute(): int
@@ -72,6 +76,11 @@ class ContentFindCommand extends AbstractReadCommand
         }
         $limit = max(1, min(self::MAX_LIMIT, (int) $this->input->getOption('limit')));
         $root  = null === $this->input->getOption('root') ? null : (int) $this->input->getOption('root');
+        $rawOffset = (string) $this->input->getOption('offset');
+        if (!ctype_digit($rawOffset)) {
+            return $this->outputError(\sprintf('--offset takes a number of results to skip, not "%s".', $rawOffset));
+        }
+        $offset = (int) $rawOffset;
 
         // A root that is no root would find nothing, silently; 0 or text would find only
         // the elements without one (Fable review 2026-10-20).
@@ -94,30 +103,48 @@ class ContentFindCommand extends AbstractReadCommand
             }
         }
 
-        // With --root the filter runs after the query (the root comes from the page
-        // tree), so more rows are read than asked for.
-        $rows = $this->connection->fetchAllAssociative(
-            'SELECT id, pid, ptable, type, headline, text, html, invisible FROM tl_content WHERE ' . implode(' OR ', $where)
-            . ' ORDER BY id LIMIT ' . (null === $root ? $limit + 1 : self::MAX_LIMIT * 10),
-            $params,
-        );
-
-        $results = [];
-        $more = false;
-        foreach ($rows as $row) {
-            $location = $this->locate((string) $row['ptable'], (int) $row['pid']);
-            if (null !== $root && (int) ($location['root']['id'] ?? 0) !== $root) {
-                continue;
-            }
-            $match = self::match($row, $query, $needles);
-            if (null === $match) {
-                continue; // the text only in a serialized headline's frame ("value", "unit")
-            }
-            if (\count($results) === $limit) {
-                $more = true;
+        // Rows are read in batches until offset + limit + 1 results are together: with
+        // --root, and for matches only in a headline's frame, the filter runs after the
+        // query, so a row is not a result and SQL's OFFSET cannot count results (v1.12.0,
+        // --offset; until then up to 500 rows were read once for --root).
+        $wanted  = $offset + $limit + 1;
+        $found   = [];
+        $scanned = 0;
+        $capped  = false;
+        while (\count($found) < $wanted) {
+            if ($scanned >= self::MAX_SCAN) {
+                $capped = true;
                 break;
             }
-            [$field, $snippet] = $match;
+            $rows = $this->connection->fetchAllAssociative(
+                'SELECT id, pid, ptable, type, headline, text, html, invisible FROM tl_content WHERE ' . implode(' OR ', $where)
+                . ' ORDER BY id LIMIT ' . self::BATCH . ' OFFSET ' . $scanned,
+                $params,
+            );
+            $scanned += \count($rows);
+
+            foreach ($rows as $row) {
+                $location = $this->locate((string) $row['ptable'], (int) $row['pid']);
+                if (null !== $root && (int) ($location['root']['id'] ?? 0) !== $root) {
+                    continue;
+                }
+                $match = self::match($row, $query, $needles);
+                if (null === $match) {
+                    continue; // the text only in a serialized headline's frame ("value", "unit")
+                }
+                $found[] = [$row, $location, $match];
+                if (\count($found) === $wanted) {
+                    break 2;
+                }
+            }
+
+            if (\count($rows) < self::BATCH) {
+                break;
+            }
+        }
+
+        $results = [];
+        foreach (\array_slice($found, $offset, $limit) as [$row, $location, [$field, $snippet]]) {
             $hit = [
                 'id'        => (int) $row['id'],
                 'type'      => (string) $row['type'],
@@ -134,9 +161,14 @@ class ContentFindCommand extends AbstractReadCommand
         $answer = [
             'query'   => $query,
             'count'   => \count($results),
-            'more'    => $more,
+            'offset'  => $offset,
+            'more'    => $capped || \count($found) > $offset + $limit,
             'results' => $results,
         ];
+        if ($capped) {
+            // Not a guess at "no more": the scan stopped, results may follow.
+            $answer['scanNote'] = \sprintf('The search stopped after %d matching rows; narrow the text or use --root.', self::MAX_SCAN);
+        }
 
         // Which languages the site has, so "the other versions" has an answer even where
         // nothing is linked.

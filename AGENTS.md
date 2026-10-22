@@ -325,6 +325,16 @@ An update that changes `pid` (for tl_content also `ptable`) gets `sorting` from
 update that keeps the parent leaves the position alone. Up to v1.1.0 a moved record kept
 its old number and landed wherever it fell among the new siblings. `SortingOnMoveTest`.
 
+### "Directly behind this sibling": one rule for move and create (v1.12.0)
+
+`SiblingPositions::slotAfter()` places a record behind a sibling the way the back end's
+paste does (`DC_Table::getNewPosition()`): halfway to the next sibling, behind the last
+one with +128, or the siblings renumbered in steps of 128. It takes the sibling's parent
+and, for tl_content, its `ptable`. `move --after` (MovesRecord) and `--after` of
+`page:create`, `article:create` and `content:create` use it; with `--after` a create
+refuses `--pid` (and `--ptable`), since the parent is the sibling's. It loads the DCA
+before reading `dynamicPtable` (v1.11.2). Tests: `MoveCommandTest`, `CreateAfterTest`.
+
 ### `inputUnit` fields: each half has its own rule (v0.11.0)
 
 `tl_content.headline`, `tl_layout.width` and the other `inputUnit` fields store a
