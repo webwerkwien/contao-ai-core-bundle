@@ -9,8 +9,6 @@ This file was reconstructed from the git history on 2026-08-13, so entries befor
 Works with the same backend-bundle and contao-ai-cli; backend-bundle v0.22.0 and
 contao-ai-cli v1.14.0 use the new options.
 
-From the Consho documentation work on consho.eu (2026-10-22).
-
 ### Added
 
 - **`--after <sibling ID>` for `contao:page:create`, `contao:article:create` and
@@ -37,12 +35,12 @@ Works with the same backend-bundle and contao-ai-cli.
 - **`contao:content:move` dropped `--ptable`, and `--after` the sibling's parent
   table.** The position was computed before tl_content's DCA was loaded, so the table
   read as one without a per-record parent table (`dynamicPtable`): the element kept its
-  stored `ptable` and the parent was checked against it. On web.werk.wien 25 elements
+  stored `ptable` and the parent was checked against it. On one site 25 elements
   taken from element groups into the articles 35–38 ended up below the content elements
   35–38 of another page — with status ok, invisible in the front end; where no content
   element had the article's ID, the move was refused with "No tl_content record … to be
   the parent". The move now loads the DCA first. The unit tests had set the DCA by
-  hand; the new one does not, and the case was replayed on the test server (`--to` and
+  hand; the new one does not, and the case was replayed on a Contao installation (`--to` and
   `--after`, element group → article).
 
 ## v1.11.1 - 2026-10-20
@@ -52,7 +50,7 @@ Works with the same backend-bundle and contao-ai-cli.
 ### Fixed
 
 - **`contao:language:link` names the real reason when an article has no target.** On
-  showcase.conpai.eu the articles of the resource pages "_Ressourcen"/"_Resources" (both
+  one site the articles of two resource pages (both
   unpublished on purpose) could not be linked, and the refusal said the article's page
   "has to be linked first" — it was linked. changelanguage offers article targets only on
   a published page and root of the main language, in the back end as well. The refusal
@@ -82,9 +80,9 @@ contao-ai-cli v1.13.0 use the new command and fields.
   Without changelanguage there is nothing to read; the answer then says so
   (`versionsNote`) instead of leaving the question open.
 
-  A chat on showcase.conpai.eu changed the English slider headline and told the user
+  A chat changed the English slider headline and told the user
   the page existed in English only — the linked German start page had the same slider,
-  and nothing the chat could call said so (2026-10-20).
+  and nothing the chat could call said so.
 
 ## v1.10.0 - 2026-10-20
 
@@ -101,8 +99,8 @@ contao-ai-cli v1.12.0 use the new command.
   language. Up to 50 results, `more` says when there are more.
 
   The way to an element until now was the search index or listing table after table. A
-  chat on showcase.conpai.eu needed 9–10 calls and half a minute to change one slider
-  headline (2026-10-19), and the index was no help: a page with `noindex` is not
+  chat needed 9–10 calls and half a minute to change one slider
+  headline, and the index was no help: a page with `noindex` is not
   indexed — Contao's SearchIndexListener and the crawler skip it (from Contao 5.7 a page
   can be set to be indexed anyway) — so on a staging site or a showcase it stays empty. This searches `tl_content` itself. Read-only; like every command here it does
   not ask Contao's voters (the backend bundle's `content_find` does).
@@ -114,7 +112,7 @@ contao-ai-cli v1.12.0 use the new command.
 
 ## v1.9.2 - 2026-10-15
 
-Works with the same backend-bundle and contao-ai-cli. Found trying the Catalog Manager (`alnv/catalog-manager` and `alnv/catalog-manager-bundle`) on c5 for an operator who asked how to drive it with an agent.
+Works with the same backend-bundle and contao-ai-cli. Concerns mainly the Catalog Manager (`alnv/catalog-manager` and `alnv/catalog-manager-bundle`).
 
 ### Fixed
 
@@ -147,7 +145,7 @@ Works with the same backend-bundle and contao-ai-cli. Found trying the Catalog M
 
 ## v1.9.1 - 2026-10-15
 
-Works with the same backend-bundle and contao-ai-cli. Found by an agent that made the Contao demo bilingual from the contao-ai-cli guide alone (showcase.conpai.eu).
+Works with the same backend-bundle and contao-ai-cli.
 
 ### Fixed
 
@@ -188,7 +186,7 @@ Works with the same backend-bundle and contao-ai-cli; contao-ai-cli v1.10.0 brin
   (`"table.field": rows`). The name is `<name> (Kopie)`, counted on when taken
   (`tl_theme.name` is unique); a name given in `--modifications` that is taken is refused.
   Not bent: insert tags in text fields (`{{insert_module::12}}` in an HTML module or a
-  layout's head) — they are text, not references the DCA declares. Checked on c5 against
+  layout's head) — they are text, not references the DCA declares. Checked against
   Contao 5.3, 5.7 and 6.0.
 - **`contao:theme:export <id>` and `contao:theme:import <file> [--confirm]`** — the theme
   manager's `.cto` export and import on the console, running Contao's own `Contao\Theme`
@@ -210,7 +208,7 @@ Works with the same backend-bundle and contao-ai-cli; contao-ai-cli v1.10.0 brin
   console user `contao-ai` is always put back — also when a statement fails half-way,
   and then the error names the backup to restore. In mode `full` the preview warns about
   empty and comment lines, which Contao runs as statements and which stop the import.
-  Checked on c5 against 6.0.
+  Checked against Contao 6.0.
 - **`contao:listing:data <id>`** answers the rows a listing module shows, as JSON: the
   module's table, fields, condition (`list_where`, insert tags replaced) and sort, run
   server-side as `ModuleListing` runs them; the caller passes only the id and paging.
@@ -245,7 +243,7 @@ Security release. Works with the same backend-bundle and contao-ai-cli; update i
 
 - **`undo:restore` broke every `onundo_callback` typed `DataContainer $dc`.** It called
   them itself with the command as `$dc`, after the commit, and turned a failure into a
-  console warning under an `ok`. Reported from a Consho acceptance on c5: a restored
+  console warning under an `ok`. In Consho, a restored
   product came back without its list price, visibility, cache tags and stock. The
   callbacks now run as `DC_Table::undo()` runs them — per row right after its insert,
   with tl_undo's data container and the row under its column names — inside the
@@ -253,7 +251,7 @@ Security release. Works with the same backend-bundle and contao-ai-cli; update i
   replayable, and the answer names the callback and its message.
 - **A refused command was logged with every value of its line.** The warning (v1.7.2)
   was struck only of the declared secrets; names, addresses and texts stayed in
-  `var/logs` (reported from a Consho session). The warning, and the debug line of every
+  `var/logs`. The warning, and the debug line of every
   failed exit, now name the command and its options only; the message stays. This
   bundle's own commands answer through JsonErrorBoundary, so for them the exit line was
   the only one written — and carried the whole line. The option names come from the
@@ -271,8 +269,8 @@ name.
 ### Added
 
 - **`contao:record:clone` clones forms, newsletter channels, modules and layouts**, the
-  parts of a second language that are not pages (asked for on showcase.conpai.eu, where
-  they had to be rebuilt by hand). As Contao's own copy:
+  parts of a second language that are not pages (until now they had to be
+  rebuilt by hand). As Contao's own copy:
   - `tl_form` with all its fields; `alias` is generated anew from the title, `formID` stays
     empty (two forms with one ID process each other's submissions).
   - `tl_newsletter_channel` with its newsletters, all unsent and with a new unique alias.
@@ -288,8 +286,8 @@ name.
   read from the installation's DCA by the rules of `DC_Table::copyChildren()` (password,
   `unique`, `doNotCopy`, `fallback`), so it follows Contao 5.3, 5.7 and 6.0 alike.
   References stay as in the source; the answer names them in `references`, the reset
-  fields in `not_copied`, and the copied rows per child table in `children`. Checked on
-  c5 against 5.3, 5.7 and 6.0. A theme clone is not part of this: Contao's copies the
+  fields in `not_copied`, and the copied rows per child table in `children`. Checked
+  against Contao 5.3, 5.7 and 6.0. A theme clone is not part of this: Contao's copies the
   modules and layouts, but the copied layouts still point at the old theme's modules.
 
 ## v1.7.4 - 2026-10-14
@@ -300,8 +298,8 @@ Works with the same backend-bundle and contao-ai-cli.
 
 - **A cloned page came out as published as its source.** Both guides said "pages and
   articles come out unpublished, as Contao's copy with subpages does" — only the articles
-  did, since the page cloner was written. A recursive clone of a language tree on
-  showcase.conpai.eu went public that way. The page cloner now resets what Contao's copy
+  did, since the page cloner was written. A recursive clone of a language tree
+  went public that way. The page cloner now resets what Contao's copy
   resets (`doNotCopy`): `published`, `fallback`, `disableLanguageRedirect` and
   `robotsTxt`, on every cloned page. `alias` was already regenerated; `language` and
   `urlPrefix` stay, since a clone into another language sets both in the same call.
@@ -328,7 +326,7 @@ Works with the same backend-bundle and contao-ai-cli.
   without versions creates one, and Contao reads that version's edit URL from the current
   request: there is none on the console. The update was rolled back, nothing was written.
   It hit every record never opened in the back end and never written through this bundle
-  — on a freshly installed demo all 37 pages (showcase.conpai.eu). The edit URL is now set
+  — on a freshly installed demo all its pages. The edit URL is now set
   beforehand, as for every other version; in the chat it was the chat's own endpoint.
 
 ## v1.7.2 - 2026-10-13
@@ -340,7 +338,7 @@ Works with the same backend-bundle and contao-ai-cli; nothing changes for the ca
 - **A refused input is no longer CRITICAL in `var/logs`.** Symfony's console error log
   wrote every exception a command threw as CRITICAL, so a typo in an input — a refusal by
   the contao-ai convention, `\InvalidArgumentException` with the reason — stood next to
-  real crashes, and every acceptance meant explaining it. When a command with an
+  real crashes. When a command with an
   `#[AiContract]` throws exactly that class, the line is now a warning: *Command "…"
   refused its input*, blanked as before. Through `contao:ai:run` it is the command it runs
   that counts; at `-vvv`, where `contao:ai:run` rethrows on purpose to show the trace, it
@@ -358,7 +356,7 @@ operator in the chat itself and works with older cores too.
 
 - **`contao:ai:run` hands its `--operator` on to the command it runs.** It wrote the user
   into its own log entry only; a command that records who acts — Consho's write commands
-  have an `--operator` option of their own — fell back to the shell user. In a chat test an
+  have an `--operator` option of their own — fell back to the shell user. In the back-end chat an
   editor's change was stored in `tl_version` under the web server's account with user id 0.
   When the command defines an `operator` option that takes a value, it now gets the run's
   operator. Before anything is logged or runs, the line is bound the way the command binds
@@ -381,7 +379,6 @@ field as a hint.
   the palette saw it (column defaults included once any value is given), a field whose
   blank is an option excepted. Always present — `[]` for a table without one
   (`tl_member`), so a caller can tell this core from an older one.
-  Part of "agents should not guess input" (Michael, 2026-10-12).
 
 ## v1.6.1 - 2026-10-12
 
@@ -399,8 +396,8 @@ Works with the same backend-bundle and contao-ai-cli.
   would show, for the user the write runs as. The value a record already has passes, as
   the back end keeps it; so does a blank where the field offers one. The refusal names the
   offered values and the lookup (`contao:dca:options`, `contao:dca:palette`). Where the
-  list cannot be resolved, nothing is refused. Measured before: on c5 (5.7 with Consho,
-  5.3, 6.0) every stored `type` is among the resolved values. Other callback option fields
+  list cannot be resolved, nothing is refused. Measured before: on Contao 5.7 (with Consho),
+  5.3 and 6.0 every stored `type` is among the resolved values. Other callback option fields
   stay unchecked; `undo restore` and `version restore` write stored rows back as they are.
 
 ## v1.6.0 - 2026-10-12
@@ -427,8 +424,7 @@ contao-ai-cli v1.5.0 also show the new `messages` with a refusal.
   `"messages": [{"type": "error", "text": "…"}]` — with a success, and with a refusal,
   where a callback often says why. Types as Contao names them (error, confirm, new,
   info, raw — raw as plain text). Messages that were in the session before stay there.
-  `DcaCallbacks::drainMessages()` (`@api`) for writes an extension makes. Asked for by
-  Consho.
+  `DcaCallbacks::drainMessages()` (`@api`) for writes an extension makes.
 
 ### Security
 
@@ -441,7 +437,7 @@ contao-ai-cli v1.5.0 also show the new `messages` with a refusal.
   own message can quote a value (*No arguments expected, got "password=…"* — a `--set`
   forgotten): values blanked in the line are struck from the message and from the
   exception in the log context, which is replaced by a `RedactedConsoleError` keeping
-  class, message, file and line, not the trace. Found by the Consho session.
+  class, message, file and line, not the trace.
 
 ## v1.5.0 - 2026-10-11
 
@@ -464,7 +460,7 @@ of `RecordWriterInterface`, see the first entry.
   callbacks. **Through `RecordWriterInterface` it runs with or without
   `$saveCallbacks`**, as `onsubmit` always did — the record callbacks are the table's
   rules, the flag covers the fields' callbacks. `update()` reports the fields a callback
-  added. Asked for by Consho.
+  added.
 - **A field the DCA declares without a column may be handed to the writer** when the table
   has `onbeforesubmit_callback`s — a virtual field, like a gross amount a callback stores
   as net. What is still no column after the callbacks is refused by name
@@ -484,7 +480,7 @@ of `RecordWriterInterface`, see the first entry.
   (`[arguments withheld: …]`) rather than guessed. Short options (`-p …`) are not
   recognised. This protects `tl_log` and the
   backups containing it — the line itself still reaches the server, and from the back-end
-  chat the model provider. Reported by the Consho session.
+  chat the model provider.
 
 ## v1.4.2 - 2026-10-11
 
@@ -496,15 +492,14 @@ shows an explicit `trace: []` in the `ext run` warning.
 - **`OptionsResolver::values()` and `lastError()` are public API** (`@api`), so an
   extension's command can check a value against the options its widget would offer — the
   writer stores without that check. `null` means "cannot say": skip the check, report
-  `lastError()`. Asked for by Consho.
+  `lastError()`.
 
 ### Fixed
 
 - **An explicit `trace: []` in `#[AiContract]` is no longer reported as missing.** The
   problem "writes: true but no trace declared" asked the author to declare `trace: []` when a
   command leaves no trail, then raised the same problem for exactly that declaration. Only an
-  absent `trace` is reported now, and a malformed one only with its own type problem. Found
-  by the Consho session at `consho:stock:book`.
+  absent `trace` is reported now, and a malformed one only with its own type problem.
 - **An options callback on the console runs as `contao-ai`**, the user the write runs as,
   like the save and submit callbacks since v1.4.0. Before, it saw the anonymous non-admin,
   and a permission-filtered list answered empty instead of failing — `dca options
@@ -520,7 +515,7 @@ Nothing to change for callers; works with the same contao-ai-cli and backend-bun
 - **`CacheTagInvalidator::drainReport()` and `reset()` are public API** (`@api`), so an
   extension's command that writes through `RecordWriterInterface` can report `cacheTags`
   and `cacheWarnings` as this bundle's commands do. Call `reset()` when the command
-  starts. Asked for by Consho Connect. The README's extension section shows it, and the
+  starts. The README's extension section shows it, and the
   example uses `saveCallbacks: true` instead of calling the save callbacks by hand.
 
 ### Fixed
@@ -796,7 +791,7 @@ back end refuses too counts as a fix, not a break.
 - **Where contao-ai-backend-bundle is installed, update it to v0.9.2 first** — up to v0.9.1
   it requires core `<1.0`, and Composer refuses core 1.0 next to it.
 
-Before 1.0: the acceptance test on conpai.eu, regression runs on Contao 5.3.51, 5.7.13 and
+Before 1.0: regression runs on Contao 5.3.51, 5.7.13 and
 6.0.0, three agent tests with agents that knew only the guide, and a practical test of the
 core modules (FAQ, news, events, newsletter, forms, comments, listing) including front end
 submissions — its fixes are v0.28.0.
@@ -808,8 +803,7 @@ Works with every contao-ai-cli version; the date and time options of `event crea
 the times the front end needs, create answers carry the alias, and text for a number or
 a point in time is refused (exit 1, nothing written) where the database used to fail or
 store it as text. A minor release because a write that used to answer `ok` can now be
-refused. All from the practical test of the core modules on c5 (Contao 5.7.13) and the
-checks on 5.3.51 and 6.0.0 on 2026-09-19.
+refused. Checked on Contao 5.3.51, 5.7.13 and 6.0.0.
 
 ### Fixed
 
@@ -823,8 +817,7 @@ checks on 5.3.51 and 6.0.0 on 2026-09-19.
   On create and on every update that touches a date, time or recurrence field. What the
   back end cannot reach is refused instead of stored: emptying `startDate`, a `startTime`
   or `endTime` on an all-day event without `addTime`, and turning on `addTime` without a
-  start time (`--endTime 21:00` alone would have started an all-day event at 00:00; found
-  in the review before release).
+  start time (`--endTime 21:00` alone would have started an all-day event at 00:00).
 - **A time of day could not be set.** `--set startTime=17:30` ended in `DriverException:
   Data truncated`. New: `--startTime`/`--endTime` (`H:i`, sets `addTime`) on `event create`
   and `event update`, `--startDate`/`--endDate` on `event update` too. Dates must be
@@ -875,7 +868,7 @@ release because a write that used to answer `ok` can now be refused.
   `rgxp` applies to, a list (serialized or comma form) entry by entry, never on a
   password field (that is checked as plain text where it is read). Without
   `eval.maxlength`, a `text`/`textarea` field is limited by its column's `sql.length`, as
-  in the widget. Found in the review before v0.26.0.
+  in the widget.
 - **A record could be created below a parent that does not exist.** `content create
   --pid 99999` stored an element below a missing article; so did article, news, event,
   FAQ, page, module, layout, image size and form field create (newsletters and recipients
@@ -884,26 +877,26 @@ release because a write that used to answer `ok` can now be refused.
   itself for tl_page, where `0` is the top level). `--set pid=` and `ptable=` on an update
   are checked the same way; an empty `pid` counts as the `0` that would be stored, a page
   cannot be moved below itself or its own subpages, and a `ptable` naming no table is
-  refused as such. Found on c5 on 2026-09-18 while testing the limits above.
+  refused as such.
 
 ## v0.26.0 - 2026-09-18
 
 Works with every contao-ai-cli version; `member create` and `member password` need
 contao-ai-cli v0.27.0. What changes for a caller: a `--set` value that starts like JSON but
 does not parse is refused (exit 1, nothing written) instead of being stored in a broken
-form, and front end members can be created and their passwords set. From the regression
-run and the agent test before 1.0, on Contao 5.3.51, 5.7.13 and 6.0.0.
+form, and front end members can be created and their passwords set. Checked on
+Contao 5.3.51, 5.7.13 and 6.0.0.
 
 ### Added
 
 - **`contao:member:create`** — it never existed, although the CLI offered `member create`
   from the start and called it; every call failed with "Update contao-ai-core-bundle to
-  v1.x+". Found in the regression run: no test had ever called the command.
+  v1.x+". No test had ever called the command.
 - **`contao:member:password <username>`** — Contao has a password command only for back
   end users, and `contao:member:update` refuses `password` on purpose, so a member's
   password could not be reset from the console at all.
 - Both take the password **only on stdin** (`--password-stdin`), never as an option —
-  closing audit finding H3, the `--password=` on the command line the CLI was built
+  unlike the `--password=` on the command line the CLI was built
   around. Checked as Contao's password field checks it (minimum length, not the
   username), hashed with the front end user's hasher, passed through
   `tl_member.password`'s save callbacks so the `setNewPassword` hook fires, versioned
@@ -917,8 +910,8 @@ run and the agent test before 1.0, on Contao 5.3.51, 5.7.13 and 6.0.0.
   Windows PowerShell passes `--set 'listitems=["Eins","Zwei","Drei"]'` to a native program
   as `listitems=[Eins,Zwei,Drei]`. Invalid JSON was left for the structure check, which
   only covers the wizards; a list or table field went through the comma conversion first
-  and stored `['[Eins', 'Zwei', 'Drei]']` — the brackets became content. Found by an agent
-  test with Codex, which only had the guide. Now a value that starts with `[` or `{` in a
+  and stored `['[Eins', 'Zwei', 'Drei]']` — the brackets became content.
+  Now a value that starts with `[` or `{` in a
   field that stores an array is JSON or refused, with a message naming the shell as the
   likely cause. Text fields are not checked, whatever they start with.
 - **Overwriting a file left the folder hashes above it stale.** `contao:file:write` stored
@@ -944,7 +937,7 @@ as the back end does.
   an accordion (`--set ptable=tl_content --set pid=<accordion>`) the palette lacked
   `sectionHeadline`, which the back end shows. Now the given values lie over every
   column's default, and another row is read from the database as Contao's
-  `preloadCurrentRecords()` does. Reproduced and verified on c5 (Contao 5.7.13): seven
+  `preloadCurrentRecords()` does. Reproduced and verified on Contao 5.7.13: seven
   element types and a root page without a warning, the accordion child with
   `sectionHeadline`, create and alias paths unchanged.
 
@@ -959,14 +952,12 @@ as the back end does.
 
 ## v0.24.0 - 2026-09-17
 
-From building conpai.eu in the CMS on a production installation (ConpAI 1.0 acceptance test).
-
 ### Added
 
 - **`contao:layout:module --module content-<id>`** puts a theme's content element into a
   layout column, the way Contao 5.7 does (Themes → Content elements). The element must belong
-  to the layout's theme. Until now the command took only module IDs, and the header and
-  footer of conpai.eu had to be written into `modules` by hand (Nr. 68).
+  to the layout's theme. Until now the command took only module IDs, and such an
+  element had to be written into `modules` by hand.
 
 ### Changed
 
@@ -974,15 +965,14 @@ From building conpai.eu in the CMS on a production installation (ConpAI 1.0 acce
   list of UUIDs — the form reads answer it with — as well as the comma form, and an empty
   list `[]` clears it. Until now
   `layout update --set 'external=["<uuid>"]'` stored the JSON text and answered ok, and the
-  layout linked no stylesheet; a comma list silently dropped a part that was not a UUID
-  (Nr. 69).
+  layout linked no stylesheet; a comma list silently dropped a part that was not a UUID.
 
 ### Fixed
 
 - **`contao:settings:update` logged its Contao line as `FE` / `N/A`**, and so did the
   *"Undone …"* line of `contao:undo:restore` and the downscale line of an upload. They now
   carry the operator and the command, like `folder:publish` since v0.22.0. A test scans
-  `src/` for lines on Contao's channels without that context (Nr. 66).
+  `src/` for lines on Contao's channels without that context.
 
 ## v0.23.0 - 2026-09-17
 
@@ -995,12 +985,11 @@ From building conpai.eu in the CMS on a production installation (ConpAI 1.0 acce
   The answer says whether the UUIDs were kept (`uuidsKept`) and lists texts that name the
   old path (`pathUsages`) — those break, UUID references do not. Until now a file could only
   be deleted and written anew, which gave it a new UUID and left every image element
-  pointing at nothing (Nr. 64). Verified on Contao 5.3.51, 5.7.13 and 6.0.0.
+  pointing at nothing. Verified on Contao 5.3.51, 5.7.13 and 6.0.0.
 
 ## v0.22.0 - 2026-09-17
 
-From phases 3 and 4 of the live run of the ConpAI 1.0 acceptance test on a production installation,
-each compared with Contao's back end on c5 before it was changed.
+Each change below was compared with Contao's back end before it was made.
 
 ### Changed
 
@@ -1008,12 +997,12 @@ each compared with Contao's back end on c5 before it was changed.
   `record:clone` forced every element to `invisible`; a cloned site stayed empty after its
   page and article were published. Contao's "copy with subpages" leaves the article
   unpublished and each element as it was (`tl_content.invisible` has no `doNotCopy`) —
-  checked on c5. Applies to page, news archive and calendar clones (Nr. 61).
+  checked in the back end. Applies to page, news archive and calendar clones.
 - **Only a root page stores a language.** `contao:page:create` wrote its `--language`
   default into every page and `record:clone` carried it along, so the English subpages of a
   cloned site read `de`. A page created in the back end stores none; Contao takes it from
   the root at runtime. Now `language` is written for `root` only, and a cloned subpage
-  stores none (Nr. 62).
+  stores none.
 
 ### Fixed
 
@@ -1021,13 +1010,11 @@ each compared with Contao's back end on c5 before it was changed.
   symlinks"* and *"Folder … has been published"* went through Contao's channels without a
   context, which the console cannot fill. Both now carry `CLI` and the operator, like the
   command's own line; the symlinks are generated with the same `contao.command.symlinks`
-  call as `Automator::generateSymlinks()` (Nr. 59).
+  call as `Automator::generateSymlinks()`.
 - The docblock of `convertInputUnitFields()` claimed the value-first key order matched the
-  back end; records saved there often hold unit first. Contao reads both (Nr. 56).
+  back end; records saved there often hold unit first. Contao reads both.
 
 ## v0.21.1 - 2026-09-17
-
-Found in phase 1 of the live run of the ConpAI 1.0 acceptance test on a production installation.
 
 ### Fixed
 
@@ -1035,11 +1022,9 @@ Found in phase 1 of the live run of the ConpAI 1.0 acceptance test on a producti
   stores the index — `tl_page.useSSL` declares `array('http://', 'https://')` and holds
   0/1 — but `--set useSSL=1` was refused with *"allowed: http://, https://"*, and
   `contao:dca:schema` and `contao:dca:options` listed the labels as values. All three now
-  answer `0`, `1`, as Contao's widget reads the field (Nr. 53).
+  answer `0`, `1`, as Contao's widget reads the field.
 
 ## v0.21.0 - 2026-09-17
-
-From the clean-up and the audit after phase 5 of the ConpAI 1.0 acceptance test.
 
 ### Added
 
@@ -1047,16 +1032,15 @@ From the clean-up and the audit after phase 5 of the ConpAI 1.0 acceptance test.
   Contao's Template Studio does: the file, compiled templates and hierarchy, and for a
   content-element or front-end-module variant every `customTpl` naming it back to the
   default (`migratedUsages`, one version per record). Until now removing a template needed
-  a shell (Nr. 51). If resetting a record fails after the file is gone, the error names
+  a shell. If resetting a record fails after the file is gone, the error names
   the IDs not reset and the attempt is logged.
 - **`contao:cache:clear`** — Symfony's `cache:clear`, then *"Purged the internal cache"* in
   `tl_log` as the back end logs it (cron action, `source = CLI`, operator). A plain
-  `cache:clear` left no trace (Nr. 50, #62).
+  `cache:clear` left no trace (#62).
 
 ## v0.20.0 - 2026-09-17
 
-Found in phase 5 of the ConpAI 1.0 acceptance test (the second build, `consho.eu`), each
-reproduced on c5 and compared with Contao's back end before it was fixed.
+Each case below was reproduced and compared with Contao's back end before it was fixed.
 
 ### Fixed
 
@@ -1079,15 +1063,14 @@ reproduced on c5 and compared with Contao's back end before it was fixed.
   check never fails a write.
 - `Service\Template\TemplateCacheRefresher`, `PageUrlGuard::routeConflicts()`.
 
-Verified on c5 (Contao 5.7.13); the Contao APIs used exist in 5.3 and 6.0 (`removeCache()`
+Verified on Contao 5.7.13; the Contao APIs used exist in 5.3 and 6.0 (`removeCache()`
 needs Twig 3.15). **The two Contao 5.3 cases of `cacheWarning` (APCu in `cache.system`, Twig
 before 3.15) are checked against the 5.3.51 sources and by unit tests only** — there is no
 running 5.3 installation to test against yet.
 
 ## v0.19.0 - 2026-09-16
 
-Findings of an independent review of `contao:file:delete`, each reproduced on the Contao 6.0.0
-test installation before it was fixed.
+Fixes to `contao:file:delete`, each reproduced on Contao 6.0.0 before it was fixed.
 
 ### Fixed
 
@@ -1104,7 +1087,7 @@ test installation before it was fixed.
   actually removed.
 - **Two `tl_log` entries per deletion**; now one, the bundle's own with the operator.
 
-Found by a second review of this change before release, and fixed in it:
+Also fixed before release:
 
 - A dot entry directly below files/ (`files/.htaccess`, `files/.hidden`) was deleted, and then
   the answer was an `InvalidArgumentException` from the DBAFS manager, which refuses to sync
@@ -1127,7 +1110,7 @@ Found by a second review of this change before release, and fixed in it:
 - **New in the answer:** `type: link`, and `skippedTables` when a table's DCA could not be
   loaded — a clean result then says what it did not cover.
 
-Verified on c5 (Contao 5.7.13) and Contao 6.0.0.
+Verified on Contao 5.7.13 and 6.0.0.
 
 ## v0.18.0 - 2026-09-16
 
@@ -1136,20 +1119,19 @@ Verified on c5 (Contao 5.7.13) and Contao 6.0.0.
 - **`contao:file:delete --path files/… [--force]`** — delete a file or folder with its `tl_files`
   records, as the back end does (`DC_Folder::delete()`: the resource and a folder's web-dir
   symlink, then `Dbafs::deleteResource()`, then the log). Until now there was no way to delete a
-  file through the bundle; three probe images of the acceptance test could not be removed.
+  file through the bundle.
 - **Refused while the file is still used**, which Contao does not check: `fileTree` fields of
   every table with a DCA, and insert tags or paths in text fields. The answer lists the `usages`;
   `--force` deletes anyway and still lists them. There is no undo for files (`undoable: false`).
 - `Service\Files\FileUsageFinder`.
 
-Verified on c5 (Contao 5.7.13) and Contao 6.0.0.
+Verified on Contao 5.7.13 and 6.0.0.
 
 ## v0.17.0 - 2026-09-16
 
-Findings of an independent review of v0.11.0 to v0.16.0, each checked live before it was
-fixed — on c5 (Contao 5.7.13) and on the Contao 6.0.0 test installation. The review's
-concern that page writes fail on Contao 6 (`Input::post()` without a request) did not hold:
-create, alias, conflict check, clone, palette and options all work on 6.0.0.
+Each issue below was checked live on Contao 5.7.13 and 6.0.0 before it was fixed. Page
+writes do not fail on Contao 6 (`Input::post()` without a request): create, alias,
+conflict check, clone, palette and options all work on 6.0.0.
 
 ### Changed
 
@@ -1186,12 +1168,11 @@ create, alias, conflict check, clone, palette and options all work on 6.0.0.
 - The `UploadPolicy` docblock gave Contao's order of checks; the bundle checks the extension
   together with the size, before the image is read.
 - A comment named `tl_layout.rows` as a DCA field without a column. The column exists; what
-  failed on 2026-08-31 was `rows` being a reserved word in MySQL 8.
+  failed was `rows` being a reserved word in MySQL 8.
 
 ## v0.16.0 - 2026-09-16
 
-The collected findings of the ConpAI 1.0 acceptance test, fixed before its repetition run.
-All verified live on c5 (Contao 5.7.13).
+All verified live on Contao 5.7.13.
 
 ### Changed
 
@@ -1222,17 +1203,17 @@ All verified live on c5 (Contao 5.7.13).
   customTpl=content_element/text/gibtesnicht` was stored and the element silently rendered
   its default. Checked against the templates Contao offers for the record's type now.
 - **`version restore` could restore another record's data.** A database hands out the ID
-  of a deleted record again — on c5 routinely — and its versions stay under that ID. The
+  of a deleted record again, and its versions stay under that ID. The
   first version of a created record is now marked (`description = created`); `version
   restore` refuses older versions, `version list` flags them `before_creation`, and a
-  create answers `earlierVersions`. Verified with a real case: a new image size got ID 7,
-  under which lay version 1 of an image size deleted on 2026-08-31.
+  create answers `earlierVersions`. Verified with a real case: a new image size got an ID
+  under which lay version 1 of an image size deleted earlier.
 - **`version restore` refused 12 of the 22 tables the bundle writes versions for** —
   modules, forms, form fields, themes, image sizes, archives, calendars, member and user
   groups, newsletters. The allow-list still held the ten tables of the security audit of
   2026-04-23. `VersionAllowListTest` keeps it in step with the code now.
-- **Option lists with numeric keys answered labels instead of values.** `[6 => 'ConpAI
-  Hero']` was read as a list and returned `ConpAI Hero`. A list is recognised by
+- **Option lists with numeric keys answered labels instead of values.** `[6 =>
+  'Hero']` was read as a list and returned `Hero`. A list is recognised by
   `array_is_list()` now.
 
 ## v0.15.1 - 2026-09-16
@@ -1245,25 +1226,24 @@ No change in behaviour for a caller.
   `generateAlias()` detaches the `PageModel` it looks up, so the cloned instance could
   not be saved a second time. v0.15.0 wrote the alias through the Doctrine connection.
   That worked, but it was the one write in this bundle that went around the model layer
-  — the shortcut the project's rules warn against, questioned in review the same day.
+  — the shortcut the project's rules warn against.
   The alias is now saved through a fresh instance from `PageModel::findByPk()`, which the
   registry no longer holds once detached.
 
-  Verified on c5 (Contao 5.7.13): a root cloned as Italian got `conpai-eu-it` and its
-  subpages `startseite-kopie` and so on; each cloned record has exactly one version, and
+  Verified on Contao 5.7.13: a root cloned as Italian and its subpages got Contao's
+  aliases (`startseite-kopie` and so on); each cloned record has exactly one version, and
   that snapshot contains the alias.
 
 ## v0.15.0 - 2026-09-16
 
-Found in phase 4 (second language) of the ConpAI 1.0 acceptance test on 2026-09-16 and
-verified live on c5 (Contao 5.7.13).
+Verified live on Contao 5.7.13.
 
 ### Fixed
 
-- **Page writes produced URLs Contao's back end refuses.** `page update 132 --set
-  urlPrefix=en` answered `ok` although another root on `conpai.eu` had `en` — two roots
-  `conpai.eu/en`. `page update 141 --set alias=packages` answered `ok` although page 140
-  had it — two pages at `/en/packages`, one of them unreachable. Contao refuses both in
+- **Page writes produced URLs Contao's back end refuses.** `page update <id> --set
+  urlPrefix=en` answered `ok` although another root on the same domain had `en` — two
+  roots at one `/en`. `page update <id> --set alias=packages` answered `ok` although
+  another page had it — two pages at `/en/packages`, one of them unreachable. Contao refuses both in
   `PageUrlListener`, a save callback this bundle does not run. Domain and prefix pick the
   root, and with it the language, the 404 page, the sitemap and robots.txt.
 
@@ -1292,8 +1272,7 @@ verified live on c5 (Contao 5.7.13).
 
 ## v0.14.0 - 2026-09-16
 
-All found in the ConpAI 1.0 acceptance test on 2026-09-16 and verified live on c5
-(Contao 5.7.13).
+All verified live on Contao 5.7.13.
 
 ### Fixed
 
@@ -1321,8 +1300,7 @@ All found in the ConpAI 1.0 acceptance test on 2026-09-16 and verified live on c
 
 ## v0.13.0 - 2026-09-16
 
-All found in the ConpAI 1.0 acceptance test on 2026-09-16 and verified live on c5
-(Contao 5.7.13).
+All verified live on Contao 5.7.13.
 
 ### Fixed
 
@@ -1415,8 +1393,7 @@ command.
 
   A minor version because a write that used to answer `ok` now fails.
 
-  Both found in the ConpAI 1.0 acceptance test on 2026-09-16 and verified live on
-  c5 (Contao 5.7.13): `modules=66` refused with the layout intact, module headlines
+  Both verified live on Contao 5.7.13: `modules=66` refused with the layout intact, module headlines
   stored as pairs with `h2` by default, an explicit unit kept on update.
 
 ## v0.11.0 - 2026-09-16
@@ -1445,8 +1422,7 @@ command.
   Regressions: the `rgxp` half since v0.2.28 (2026-09-01), the `options` half since
   v0.9.0 (2026-09-11). No test combined an `inputUnit` field with either check —
   `InputUnitValidationTest` does now, and reproduced both messages before the fix.
-  Found in the ConpAI 1.0 acceptance test on 2026-09-16 and verified live on c5
-  (Contao 5.7.13).
+  Verified live on Contao 5.7.13.
 
 ### Changed
 
@@ -1470,7 +1446,7 @@ command.
   only `DC_Table` calls `invalidateCacheTags()`. Cached pages kept their old
   state until they expired — `/sitemap.xml`, cached with `s-maxage=2592000`, for
   up to thirty days. `cache:clear` was the only way out, and nothing told a
-  caller it was needed. Reported from the Consho project on 2026-09-13.
+  caller it was needed.
 
   Covered: `--set` updates, `publish`, deletes, all 22 `*-create` commands,
   `record clone` (the new root), `version restore` and `undo restore`.
@@ -1488,11 +1464,11 @@ command.
 
   For a `dynamicPtable` table — tl_content — the parent tag comes from the
   record's own `ptable` column, which is where `DC_Table::findPtable()` takes it
-  from in the back end. Found in the live test: the first build tagged a new
-  content element `contao.db.tl_content` instead of `contao.db.tl_article.<pid>`,
-  and the page showing it would never have been refreshed.
+  from in the back end. Without it, a new
+  content element would be tagged `contao.db.tl_content` instead of
+  `contao.db.tl_article.<pid>`, and the page showing it would never be refreshed.
 
-  Verified live on c5 (Contao 5.7.13) that an invalidation from the console
+  Verified live on Contao 5.7.13 that an invalidation from the console
   reaches the Symfony HTTP cache (`fos_http_cache` with `use_kernel_dispatcher`).
   On Contao 5.3, which has no `contao.cache.tag_manager`,
   `fos_http_cache.cache_manager` is used — what 5.3's `DataContainer` calls.
@@ -1781,12 +1757,12 @@ command.
   in practice depended entirely on whether the console had already booted the
   framework — a dependency nobody wanted to keep once it was known.
 
-  Verified on the test server: `contao:file:read` answers
+  Verified on a running installation: `contao:file:read` answers
   `{"status":"ok",…,"size":26}`.
 
 - **`PageCloner`'s array shape had fallen behind the code.** `subpages_skipped`
   is initialised and read three times, but was missing from the `@param`
-  annotation — added with the M-1 audit on 2026-09-02, the docblock stayed.
+  annotation — added in v0.4.0, the docblock stayed.
 
 - **`TemplateReadCommand` declared `strict_types` twice.** Both `php -l` and the
   autoloader accept it; only static analysis noticed.
@@ -1819,7 +1795,7 @@ Removing either guard would be the dangerous repair, not the tidy one.
   nothing and spreads one fact over a column of single-item rows. A map earns its
   sub-keys (`versionen.core` is informative); a list does not.
 
-  🔴 Found on the live installation, not by a test, and the reason is worth
+  🔴 Found on a live installation, not by a test, and the reason is worth
   keeping: every assertion in `ErrorReportBuilderTest` looked at `summary()`, the
   array — which was correct all along. The defect existed only in the rendering,
   and nothing was reading the rendering. Two tests now do.
@@ -1998,9 +1974,6 @@ contao-ai-backend-bundle, which is released alongside it.
   absent from the result. Silence and "explicitly nothing" have to reach a reader the same
   way, or `repeatable: null` shows up looking like a claim.
 
-  Reported from the first declaration anyone else wrote against this attribute — which is
-  the shortest possible answer to whether the mechanism gets used.
-
 ## v0.2.36 - 2026-09-01
 
 ### Changed
@@ -2009,13 +1982,13 @@ contao-ai-backend-bundle, which is released alongside it.
   `contao:ai:run` still refuses everything else; the default stays closed and nothing is
   granted that shell access did not already grant.
 
-  A parallel session measured 22 namespaces on a live site. `cookiebar:` is a **published
+  One live site has 22 command namespaces. `cookiebar:` is a **published
   Contao extension** using its own product name, and Symfony's own docs recommend `app:`
   for application commands. **A prefix of one's own is the convention, and `contao:` would
   be the one wrong choice** — it claims someone else's property. So the previous advice,
   shipped an hour earlier, told plugin authors to break that convention.
 
-  Their diagnosis names the fault: *the prefix says who wrote the command; the guard read
+  The fault in one line: *the prefix says who wrote the command; the guard read
   it as whether the command may run.* Two different questions of one source, and a
   correctly named extension command fell out — not because it was dangerous, but because
   the name does not carry the information being demanded of it.
@@ -2035,8 +2008,7 @@ contao-ai-backend-bundle, which is released alongside it.
 - **The manifest hid the commands it could not reach.** `contao:ai:commands` filtered out
   everything outside the `contao:` namespace, so `ext list` answered *available: 0* on an
   installation with **87** commands it cannot start — through the very command built to
-  report what it cannot reach. Reported by a parallel session whose own
-  `ww:gutschein:import` was invisible here.
+  report what it cannot reach.
 
   They are listed now, each carrying `reachable: true|false`, and the count of reachable
   ones travels with the listing. Set aside, never hidden — the same rule the three
@@ -2052,7 +2024,7 @@ contao-ai-backend-bundle, which is released alongside it.
 ### Changed
 
 - **A contract now states its own boundary.** The presented answer carries a `covers`
-  field: *this console command only*. Reported by the ww-buchung session, which has five
+  field: *this console command only*. One booking extension has five
   write paths and exactly one console command among them — the status transitions hang on
   a DCA `button_callback`, the booking form is a front-end controller, the voucher expiry
   is a cron job, and none of those can carry a contract. A reader collecting every
@@ -2098,7 +2070,7 @@ contao-ai-backend-bundle, which is released alongside it.
 - **`contao:ai:commands --name=…` read the wrapper instead of the command.** Symfony wraps
   every container-registered command in a `LazyCommand`, so the attribute lookup found
   nothing and the manifest answered `contract: null` for a command that had declared a full
-  one. Measured on the test server — `find()` demonstrably returns `LazyCommand` with the
+  one. Measured on a running installation — `find()` demonstrably returns `LazyCommand` with the
   real class behind it — rather than assumed.
 
 ### Note on the version number
@@ -2133,7 +2105,7 @@ installation that has it. The minor stays where it is until both can move togeth
 
 ### Fixed
 
-- **`contao:ai:commands --name=x` answered `[]` where it meant `{}`.** PHP's empty array encodes as a JSON array, so a command without arguments — `contao:record:clone` — returned `"arguments": []` while every other command returned an object. A caller had to handle both shapes for the same field. Found by a reader doing `.items()` on it.
+- **`contao:ai:commands --name=x` answered `[]` where it meant `{}`.** PHP's empty array encodes as a JSON array, so a command without arguments — `contao:record:clone` — returned `"arguments": []` while every other command returned an object. A caller had to handle both shapes for the same field.
 
 ## v0.2.31 - 2026-09-01
 
@@ -2177,7 +2149,7 @@ installation that has it. The minor stays where it is until both can move togeth
 
 ### Fixed
 
-- **A create command's own options went past every DCA rule.** `convertFields()` sees only the `--set` pairs. `--name`, `--title`, `--email` and the values computed beside them were assigned straight onto the model afterwards, so no rule ever saw them. Half an hour after `eval.unique` started being enforced — v0.2.28 and v0.2.29 are the same morning — `theme create --name "Contao Official Demo"` still produced a **second theme under a name the DCA forbids** — reproduced on c5, then fixed.
+- **A create command's own options went past every DCA rule.** `convertFields()` sees only the `--set` pairs. `--name`, `--title`, `--email` and the values computed beside them were assigned straight onto the model afterwards, so no rule ever saw them. Half an hour after `eval.unique` started being enforced — v0.2.28 and v0.2.29 are the same morning — `theme create --name "Contao Official Demo"` still produced a **second theme under a name the DCA forbids** — reproduced, then fixed.
 
   🎯 **Three commands had noticed and each written their own check** (`UserGroupCreate`, `MemberGroupCreate`, `FormCreate`). That is the shape this bundle keeps learning to distrust: a rule every command has to remember, which most of them did not — the same failure as the two field conversions in v0.2.19.
 
@@ -2199,7 +2171,7 @@ installation that has it. The minor stays where it is until both can move togeth
 
 - `CreateCommandConversionTest` no longer asks whether a command calls the entry point but **whether anything reaches the record without it** — the lexical rule could be satisfied while the hole stayed open, which is exactly what happened. Mutation-proven: adding one direct assignment turns it red by name.
 
-  ⚠️ The first version of that check was green against a deliberately broken command. `;$` does not match a line ending in CRLF, so the pattern silently matched nothing — the same carriage-return trap that made an md5 comparison disagree on 2026-08-31. A guard that cannot fail is worth less than no guard, because it is believed.
+  ⚠️ The first version of that check was green against a deliberately broken command. `;$` does not match a line ending in CRLF, so the pattern silently matched nothing. A guard that cannot fail is worth less than no guard, because it is believed.
 
 ## v0.2.28 - 2026-09-01
 
@@ -2229,7 +2201,7 @@ installation that has it. The minor stays where it is until both can move togeth
 
 - **`--set` with a field that is not a column reported success and changed nothing.** `--set gibtesnicht=1` answered `{"status":"ok","updated":["gibtesnicht"]}`. Nothing was written: `Model::save()` filters `arrModified` against `Database::getFieldNames()` and drops what is not a column — but `ModelWriter::update()` reported back the names it had been *given*.
 
-  🎯 **A silent no-op that reports success is the failure this project keeps hunting.** Same shape as the bulk run of 2026-08-29 (174 IDs in, one record changed, "0 failed") and the pipx no-op of v0.4.3. A wrong answer that looks like an answer is worse than an error, because nobody goes looking. A typo in a field name read as a successful change.
+  🎯 **A silent no-op that reports success is the failure this project keeps hunting.** A wrong answer that looks like an answer is worse than an error, because nobody goes looking. A typo in a field name read as a successful change.
 
   Now refused, with the field and the table named. Refusing rather than reporting truthfully, because the read side already does: `contao:record:list` validates `--fields`, `--filter` and `--order` against the DCA and refuses the rest — guessing a column name is safe there *because* it fails loudly. Writing should not be the looser of the two.
 
@@ -2253,7 +2225,7 @@ installation that has it. The minor stays where it is until both can move togeth
 
   Applied to **every** command, not only those extending the two base classes: the seven that extend Symfony's `Command` directly (`RecordClone`, `TemplateList`, `TemplateWrite`, `Version*`) use the trait themselves. A boundary that holds for most commands is not a boundary, and which is which is invisible from the outside — `JsonErrorBoundaryTest` fails by name if a command falls outside it.
 
-  Verified live against c5: a 600-character value into `tl_newsletter.alias` (varchar 255) now answers `DriverException: … Data too long for column 'alias'` with exit 1, where it previously produced a stack trace and exit 255.
+  Verified live: a 600-character value into `tl_newsletter.alias` (varchar 255) now answers `DriverException: … Data too long for column 'alias'` with exit 1, where it previously produced a stack trace and exit 255.
 
 ## v0.2.25 - 2026-08-31
 
@@ -2371,7 +2343,7 @@ installation that has it. The minor stays where it is until both can move togeth
 
 - **`optionsSource` per field in `contao:dca:schema`** — `static`, `callback`, `foreignKey` or `null`. A field with an `options_callback` or a `foreignKey` has options; they are simply not in the DCA array, and several callbacks need a live DataContainer this command does not have. Reporting a bare `null` for those made "this field takes any value" and "the values exist but not here" look identical — the same confusion the wrong `options` caused, one step further along. On a live install `tl_page.type` and `tl_page.layout` now say `callback` instead of appearing to have no options at all.
 
-  Found by the parallel session working on a booking module for a production site, which hit it on a table of its own and checked `tl_page` to rule out its own DCA. Verified across nine tables on the test install: 61 fields carry options, and the single list that still looks like indices is `tl_module.news_startDay`, which genuinely declares `array(0, …, 6)` for the days of the week.
+  Verified across nine tables: 61 fields carry options, and the single list that still looks like indices is `tl_module.news_startDay`, which genuinely declares `array(0, …, 6)` for the days of the week.
 
   The CLI needs no release for this — it passes the server's answer through unchanged.
 
@@ -2379,11 +2351,11 @@ installation that has it. The minor stays where it is until both can move togeth
 
 ### Added
 
-- **Deleted records can be restored.** `contao:undo:restore` and `contao:undo:read`. `contao:version:restore` has existed since Phase 2 and answers "this record changed and I want it as it was"; its counterpart never existed. Every delete in this bundle has written a `tl_undo` row since v0.2.8 — for a cascade, one row covering the parent and everything under it — so the safety net was being filled and never emptied.
+- **Deleted records can be restored.** `contao:undo:restore` and `contao:undo:read`. `contao:version:restore` has existed since v0.1.0 and answers "this record changed and I want it as it was"; its counterpart never existed. Every delete in this bundle has written a `tl_undo` row since v0.2.8 — for a cascade, one row covering the parent and everything under it — so the safety net was being filled and never emptied.
 
   Follows `DC_Table::undo()` step for step, because the steps are not decoration: the DCA is loaded before the table is touched (an `onundo_callback` only exists once it is), columns the table no longer has are dropped rather than failing the insert, `onundo_callback` runs per row, the `tl_undo` entry is deleted **only** if every insert succeeded, and the log line is Contao's own `Undone <query>` on Contao's own channel.
 
-  **The column-drop is not theoretical.** On the test install, an existing entry for a theme cascade carried `tl_layout.rows` — a field the DCA declares and the database does not have, confirmed through `record:list` (`unknown column: rows`). Without the intersect that restore would have failed over a field nobody misses. Verified end to end on exactly that entry: four rows across four tables and three levels, and the restored image-size variant pointed at the restored size again, which is what restoring with the original IDs is for.
+  **The column-drop is not theoretical.** On one installation, an existing entry for a theme cascade carried `tl_layout.rows` — a field the DCA declares and the database does not have, confirmed through `record:list` (`unknown column: rows`). Without the intersect that restore would have failed over a field nobody misses. Verified end to end on exactly that entry: four rows across four tables and three levels, and the restored image-size variant pointed at the restored size again, which is what restoring with the original IDs is for.
 
   `contao:undo:read` decodes the payload — tables, row counts, IDs — plus the two things that decide whether the restore can work at all: `idsTaken`, because Contao re-inserts with the original ID and an occupied one makes the insert fail, and `droppedColumns`, because a silently shortened record is worth knowing about before rather than after.
 
@@ -2393,7 +2365,7 @@ installation that has it. The minor stays where it is until both can move togeth
 
   **An unknown key is refused, and nothing is written.** `Config::persist()` writes any key given to it, and nothing ever reads it back or complains. A typo would put a dead variable permanently into a file nobody opens by hand. Contao is protected by its form only offering real fields; here the check has to be explicit. A mandatory setting cannot be emptied either — an empty `dateFormat` breaks every date on the site.
 
-  **`read` separates `value` from `persisted`.** The effective value may come from the bundle default rather than from anything an administrator chose; on the test install `resultsPerPage` reads `30` and is not persisted at all. Reporting only the value would make "somebody set this" and "this is the default and will move when the default moves" indistinguishable.
+  **`read` separates `value` from `persisted`.** The effective value may come from the bundle default rather than from anything an administrator chose; on one installation `resultsPerPage` reads `30` and is not persisted at all. Reporting only the value would make "somebody set this" and "this is the default and will move when the default moves" indistinguishable.
 
   Values that already match are skipped and the file is not touched, compared loosely because `Config::get()` answers `30` where `--set` always arrives as `"30"`. The log line matches Contao's `DC_File::save()` — same channel, same "from … to …" wording, same omission of the value for a password field.
 
@@ -2488,13 +2460,11 @@ installation that has it. The minor stays where it is until both can move togeth
 
   Worth naming plainly: this is the one read command that accepts an **arbitrary** table, which makes it the likeliest of all of them to be pointed at an unfamiliar `fileTree` field — and it was the only one left without the guard.
 
-  Found on 2026-08-31 while checking whether the CLI could reach the generic table commands at all.
-
 - **`contao:record:list` answered an unknown `--fields` column with a stack trace.** The command validates three things against the DCA — the sort clause, the filters and the requested columns — and each raises the same `\InvalidArgumentException`. Two of the three calls were wrapped in a catch that turned it into `{"status":"error","message":...}`. `resolveColumns()` was not, so `--fields gibtsnicht` escaped as an uncaught PHP exception: nothing on stdout, a stack trace on stderr, exit 1 — while the identical mistake in `--order` or `--filter` answered properly.
 
   Also felt in the browser chat, where `RecordListTool` passes the failure straight through: a model that guessed a column name got a stack trace where it needed the sentence "unknown column".
 
-  Found live against a test install on 2026-08-31, not in review — two guarded calls in a row read as if all three were covered.
+  Two guarded calls in a row read as if all three were covered.
 
 - **`contao:record:list` died on any table without an `id` or a `tstamp`.** Three separate places assumed every `tl_*` table has both: the allow-list merged them in by decree (with a comment claiming they "always exist"), the `--order` option carried the literal default `id DESC`, and the fallback column list was `['id', 'tstamp']`.
 
@@ -2546,9 +2516,9 @@ Verified live: clone → update → delete on a test install. Update wrote versi
 
 ### Fixed
 
-- **`record:clone` reduced every `tinyint` value to 1.** Cloning a tour page turned walking time 2 into 1, difficulty 2 into 1, severity 4 into 1, driving time 2 into 1 and the participant cap 4 into 1 — practically the whole fact table — while the command reported `status: ok`. `0` survived, and `smallint` and `varchar` were untouched, which is what pointed at a boolean cast rather than at the clone logic.
+- **`record:clone` reduced every `tinyint` value to 1.** Cloning a page whose extension fields held small numbers turned every 2 and every 4 into 1 — practically all of those fields — while the command reported `status: ok`. `0` survived, and `smallint` and `varchar` were untouched, which is what pointed at a boolean cast rather than at the clone logic.
 
-  The value was already gone before the cloner saw it. Doctrine DBAL maps every MySQL `tinyint` to `Types::BOOLEAN` regardless of the declared length (`AbstractMySQLPlatform`: `'tinyint' => Types::BOOLEAN`), Contao's `Model::convertToPhpValue()` honours that mapping on read, and so `Model::row()` hands out `true` for a stored `2`. Assigning that to the clone and saving it writes `1` back, because `Database\Statement::set()` binds a PHP boolean as `ParameterType::BOOLEAN`. A normal `page:update --set stunden=2` was never affected — it passes a string, which never meets the cast.
+  The value was already gone before the cloner saw it. Doctrine DBAL maps every MySQL `tinyint` to `Types::BOOLEAN` regardless of the declared length (`AbstractMySQLPlatform`: `'tinyint' => Types::BOOLEAN`), Contao's `Model::convertToPhpValue()` honours that mapping on read, and so `Model::row()` hands out `true` for a stored `2`. Assigning that to the clone and saving it writes `1` back, because `Database\Statement::set()` binds a PHP boolean as `ParameterType::BOOLEAN`. A normal `page:update --set <field>=2` was never affected — it passes a string, which never meets the cast.
 
   All four cloners now read the source record with a plain `SELECT *` and copy the stored values. That is how stock Contao avoids the same trap: the back end never reads a record through the model layer — `DataContainer::preloadCurrentRecords()` runs a plain `SELECT *` over DBAL, and `DC_Table::copy()` takes its source row from there via `getCurrentRecord()`, which is why copying inside the back end was never affected. The shared `CopiesSourceRows` trait covers the nine copy loops across `PageCloner`, `NewsArchiveCloner`, `CalendarCloner` and `FaqCategoryCloner`; a test fails if a cloner goes back to `Model::row()`.
 
@@ -2572,11 +2542,11 @@ Verified live: clone → update → delete on a test install. Update wrote versi
 
 ### Added
 
-- **`--ids` on every entity update command.** `contao:page:update --ids=39,40,41 --set max_teiln=4` applies the same values to many records in one invocation. Inherited by all `AbstractModelUpdateCommand` subclasses, so page, news, event, FAQ, article and content all have it.
+- **`--ids` on every entity update command.** `contao:page:update --ids=39,40,41 --set noSearch=1` applies the same values to many records in one invocation. Inherited by all `AbstractModelUpdateCommand` subclasses, so page, news, event, FAQ, article and content all have it.
 
   Setting one field on 174 pages previously took about four minutes: 1.4 s per record, of which 0.67 s was establishing the SSH connection and nothing else. The only alternative was `bridge rewrite`, an LLM loop that bills API tokens to write a constant.
 
-  **Each record keeps its own version and its own system-log entry** — the audit trail is the reason writes go through the console at all, and it is not what was slow. Only the connection is shared. The response is a summary (`total`, `succeeded`, `failed`, `ids`, `errors`) and the exit code is non-zero when any record failed, so a shell loop notices. A malformed entry in the list is named and refused rather than skipped: a silent skip is exactly how the bulk run of 2026-08-29 managed to look successful while changing one record out of 174.
+  **Each record keeps its own version and its own system-log entry** — the audit trail is the reason writes go through the console at all, and it is not what was slow. Only the connection is shared. The response is a summary (`total`, `succeeded`, `failed`, `ids`, `errors`) and the exit code is non-zero when any record failed, so a shell loop notices. A malformed entry in the list is named and refused rather than skipped: a silent skip is exactly how a bulk run can look successful while changing one record out of 174.
 
   The ID argument stays a single-record path with an unchanged response shape; giving both is an error, as is giving neither.
 
@@ -2705,7 +2675,7 @@ Verified live on Contao 5.7.11: a disposable page tree (2 pages, 2 articles, 3 c
 
 Affects the browser chat as much as the console: `page_delete` and its siblings in contao-ai-backend-bundle run through these same commands.
 
-`tl_undo.pid` still carries the record's author rather than the deleting user, so on tables without an `author` column the entry is admin-only. Known and accepted — see the project notes.
+`tl_undo.pid` still carries the record's author rather than the deleting user, so on tables without an `author` column the entry is admin-only. Known and accepted.
 
 ## v0.2.7 — 2026-08-13
 
@@ -2781,7 +2751,7 @@ Testing against 8.2 requires Composer to resolve for that platform (`composer co
 
 ### Added
 
-- Phase 9 macro layer: `contao:record:clone` with plugin-aware cloner registry (news archive, calendar, FAQ category, page trees including articles and nested content), and `contao:record:list` — a table-agnostic listing with filters, pagination and curated default columns.
+- Macro layer: `contao:record:clone` with plugin-aware cloner registry (news archive, calendar, FAQ category, page trees including articles and nested content), and `contao:record:list` — a table-agnostic listing with filters, pagination and curated default columns.
 - Ownership fields are filled on create (`author`, `cuser`) instead of defaulting to the admin.
 
 ### Fixed
