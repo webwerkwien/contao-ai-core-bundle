@@ -145,7 +145,7 @@ final class ErrorReportBuilder
      * Shortens a path so it locates the code without describing the server.
      *
      * An absolute path on a shared host reads like `/var/www/clients/client1/
-     * web246/web/vendor/…` — the leading part is the customer's hosting layout
+     * web42/web/vendor/…` — the leading part is the customer's hosting layout
      * and has no diagnostic value. Everything from `vendor/` on is kept because
      * that is the part that identifies the package; a file outside any vendor
      * directory keeps its basename only.

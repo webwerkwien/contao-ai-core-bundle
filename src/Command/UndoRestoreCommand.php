@@ -16,7 +16,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Dca\TableName;
 /**
  * Put a deleted record back, the way the back end's "Restore" module does.
  *
- * `contao:version:restore` has existed since Phase 2 and answers "this record
+ * `contao:version:restore` has existed for long and answers "this record
  * changed and I want it as it was". Its counterpart never existed: a record
  * that was *deleted* had a `tl_undo` row and no command able to use it. Every
  * delete in this bundle has been writing one since v0.2.8 — for a cascade, one

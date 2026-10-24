@@ -110,7 +110,7 @@ class PageCopyResetTest extends TestCase
     }
 
     /**
-     * The definitions in dca() are written down by hand (rule 25). This pins them to
+     * The definitions in dca() are written down by hand. This pins them to
      * Contao's own file: the four fields carry `doNotCopy` and the SQL types above.
      */
     public function testContaosDcaMarksTheFourFieldsAsDoNotCopy(): void

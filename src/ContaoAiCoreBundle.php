@@ -7,7 +7,7 @@ use Contao\CommentsModel;
 use Contao\FaqModel;
 use Contao\NewsletterChannelModel;
 use Contao\NewsModel;
-// Hinweis für künftige Erweiterungen (Phase 9.4+):
+// Hinweis für künftige Erweiterungen:
 //   - contao/listing-bundle    → braucht aktuell keinen Guard, weil der bestehende
 //     ListingConfigCommand nur \Contao\ModuleModel (Core) referenziert.
 // Sobald Commands für diese Plugins entstehen, hier nach demselben Muster

@@ -13,7 +13,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\EntityClonerInterface;
 use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 
 /**
- * CLI surface for the Phase-9 macro clone primitive. Routes the request to
+ * CLI surface for the macro clone primitive. Routes the request to
  * the first registered EntityCloner that supports the requested table.
  *
  * Stateless: the command only orchestrates; the cloner does the cascade
