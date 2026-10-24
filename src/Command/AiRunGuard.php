@@ -9,8 +9,8 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
  * is a class rather than a condition is that getting it wrong is expensive.
  *
  * 🎯 **Without the restriction, `ai:run` is a remote console, and the first
- * thing it hands back is `doctrine:query:sql`.** This bundle spent the whole of
- * 2026-08-31 and 2026-09-01 moving reads and writes off raw SQL and onto
+ * thing it hands back is `doctrine:query:sql`.** This bundle spent a lot of
+ * work moving reads and writes off raw SQL and onto
  * commands that validate against the DCA, version, and log. A generic runner
  * that reaches `doctrine:query:sql` puts every one of those guarantees back on
  * the honour system, through the very tool that was built to end that.
@@ -20,9 +20,9 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
  * this is for, and each one is reachable through its own wrapper or over SSH by
  * someone who has decided to.
  *
- * ## Why the namespace alone was the wrong measure (2026-09-01)
+ * ## Why the namespace alone was the wrong measure
  *
- * A parallel session measured 22 namespaces on a live site. `cookiebar:` is a
+ * A live site was measured with 22 namespaces. `cookiebar:` is a
  * published Contao extension using its own product name; Symfony's own docs
  * recommend `app:` for application commands. **A prefix of one's own is the
  * convention, and `contao:` would be the one wrong choice** — it claims someone

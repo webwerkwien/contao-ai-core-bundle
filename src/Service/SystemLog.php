@@ -64,7 +64,7 @@ class SystemLog
     /**
      * The context alone, for a line written to another of Contao's channels on the
      * bundle's behalf — `contao.files`, `contao.cron` — so it is attributed like this
-     * one instead of FE / N/A (ConpAI 1.0, Nr. 59).
+     * one instead of FE / N/A.
      */
     public function context(string $func, string $username, string $action = ContaoContext::GENERAL): ContaoContext
     {

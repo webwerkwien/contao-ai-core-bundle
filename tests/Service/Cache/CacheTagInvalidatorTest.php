@@ -90,7 +90,7 @@ class CacheTagInvalidatorTest extends TestCase
     }
 
     /**
-     * 🔴 Found in the live test on c5, 2026-09-13: a content element created over
+     * 🔴 Found in a live test: a content element created over
      * the CLI came back with `contao.db.tl_content` instead of
      * `contao.db.tl_article.1`. tl_content declares no ptable — `dynamicPtable`,
      * the parent is in each row. The back end does not know it from the DCA

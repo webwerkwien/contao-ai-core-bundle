@@ -11,7 +11,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Dca\ContaoAlias;
 /**
  * A generated alias is the one Contao's own `save_callback` makes.
  *
- * 🔴 **Measured on 2026-09-16** (review of v0.16.0, Contao 6.0.0 test installation):
+ * 🔴 **Measured with v0.16.0** (Contao 6.0.0 test installation):
  * `page create --title="Über uns"` stored `über-uns`, a clone of the same page
  * `uber-uns-kopie`. The create commands used `StringUtil::generateAlias()`; Contao's
  * callbacks (`tl_article::generateAlias` and its twins in news, calendar and

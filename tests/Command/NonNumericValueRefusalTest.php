@@ -9,7 +9,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
 /**
  * Text for a number or a point in time is refused by name (v0.28.0).
  *
- * Practical test 2026-09-19: `event create --set startTime=17:30` ended in
+ * Found in a practical test: `event create --set startTime=17:30` ended in
  * `DriverException: Data truncated for column 'startTime'`, and a date typed into
  * a varchar timestamp column (`tl_news.start`) would have been stored as text.
  */

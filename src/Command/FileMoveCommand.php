@@ -19,8 +19,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Files\FileUsageFinder;
  * Move a file or folder into another folder below files/ — as the back end's cut and paste.
  *
  * Until v0.22.0 there was no way to move a file through the bundle; deleting and writing
- * anew gives a new UUID, and every element pointing at the old one renders nothing (Nr. 64
- * of the ConpAI 1.0 acceptance test, 2026-09-17). See FileMoveCommandTest.
+ * anew gives a new UUID, and every element pointing at the old one renders nothing. See
+ * FileMoveCommandTest.
  *
  * Mirrors `DC_Folder::cut()` of Contao 5.7/6.0: no circular move, no overwriting,
  * `Files::rename()`, then `contao.filesystem.dbafs_manager->sync($source, $destination)` —
@@ -28,7 +28,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Files\FileUsageFinder;
  * `Dbafs::moveResource()`; the manager and its move detection exist there too) — then the
  * symlinks for a folder, and *File or folder "…" has been moved to "…"* in the files channel.
  * Like FolderPublishCommand, the symlinks are generated with `contao.command.symlinks`
- * directly so both log lines carry the operator (Nr. 59).
+ * directly so both log lines carry the operator.
  *
  * What Contao does not tell, and this answers: references that name the old **path** in a
  * text field (`pathUsages`). References by UUID — file pickers, `{{file::uuid}}` — keep
@@ -113,7 +113,7 @@ class FileMoveCommand extends AbstractWriteCommand
 
         // The DBAFS manager refuses to sync a path whose first segment below files/ starts
         // with a dot ("Dot path … is not allowed"). Refused before the rename, so nothing is
-        // left half-moved (review before v0.23.0; FileDeleteCommand meets the same rule).
+        // left half-moved (since v0.23.0; FileDeleteCommand meets the same rule).
         foreach ([$source, $destination] as $path) {
             if (str_starts_with(substr($path, \strlen('files/')), '.')) {
                 return $this->outputError("{$path} starts with a dot directly below files/, and Contao's file sync refuses such paths. Nothing was moved.");

@@ -89,7 +89,7 @@ class PageUpdateCommand extends AbstractModelUpdateCommand
             return $updated;
         });
 
-        // Accepted, like the back end — but said, like the back end (Nr. 48, 2026-09-17).
+        // Accepted, like the back end — but said, like the back end.
         if (null !== $updated && [] !== array_intersect($updated, self::PAGE_URL_FIELDS)) {
             $this->routeConflicts = $guard->routeConflicts($id);
         }

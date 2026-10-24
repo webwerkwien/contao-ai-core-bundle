@@ -30,7 +30,7 @@ interface EntityClonerInterface
      * @return array{id: int, table: string, count: int, ignored_modifications: list<string>}  New root record id,
      *   source table name, number of cloned child records (cloner-specific definition of "child"), and the names of
      *   any $modifications the cloner refused. The last key is always present — empty list on a clean call — so a
-     *   caller can distinguish an applied override from a discarded one. Before 2026-08-29 refused keys vanished
+     *   caller can distinguish an applied override from a discarded one. Earlier, refused keys vanished
      *   silently, which is how two pages meant to stay unpublished went live.
      *
      * @throws \InvalidArgumentException on a missing source or a page tree rule (refusals)

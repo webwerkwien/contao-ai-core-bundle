@@ -9,11 +9,10 @@ use Webwerkwien\ContaoAiCoreBundle\Command\UploadPolicy;
  * What goes into files/ is what the installation allows to be uploaded — no more,
  * and not less.
  *
- * 🔴 **Measured on 2026-09-16 on c5 (Contao 5.7.13, core-bundle v0.12.0)**, raised by
- * Michael in the ConpAI 1.0 acceptance test ("shouldn't every upload the system
- * defines be possible?"):
+ * 🔴 **Measured on Contao 5.7.13 with core-bundle v0.12.0**, raised by the question
+ * "shouldn't every upload the system defines be possible?":
  *
- * | Contao setting | on c5 | `contao:file:write` |
+ * | Contao setting | measured | `contao:file:write` |
  * |---|---|---|
  * | `uploadTypes` | 60+ extensions | **not checked** — any extension was written |
  * | `maxFileSize` | 20 MB | **a hard-coded 10 MB** instead |
@@ -87,7 +86,7 @@ class UploadPolicyTest extends TestCase
 
     public function testTheSystemMaximumReplacesTheOldTenMegabytes(): void
     {
-        // 15 MB: refused until v0.12.0 by the hard-coded limit, allowed by c5's 20 MB.
+        // 15 MB: refused until v0.12.0 by the hard-coded limit, allowed by a system maximum of 20 MB.
         $this->assertNull($this->subject()->uploadViolation('files/x/video.pdf', 15 * 1024 * 1024, self::SYSTEM, 20480000));
     }
 
@@ -148,7 +147,7 @@ class UploadPolicyTest extends TestCase
     // --- resize ---
 
     /**
-     * 🔴 Measured on c5 (5.7.13) on 2026-09-16: `imageWidth=100`, `imageHeight=0`,
+     * 🔴 Measured on 5.7.13: `imageWidth=100`, `imageHeight=0`,
      * a 600×20 PNG through `file upload` → **0 bytes on disk**, `resized: true`.
      * `FileUpload::resizeUploadedImage()` checks the width (→ 100×3), then
      * `3 > imageHeight (0)` → width `round(0 * 100 / 3)` = 0, height 0. The back end

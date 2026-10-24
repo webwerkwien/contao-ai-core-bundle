@@ -8,7 +8,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageLanguage;
 /**
  * `tl_page.language` belongs to a root and nowhere else.
  *
- * 🟡 **Measured live on a production installation on 2026-09-17** (ConpAI 1.0 acceptance test, Nr. 62):
+ * 🟡 **Measured live on a production installation:**
  * pages 2 and 3, created in the back end, store no language — the field is only in the
  * root palette. Pages 11–13, created through `contao:page:create`, stored `de` (the
  * option's default applied to every type), and `record:clone` carried it along: the
@@ -17,7 +17,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageLanguage;
  * was not.
  *
  * Contao's own copy goes further: `language` carries `doNotCopy`, so a back-end copy
- * empties it even on the root (checked on c5 the same day). The cloner keeps a root's
+ * empties it even on the root. The cloner keeps a root's
  * language, because a clone into another language sets it in the same call.
  */
 class PageLanguageTest extends TestCase

@@ -15,8 +15,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Theme\ExampleWebsite;
 
 /**
  * The example website import (v1.9.0): what the preview reads from the file, the backup
- * before anything runs, and the administrators afterwards (Michael, 2026-10-15). Contao's
- * statement runner itself is stood in for here; it ran for real on c5 6.0.
+ * before anything runs, and the administrators afterwards. Contao's
+ * statement runner itself is stood in for here; it ran for real on Contao 6.0.
  */
 class ExampleWebsiteTest extends TestCase
 {
@@ -44,7 +44,7 @@ class ExampleWebsiteTest extends TestCase
         ]));
 
         $this->users = [
-            1 => ['id' => 1, 'username' => 'michael', 'admin' => 1, 'password' => 'hash'],
+            1 => ['id' => 1, 'username' => 'webmaster', 'admin' => 1, 'password' => 'hash'],
             2 => ['id' => 2, 'username' => 'contao-ai', 'admin' => 1, 'password' => ''],
             3 => ['id' => 3, 'username' => 'editor', 'admin' => 0, 'password' => 'hash2'],
         ];
@@ -148,7 +148,7 @@ class ExampleWebsiteTest extends TestCase
         self::assertSame(4, $preview['statements']);
         self::assertSame(['tl_page', 'tl_user'], $preview['tables']);
         self::assertSame(1, $preview['user_rows']);
-        self::assertSame(['michael'], $preview['existing_admins'], 'contao-ai is no administrator who logs in');
+        self::assertSame(['webmaster'], $preview['existing_admins'], 'contao-ai is no administrator who logs in');
         self::assertTrue($preview['needs_admin_decision']);
 
         $data = $this->service()->analyse('system/tmp/demo.sql', 'data');
@@ -181,25 +181,25 @@ class ExampleWebsiteTest extends TestCase
 
         self::assertSame('backup__20261015090000.sql.gz', $result['backup']);
         self::assertSame(['backup', 'statements'], \array_slice($this->log, 0, 2), 'the backup comes first');
-        self::assertSame(['kept' => ['michael'], 'removed' => ['demo'], 'imported' => [], 'renumbered' => []], $result['admins']);
-        self::assertSame(['contao-ai', 'michael'], $this->usernames());
-        self::assertSame('hash', $this->user('michael')['password'], 'the account comes back as it was');
+        self::assertSame(['kept' => ['webmaster'], 'removed' => ['demo'], 'imported' => [], 'renumbered' => []], $result['admins']);
+        self::assertSame(['contao-ai', 'webmaster'], $this->usernames());
+        self::assertSame('hash', $this->user('webmaster')['password'], 'the account comes back as it was');
     }
 
     public function testBothKeepsTheExistingNextToTheImported(): void
     {
         $result = $this->service(self::truncateAndAddDemo())->import('system/tmp/demo.sql', 'data', 'both');
 
-        self::assertSame(['kept' => ['michael'], 'removed' => [], 'imported' => ['demo'], 'renumbered' => []], $result['admins']);
-        self::assertSame(['contao-ai', 'demo', 'michael'], $this->usernames());
+        self::assertSame(['kept' => ['webmaster'], 'removed' => [], 'imported' => ['demo'], 'renumbered' => []], $result['admins']);
+        self::assertSame(['contao-ai', 'demo', 'webmaster'], $this->usernames());
     }
 
     public function testOnTheSameUsernameTheExistingAccountWins(): void
     {
-        $this->service(static fn (): array => [1 => ['id' => 1, 'username' => 'michael', 'admin' => 1, 'password' => 'from-the-file']])
+        $this->service(static fn (): array => [1 => ['id' => 1, 'username' => 'webmaster', 'admin' => 1, 'password' => 'from-the-file']])
             ->import('system/tmp/demo.sql', 'data', 'both');
 
-        self::assertSame('hash', $this->user('michael')['password']);
+        self::assertSame('hash', $this->user('webmaster')['password']);
     }
 
     public function testAnIdTakenByAnImportedUserGivesTheAccountANewOne(): void
@@ -207,8 +207,8 @@ class ExampleWebsiteTest extends TestCase
         $this->service(static fn (): array => [1 => ['id' => 1, 'username' => 'demo', 'admin' => 1, 'password' => 'x']])
             ->import('system/tmp/demo.sql', 'data', 'both');
 
-        self::assertSame(['contao-ai', 'demo', 'michael'], $this->usernames());
-        self::assertNotSame(1, (int) $this->user('michael')['id']);
+        self::assertSame(['contao-ai', 'demo', 'webmaster'], $this->usernames());
+        self::assertNotSame(1, (int) $this->user('webmaster')['id']);
     }
 
     public function testWithoutExistingAdminsTheImportedOnesSimplyArrive(): void
@@ -222,7 +222,7 @@ class ExampleWebsiteTest extends TestCase
     }
 
     /**
-     * Review before v1.9.0: a statement failing half-way left `data` with an empty tl_user
+     * Before v1.9.0: a statement failing half-way left `data` with an empty tl_user
      * and no backup name in the answer.
      */
     public function testAFailureHalfWayStillPutsTheAdminsBackAndNamesTheBackup(): void
@@ -240,11 +240,11 @@ class ExampleWebsiteTest extends TestCase
             self::assertStringContainsString('backup__20261015090000.sql.gz', $e->getMessage());
             self::assertStringContainsString('Unknown column foo', $e->getMessage());
         }
-        self::assertSame(['contao-ai', 'michael'], $this->usernames());
+        self::assertSame(['contao-ai', 'webmaster'], $this->usernames());
     }
 
     /**
-     * Second review: a `full` import that dropped tl_user and stopped before recreating it
+     * A `full` import that dropped tl_user and stopped before recreating it
      * makes the putting back fail too — the backup's name must still be in the error.
      */
     public function testWhenThePuttingBackFailsTooTheBackupIsStillNamed(): void
@@ -270,8 +270,8 @@ class ExampleWebsiteTest extends TestCase
     {
         $this->service()->import('system/tmp/demo.sql', 'data_no_truncate', 'both');
 
-        self::assertNotContains('delete michael', $this->log);
-        self::assertNotContains('insert michael', $this->log);
+        self::assertNotContains('delete webmaster', $this->log);
+        self::assertNotContains('insert webmaster', $this->log);
     }
 
     public function testARenumberedAccountIsNamed(): void
@@ -279,7 +279,7 @@ class ExampleWebsiteTest extends TestCase
         $result = $this->service(static fn (): array => [1 => ['id' => 1, 'username' => 'demo', 'admin' => 1, 'password' => 'x']])
             ->import('system/tmp/demo.sql', 'data', 'both');
 
-        self::assertSame(['michael'], $result['admins']['renumbered']);
+        self::assertSame(['webmaster'], $result['admins']['renumbered']);
     }
 
     public function testEmptyLinesAreAWarningInModeFull(): void

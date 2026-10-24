@@ -185,7 +185,7 @@ class AiCommandsCommand extends AbstractReadCommand
      *
      * 🎯 Worth naming, because the failure wore the usual disguise: `null` is a
      * valid answer here, and it reads as "this command declares nothing"
-     * rather than "we looked in the wrong place". Found on c5 within minutes of
+     * rather than "we looked in the wrong place". Found within minutes of
      * the first live run, by checking the attribute directly instead of
      * trusting the empty result.
      */
@@ -211,7 +211,7 @@ class AiCommandsCommand extends AbstractReadCommand
 
         // The framework has to be up before this runs — `loadDataContainer`
         // reaches for the container and throws otherwise. The first live run
-        // on c5 died exactly there, and the JSON error it produced was read as
+        // died exactly there, and the JSON error it produced was read as
         // "the plugin declares nothing" because the reading script asked for a
         // key that an error payload does not have.
         Controller::loadDataContainer($table);

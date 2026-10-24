@@ -115,7 +115,7 @@ class FaqCategoryCloner implements EntityClonerInterface
         $clone->pid       = $newCategoryId;
         $clone->author    = $authorId;
         $clone->published = '0';
-        // 🔴 H-6 — siehe GeneratesUniqueAlias. `tl_faq.alias` ist
+        // 🔴 Siehe GeneratesUniqueAlias. `tl_faq.alias` ist
         // `unique=>true, doNotCopy=>true`.
         $clone->alias     = $this->uniqueAlias('tl_faq', (string) ($source->question ?? ''));
 

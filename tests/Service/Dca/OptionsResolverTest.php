@@ -14,10 +14,10 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Dca\OptionsResolver;
 /**
  * The options a field offers, asked from the field's own options callback.
  *
- * 🟡 **Measured on 2026-09-16 on c5 (Contao 5.7.13)** in the ConpAI 1.0 acceptance test:
+ * 🟡 **Measured on Contao 5.7.13** before ConpAI 1.0:
  *
  * - `schema resolve tl_page type` listed ten core page types. `consho_product` was
- *   missing, although c5 has two pages of that type. The CLI answered from a
+ *   missing, although the installation had two pages of that type. The CLI answered from a
  *   **hard-coded list**; page types a bundle registers through `#[AsPage]` come from
  *   the `PageRegistry`, which only Contao's `PageTypeOptionsListener` asks.
  * - `schema resolve tl_content customTpl` answered `__unresolved__`, and
@@ -98,8 +98,7 @@ class OptionsResolverTest extends TestCase
 
     /**
      * `eval.isAssociative` has to reach the reading here too, or `dca:options`
-     * answers the labels while `dca:schema` answers the indices (Nr. 53, Fable
-     * review before v0.21.1).
+     * answers the labels while `dca:schema` answers the indices (before v0.21.1).
      */
     public function testAListDeclaredAssociativeGivesItsIndices(): void
     {
@@ -113,7 +112,7 @@ class OptionsResolverTest extends TestCase
      * empty — Contao's tl_content.getForms() returns [] for a non-admin, and without
      * a token BackendUser is an empty non-admin. A caller then refused every form,
      * although the write itself runs as `contao-ai`. The callback sees the same user
-     * as the write (Fable review before v1.4.2).
+     * as the write (since v1.4.2).
      */
     public function testOnTheConsoleTheCallbackSeesTheUserTheWriteRunsAs(): void
     {

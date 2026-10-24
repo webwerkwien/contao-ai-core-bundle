@@ -153,8 +153,8 @@ class RgxpValidationTest extends TestCase
 
     public function testAFriendlyAddressIsSplitBeforeChecking(): void
     {
-        $this->assertNull($this->refusalFor(['from' => 'Michael <info@example.com>']));
-        $this->assertNotNull($this->refusalFor(['from' => 'Michael <kaputt>']));
+        $this->assertNull($this->refusalFor(['from' => 'Anna <info@example.com>']));
+        $this->assertNotNull($this->refusalFor(['from' => 'Anna <kaputt>']));
     }
 
     /**

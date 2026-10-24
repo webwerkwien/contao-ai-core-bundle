@@ -9,7 +9,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
 /**
  * A multi-value field is stored as a serialized array, not as a bare value.
  *
- * `tl_module.news_archives` holds `a:1:{i:0;s:1:"1";}`. Until 2026-08-31 a
+ * `tl_module.news_archives` holds `a:1:{i:0;s:1:"1";}`. Once a
  * `--set news_archives=1` wrote the string `1`, and nothing complained:
  * `StringUtil::deserialize()` hands a non-array straight back, so Contao
  * iterated a string and found no archives. The module was configured and did

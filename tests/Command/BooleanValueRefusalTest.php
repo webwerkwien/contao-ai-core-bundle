@@ -9,7 +9,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
 /**
  * A boolean column takes 1, 0 or nothing — anything else is refused.
  *
- * 🔴 **Why this exists.** Measured on 2026-09-05 against 5.7.13 and 6.0.0 with
+ * 🔴 **Why this exists.** Measured against 5.7.13 and 6.0.0 with
  * `contao:page:update --set`:
  *
  * | input | Contao 5.7.13 | Contao 6.0.0 |

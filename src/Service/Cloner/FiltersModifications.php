@@ -5,7 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Cloner;
 /**
  * Shared handling of the `--modifications` whitelist.
  *
- * **Why the ignored keys are reported.** Until 2026-08-29 each cloner filtered
+ * **Why the ignored keys are reported.** Before, each cloner filtered
  * the caller's overrides against its own allow-list and dropped the rest in
  * silence — no error, no warning, nothing in the response. A clone call with
  * `{"published":"","hide":"1"}` therefore produced two pages that inherited
@@ -48,7 +48,7 @@ trait FiltersModifications
      * Normalise a caller-supplied boolean-ish override to what a Contao tinyint
      * flag column expects.
      *
-     * Callers write `""` for "off" — that is how the 2026-08-29 call was
+     * Callers write `""` for "off" — that is how the failed call was
      * phrased. Passing it through would put an empty string into a tinyint
      * column, which is exactly the write that had to be fixed in v0.2.10 for
      * `unpublish`: it throws on a server with strict SQL mode.

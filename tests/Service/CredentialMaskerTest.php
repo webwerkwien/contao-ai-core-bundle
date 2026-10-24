@@ -8,7 +8,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\CredentialMasker;
 /**
  * The masking that used to exist twice and covered three shapes out of seven.
  *
- * The table below is the measurement from 2026-09-02 that started this: each of
+ * The table below is the measurement that started this: each of
  * these is a realistic key format, and four of them passed the old patterns
  * untouched — including OpenAI's `sk-proj-…`, which the bundle had supported
  * since April.

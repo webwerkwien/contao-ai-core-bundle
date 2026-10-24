@@ -25,7 +25,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Template\TemplateCacheRefresher;
  *  variant:  templates/<base>/<name>.html.twig
  */
 /**
- * 🔴 H-4 (Audit 2026-09-02): Dieser Befehl überschreibt Dateiinhalte, ohne die
+ * 🔴 Dieser Befehl überschreibt Dateiinhalte, ohne die
  * vorherigen Bytes zu sichern — und deklarierte das nirgends.
  *
  * ⚠️ Nachgesehen, wie Contao es macht: `DC_Folder::source()` versioniert um den
@@ -170,7 +170,7 @@ class TemplateWriteCommand extends Command
         }
 
         // As the Template Studio after saving: without this a new variant is refused as
-        // customTpl and an edited override renders the old version (Nr. 47, 2026-09-17).
+        // customTpl and an edited override renders the old version.
         $cacheRefreshed = false;
         $cacheWarning   = null;
 
@@ -179,7 +179,7 @@ class TemplateWriteCommand extends Command
                 $notRefreshed = $this->templateCacheRefresher->refresh();
 
                 // Only true when nothing is left to do; a caller keys on the flag and would
-                // skip cache clear otherwise (review 2026-09-17).
+                // skip cache clear otherwise.
                 $cacheRefreshed = [] === $notRefreshed;
 
                 if ([] !== $notRefreshed) {

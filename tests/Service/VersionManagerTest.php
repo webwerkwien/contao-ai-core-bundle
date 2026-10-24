@@ -167,7 +167,7 @@ class VersionManagerTest extends TestCase
     }
 
     /**
-     * v1.7.3 (showcase.conpai.eu): for a record without versions Contao's initialize()
+     * v1.7.3: for a record without versions Contao's initialize()
      * runs create(true), which reads the edit URL from the request — none on the console.
      * Before initialize(), not after.
      */
@@ -249,7 +249,7 @@ class VersionManagerTest extends TestCase
 
     /**
      * Consho refuses to bring back versions of its order tables with an
-     * `onrestore_version` callback (2026-10-10). That is a refusal, not a crash.
+     * `onrestore_version` callback. That is a refusal, not a crash.
      */
     public function testARefusingCallbackStaysARefusal(): void
     {

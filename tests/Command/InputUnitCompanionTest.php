@@ -7,8 +7,7 @@ use PHPUnit\Framework\TestCase;
 use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
 
 /**
- * Two gaps in `convertInputUnitFields()`, found in the review of the releases of
- * 2026-09-16 (core-bundle v0.16.0).
+ * Two gaps in `convertInputUnitFields()`, closed in core-bundle v0.16.0.
  *
  * 1. **A unit on its own did nothing.** `page update 5 --set headline_unit=h1`
  *    without `headline` consumed the companion key, wrote nothing and answered

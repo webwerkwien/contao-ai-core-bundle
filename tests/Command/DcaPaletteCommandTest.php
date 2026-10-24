@@ -9,7 +9,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\DcaPaletteCommand;
  * `contao:dca:palette <table> --set type=root [--set enableCsp=1]` — the fields a record
  * of that kind actually has, and which of them are mandatory.
  *
- * 🟡 **Measured on 2026-09-16 on c5 (Contao 5.7.13):** `schema mandatory tl_page` listed
+ * 🟡 **Measured on Contao 5.7.13:** `schema mandatory tl_page` listed
  * 13 fields for every page type together — `url` (only redirects), `twoFactorJumpTo`
  * (only with two-factor enabled), `csp` (only with `enableCsp`), `newsArchives`,
  * `eventCalendars`, `conshoPathTemplate` — and a caller creating a root page could not

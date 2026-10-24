@@ -9,8 +9,8 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
 /**
  * A field whose widget stores an array takes an array — never a bare string.
  *
- * 🔴 **Measured on 2026-09-16 on c5 (Contao 5.7.13, core-bundle v0.11.0)**, in the
- * ConpAI 1.0 acceptance test: `layout update 25 --set modules=66` answered
+ * 🔴 **Measured on Contao 5.7.13 with core-bundle v0.11.0:**
+ * `layout update 25 --set modules=66` answered
  * `{"status":"ok"}` and stored the string `66`. The layout's module list was
  * gone, nothing reported it, and a page on that layout renders nothing.
  *

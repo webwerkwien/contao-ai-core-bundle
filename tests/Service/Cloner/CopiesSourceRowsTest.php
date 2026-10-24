@@ -7,7 +7,7 @@ use PHPUnit\Framework\TestCase;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\CopiesSourceRows;
 
 /**
- * Pins the fix for the silent tinyint truncation found on 2026-08-29.
+ * Pins the fix for a silent tinyint truncation.
  *
  * Doctrine DBAL maps every MySQL `tinyint` to Types::BOOLEAN regardless of the
  * declared length (AbstractMySQLPlatform: 'tinyint' => Types::BOOLEAN), so
@@ -122,7 +122,7 @@ class CopiesSourceRowsTest extends TestCase
         $this->assertSame(
             [],
             $offenders,
-            'Cloners must copy from fetchSourceRow(), not Model::row() — see the tinyint truncation of 2026-08-29.'
+            'Cloners must copy from fetchSourceRow(), not Model::row() — see the tinyint truncation in the class docblock.'
         );
     }
 }

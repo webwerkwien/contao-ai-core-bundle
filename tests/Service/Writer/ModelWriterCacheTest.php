@@ -48,7 +48,7 @@ class ModelWriterCacheTest extends TestCase
 
     /**
      * The columns of tl_page these tests write; the writer checks keys against the
-     * table on both paths (review M4).
+     * table on both paths.
      *
      * @param Connection&\PHPUnit\Framework\MockObject\MockObject $connection
      *
@@ -93,7 +93,7 @@ class ModelWriterCacheTest extends TestCase
     }
 
     /**
-     * Review M1: removing transactional() around the update left every writer test
+     * Removing transactional() around the update left every writer test
      * green. Save, callbacks, version and invalidation happen inside it.
      */
     public function testTheWholeUpdateRunsInsideOneTransaction(): void
@@ -141,8 +141,8 @@ class ModelWriterCacheTest extends TestCase
 
     /**
      * The model path is the one every command of this bundle takes (tl_page,
-     * tl_content, tl_member …); BeforeSubmitTest covers the row-by-row path. Fable
-     * review before v1.5.0: dropping the call here left the whole suite green.
+     * tl_content, tl_member …); BeforeSubmitTest covers the row-by-row path. Before
+     * v1.5.0, dropping the call here left the whole suite green.
      */
     public function testOnTheModelPathOnbeforesubmitRunsBeforeTheSaveAndItsResultIsSaved(): void
     {
@@ -221,7 +221,7 @@ class ModelWriterCacheTest extends TestCase
     }
 
     /**
-     * 🔴 On c5 (Contao 5.7, 2026-10-09) every page move answered "The model instance
+     * 🔴 On Contao 5.7 every page move answered "The model instance
      * has been detached and cannot be saved": tl_page's sitemap callback calls
      * `PageModel::findWithDetails()`, and `loadDetails()` takes the instance out of
      * the registry — the one findById() had just returned. Collecting before the

@@ -15,8 +15,7 @@ use Twig\Environment;
  * (`AbstractOperation::refreshTemplateHierarchy()`, `CacheInvalidator::invalidateCache()`
  * in 5.7). Until v0.19.0 `contao:template:write` did neither: a new variant was
  * refused as `customTpl` and an edited override kept rendering the old version until
- * `cache clear` (Nr. 47 of the ConpAI 1.0 acceptance test, 2026-09-17). See
- * TemplateCacheRefresherTest.
+ * `cache clear`. See TemplateCacheRefresherTest.
  *
  * Global templates only — `getInheritanceChains()` without a theme slug, as
  * CacheInvalidator does for a global template; `template:write` writes only there.
@@ -43,7 +42,7 @@ final class TemplateCacheRefresher
         // Contao 5.3 keeps the hierarchy in cache.system. Where the web server has APCu,
         // that is an APCu layer the console never sees (apc.enable_cli is off by default),
         // so the web server may keep the old list. 5.7 uses cache.app, a filesystem pool
-        // both share (review 2026-09-17).
+        // both share.
         if ($this->usesSystemCache()) {
             $warnings[] = 'Contao keeps its template list in the system cache here (Contao 5.3); a web server with APCu may still use the old list — if the template is refused or not rendered, run cache clear.';
         }
@@ -73,7 +72,7 @@ final class TemplateCacheRefresher
     /**
      * Whether the loader's pool is the `cache.system` service — by identity, so a pool
      * wrapped for the profiler or configured to another adapter is still told apart
-     * (review 2026-09-17: guessing by adapter class missed TraceableAdapter in debug).
+     * (guessing by adapter class missed TraceableAdapter in debug).
      */
     private function usesSystemCache(): bool
     {

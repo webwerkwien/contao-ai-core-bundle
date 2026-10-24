@@ -8,7 +8,7 @@ use Webwerkwien\ContaoAiCoreBundle\Contract\ContractPresenter;
 /**
  * A reader has to be able to tell a check from a claim.
  *
- * The objection that shaped the design, from the ww-buchung session: *"a
+ * The objection that shaped the design: *"a
  * declaration nobody verifies is an assertion."* Flattening the three classes
  * into one object would produce exactly the failure this project keeps meeting
  * — "the command writes a version" and "the command claims it writes a

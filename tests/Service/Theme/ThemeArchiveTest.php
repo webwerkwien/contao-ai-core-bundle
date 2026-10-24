@@ -10,7 +10,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Theme\ThemeArchive;
 
 /**
  * What ThemeArchive refuses before Contao's theme manager runs (v1.9.0). The export and
- * the import themselves are Contao's code; they ran on c5 against 5.3, 5.7 and 6.0
+ * the import themselves are Contao's code; they ran against 5.3, 5.7 and 6.0
  * (round trip of the demo theme: 42 modules, every layout reference mapped).
  */
 class ThemeArchiveTest extends TestCase

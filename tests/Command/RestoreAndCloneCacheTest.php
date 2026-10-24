@@ -37,7 +37,7 @@ class RestoreAndCloneCacheTest extends TestCase
             }
         );
         $cacheTags->method('drainReport')->willReturn(['tags' => ['contao.sitemap.1'], 'warnings' => []]);
-        // First thing in a run: an earlier command's report is forgotten (review of v1.4.1).
+        // First thing in a run: an earlier command's report is forgotten (v1.4.1).
         $cacheTags->method('reset')->willReturnCallback(static function () use (&$log): void {
             $log[] = 'reset';
         });
@@ -91,7 +91,7 @@ class RestoreAndCloneCacheTest extends TestCase
     }
 
     /**
-     * v1.6.0, Fable review: an oncopy callback that refuses tells why in its messages,
+     * v1.6.0: an oncopy callback that refuses tells why in its messages,
      * and the clone's own error answer has to carry them.
      */
     public function testACloneRefusedByACallbackCarriesItsMessages(): void

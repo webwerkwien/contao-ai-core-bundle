@@ -51,7 +51,7 @@ class DefectOrRefusalTest extends TestCase
     }
 
     /**
-     * Pre-release review 2026-10-10: only the row copier had a test. Turning a cloner
+     * Before, only the row copier had a test. Turning a cloner
      * back to \RuntimeException left the whole suite green — and "Page 9 nicht
      * gefunden" would reach the chat as a crash with a bug report.
      */
@@ -85,7 +85,7 @@ class DefectOrRefusalTest extends TestCase
     }
 
     /**
-     * Second pre-release review: a typo in the caller's command line reached the
+     * Before v1.3.1 a typo in the caller's command line reached the
      * boundary as a defect. v1.3.1: refused before anything runs, so Symfony's
      * console error listener — which logs as CRITICAL — never sees it.
      */

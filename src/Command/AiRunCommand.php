@@ -44,7 +44,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
  *
  * ## The warning goes to the caller, the log entry to whoever asks later
  *
- * Both, deliberately (decision 2026-09-01), because they have different readers
+ * Both, deliberately, because they have different readers
  * at different times: the warning reaches the caller before the effect, the log
  * entry reaches whoever is reconstructing events afterwards. Either alone
  * leaves one of the two without an answer.
@@ -124,8 +124,8 @@ class AiRunCommand extends AbstractReadCommand
             return $this->outputError($refusal);
         }
 
-        // Who acts reaches the command, not only this log entry (v1.7.1, Consho chat
-        // test 2026-10-12: a command that records the user fell back to the shell user).
+        // Who acts reaches the command, not only this log entry (v1.7.1: a command
+        // that records the user fell back to the shell user).
         $line = $this->withOperator($target, $line, $name);
 
         // Before the run, on purpose — see the class docblock. Without the secrets:
@@ -169,7 +169,7 @@ class AiRunCommand extends AbstractReadCommand
      *
      * Mirrors run(): a binding error counts unless the target ignores validation
      * errors — which suppresses only that one — and validate() runs either way
-     * (pre-release review 2026-10-10). Nothing foreign runs in here, so every
+     * Nothing foreign runs in here, so every
      * Console exception is the line's fault.
      * A LazyCommand is unwrapped: it is what find() returns for a container
      * command, and its own flag is always false.
@@ -238,7 +238,7 @@ class AiRunCommand extends AbstractReadCommand
         }
 
         // Set in the line at all — in any form, also empty: an empty value written after
-        // ours would win (last value wins) and hand the command no user (review S1).
+        // ours would win (last value wins) and hand the command no user.
         $names = ['--operator'];
         foreach (array_filter(explode('|', (string) $option->getShortcut())) as $shortcut) {
             $names[] = '-'.$shortcut;
@@ -255,7 +255,7 @@ class AiRunCommand extends AbstractReadCommand
             $candidate = $name.' '.(str_starts_with($operator, '-') ? '--operator='.$quoted : '--operator '.$quoted).substr($line, \strlen($name));
         }
 
-        // Not the input forms guessed, the outcome checked (second review): the line as it
+        // Not the input forms guessed, the outcome checked: the line as it
         // will run, bound the way the command binds it, must hand over exactly this user.
         // That covers what the detection above cannot see — a shortcut inside a cluster
         // (`-xo system`), a value equal to the option's default — and a padded name.

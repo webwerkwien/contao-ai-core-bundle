@@ -15,7 +15,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
  * `ModelWriter::update()` reported back the names it had been *given*.
  *
  * 🎯 **A silent no-op that reports success is the failure this project keeps
- * hunting.** Same shape as the bulk run of 2026-08-29 (174 IDs in, one record
+ * hunting.** Same shape as an earlier bulk run (174 IDs in, one record
  * changed, "0 failed") and the pipx no-op of v0.4.3. A wrong answer that looks
  * like an answer is worse than an error, because nobody goes looking.
  *

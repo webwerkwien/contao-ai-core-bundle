@@ -37,7 +37,7 @@ class PagePublishCommand extends AbstractWriteCommand
             return $this->outputError("Invalid action '$action'. Use: publish or unpublish");
         }
 
-        // 🔴 H-2 (Audit 2026-09-02): hier stand `$page->published = …; $page->save();` —
+        // 🔴 Hier stand früher `$page->published = …; $page->save();` —
         // am Writer vorbei. Folge: kein tl_version-Eintrag, also war ein
         // versehentliches publish über die Versionshistorie nicht rückholbar.
         //

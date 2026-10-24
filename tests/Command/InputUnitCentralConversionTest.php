@@ -10,7 +10,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
  * Every write command turns an `inputUnit` field into its `{value, unit}` pair —
  * not only the two that remembered to.
  *
- * 🔴 **Measured on 2026-09-16 on c5 (Contao 5.7.13, core-bundle v0.11.0):**
+ * 🔴 **Measured on Contao 5.7.13 with core-bundle v0.11.0:**
  * `module create --type html --set headline=Vorher` answered `{"status":"ok"}` and
  * stored the bare string `Vorher` in `tl_module.headline`, an `inputUnit` column.
  * Only `content create` and `layout create` called `convertInputUnitFields()`;

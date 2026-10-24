@@ -43,7 +43,7 @@ class PageCloner implements EntityClonerInterface
     use FiltersModifications;
 
     /**
-     * `published` and `hide` were added on 2026-08-29.
+     * `published` and `hide` were added later.
      *
      * The line this list draws: **an override is accepted when it controls
      * whether and where the clone becomes visible.** That is the core of
@@ -168,14 +168,14 @@ class PageCloner implements EntityClonerInterface
                 'id'             => $newRootId,
                 'table'          => 'tl_page',
                 // `count` is the number of ARTICLES, kept for callers of the other cloners'
-                // shape. It read like the number of pages: 40 for a tree of 42 (showcase,
-                // 2026-10-15). `page_count` says that, the root included (v1.9.1).
+                // shape. It read like the number of pages: 40 for a tree of 42.
+                // `page_count` says that, the root included (v1.9.1).
                 'count'          => $stats['articles'],
                 'page_count'     => 1 + $stats['subpages'],
                 'article_count'  => $stats['articles'],
                 'content_count'  => $stats['contents'],
                 'subpage_count'  => $stats['subpages'],
-                // M-1: getrennt ausgewiesen. `capped: true` sagte bisher nur
+                // Getrennt ausgewiesen. `capped: true` sagte bisher nur
                 // DASS etwas übersprungen wurde, nicht wie viel.
                 'subpages_skipped' => $stats['subpages_skipped'],
                 'capped'         => $stats['capped'],
@@ -210,7 +210,7 @@ class PageCloner implements EntityClonerInterface
             ++$stats['subpages_skipped'];
             return 0;
         }
-        // 🔴 M-1 (Audit 2026-09-02): `$stats['subpages']` zählte bis dahin
+        // 🔴 `$stats['subpages']` zählte früher
         // VERSUCHE, nicht Erzeugungen — der Aufrufer erhöhte vor dem Aufruf,
         // und ein durch die Grenze abgewiesener Aufruf lieferte 0, ohne den
         // Zähler zurückzunehmen. Die Antwort meldete damit mehr geklonte
@@ -250,7 +250,7 @@ class PageCloner implements EntityClonerInterface
                         $this->versionManager->createInitialVersion('tl_content', $newContentId, $operator);
                         ++$stats['contents'];
                         // Verschachtelte Content-Children (ptable=tl_content) —
-                        // seit H-5 in ClonesContentSubtree, geteilt mit den
+                        // inzwischen in ClonesContentSubtree, geteilt mit den
                         // Archiv- und Kalender-Klonern.
                         $stats['contents'] += $this->cloneContentSubtree(
                             (int) $sourceContent->id,
@@ -314,7 +314,7 @@ class PageCloner implements EntityClonerInterface
             $clone->pid = $parentNewId;
         }
         // A subpage stores no language, as in the back end; a root keeps the source's
-        // unless a modification below sets it (v0.22.0, Nr. 62).
+        // unless a modification below sets it (v0.22.0).
         $clone->language = PageLanguage::forType((string) $clone->type, (string) $clone->language);
         // What Contao's copy resets (`doNotCopy`): the clone is unpublished and never a
         // main language unless the operator says so below (v1.7.4, see PageCopyReset).
@@ -348,10 +348,10 @@ class PageCloner implements EntityClonerInterface
 
         // generateAlias() calls PageModel::findWithDetails(), whose loadDetails()
         // detaches this very instance from the registry and forbids saving it ("The
-        // model instance has been detached" — measured on c5 on 2026-09-16). So the
+        // model instance has been detached" — measured). So the
         // alias is saved through a fresh instance: once detached, findByPk() loads
         // the record anew and registers it. v0.15.0 wrote it through the connection,
-        // which worked but left the model layer; Michael questioned it (v0.15.1).
+        // which worked but left the model layer (changed in v0.15.1).
         // The version snapshot is taken after this method returns and carries it.
         $alias = $this->pageUrlGuard->generateAlias($newId);
         $fresh = PageModel::findByPk($newId);

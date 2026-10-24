@@ -14,8 +14,8 @@ use Symfony\Component\Console\Attribute\AsCommand;
  * followed `ctable` recursively since v0.2.8. The items are collected, deleted
  * before their parent, and filed in a single `tl_undo` row with the rest.
  *
- * Verified against the live DCA on 2026-08-31 rather than assumed — the same
- * assumption went unchecked on 2026-08-24 and left orphans behind.
+ * Verified against the live DCA rather than assumed — the same assumption
+ * once went unchecked and left orphans behind.
  */
 #[AsCommand(name: 'contao:image-size:delete', description: 'Delete an image size and its media-query variants')]
 class ImageSizeDeleteCommand extends AbstractModelDeleteCommand

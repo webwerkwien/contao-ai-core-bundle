@@ -18,12 +18,12 @@ use Webwerkwien\ContaoAiCoreBundle\Tests\NeedsContaoContainerTrait;
  *
  * `DC_Table::undo()` calls `invalidateCacheTags()` on itself — and its table at
  * that point is tl_undo. The restored records' tags are never invalidated and
- * their `oninvalidate_cache_tags_callback`s never run (5.3, 5.7, 6.0). Seen on
- * c5 on 2026-09-13 from the Consho project: a restored price left the cached
+ * their `oninvalidate_cache_tags_callback`s never run (5.3, 5.7, 6.0). Seen with
+ * Consho: a restored price left the cached
  * sitemap without its product. Consho works around it with onundo callbacks,
  * which it keeps for the back end.
  *
- * Decided 2026-09-13: every restored row is invalidated, after the commit.
+ * Decided: every restored row is invalidated, after the commit.
  */
 class UndoRestoreCacheTest extends TestCase
 {

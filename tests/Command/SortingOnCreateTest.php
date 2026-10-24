@@ -9,8 +9,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
 /**
  * A record created in a sorted table goes behind its last sibling.
  *
- * 🔴 **Measured on 2026-09-16 on c5 (Contao 5.7.13, core-bundle v0.13.0)** in the ConpAI
- * 1.0 acceptance test: every page, article and content element created through the
+ * 🔴 **Measured on Contao 5.7.13 with core-bundle v0.13.0:** every page, article and content element created through the
  * CLI had `sorting = 0`. Four content elements in one article, all 0 — the order on
  * the page held only by how the database breaks a tie. Pages and roots the same.
  *
@@ -26,7 +25,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
  * the same `ptable`. A `--set sorting=` given by the caller still wins
  * (`preparedFields()` lets `--set` override).
  *
- * The tables, counted on c5 (a `pid` and a `sorting` column, and a create command):
+ * The tables, counted on Contao 5.7.13 (a `pid` and a `sorting` column, and a create command):
  * tl_page, tl_article, tl_content, tl_faq, tl_form_field, tl_image_size_item.
  */
 class SortingOnCreateTest extends TestCase

@@ -87,7 +87,7 @@ class MemberPasswordCommand extends AbstractWriteCommand
             $this->resolveOperator(),
         );
 
-        // null: the record went away between the lookup and the write (review before v0.26.0).
+        // null: the record went away between the lookup and the write (since v0.26.0).
         if (null === $updated) {
             return $this->outputError("Member not found: $username. Nothing was written.");
         }

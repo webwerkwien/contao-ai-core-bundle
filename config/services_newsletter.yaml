@@ -2,7 +2,7 @@
 # \Contao\NewsletterChannelModel (contao/newsletter-bundle) installiert ist.
 #
 # Es gibt bewusst KEIN Send-Command: der Versand bleibt bei einem Menschen im
-# Backend (Entscheidung 2026-08-31, im Projektfile begründet). NewsletterSendGuard
+# Backend. NewsletterSendGuard
 # erzwingt das auf dem Schreibpfad, ist aber eine reine Static-Klasse ohne
 # Service — sie wird vom exclude-Muster mit erfasst und braucht hier keinen
 # Eintrag.

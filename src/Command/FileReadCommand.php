@@ -27,7 +27,7 @@ class FileReadCommand extends AbstractReadCommand
 
     protected function doExecute(): int
     {
-        // 🔴 Aufgefallen 2026-09-05 durch PHPStan: `$framework` war injiziert
+        // 🔴 Aufgefallen durch PHPStan: `$framework` war injiziert
         // und wurde nie gelesen. Der Befehl liest weiter unten `FilesModel`,
         // und ein Model braucht `$GLOBALS['TL_MODELS']` — gefüllt erst hier.
         //

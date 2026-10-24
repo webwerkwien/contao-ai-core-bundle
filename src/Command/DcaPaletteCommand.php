@@ -55,7 +55,7 @@ class DcaPaletteCommand extends AbstractReadCommand
             $dc      = RecordDataContainer::create($table, 0, $record);
             $palette = (string) $dc->getPalette();
             // The record as the palette saw it — with the column defaults laid under the
-            // given values, as soon as any are given (Fable review before v1.7.0).
+            // given values, as soon as any are given (since v1.7.0).
             $seen    = $dc->getCurrentRecord() ?? [];
         } catch (\Throwable $e) {
             return $this->outputError("The palette of {$table} could not be built on the console: " . $e->getMessage());

@@ -10,8 +10,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 /**
  * A new record does not restore the history of an earlier record that had its ID.
  *
- * 🟡 **Measured on 2026-09-16 on c5 (Contao 5.7.13):** layout 25, created that day, had
- * versions 1–3 from **2026-08-31** — a deleted layout with the same ID. The database had
+ * 🟡 **Measured on Contao 5.7.13:** a layout created that day had
+ * versions 1–3 from **two weeks before** — a deleted layout with the same ID. The database had
  * handed the ID out again. `tl_version` is keyed by table and ID only, so `version
  * restore --ver 2` would have written the deleted layout's data onto the new one.
  * `tl_undo` could not tell: its entries are purged after the undo period.

@@ -206,7 +206,7 @@ class TemplateCommandTest extends TestCase
     }
 
     /**
-     * Nr. 47 (2026-09-17): a written variant was refused as customTpl until cache clear.
+     * Before: a written variant was refused as customTpl until cache clear.
      */
     public function testAWrittenTemplateRefreshesContaosTemplateCache(): void
     {

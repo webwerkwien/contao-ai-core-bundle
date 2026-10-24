@@ -7,7 +7,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service;
  *
  * ## Why this replaced two pattern lists
  *
- * Until 2026-09-02 the masking lived twice — `AiStreamController::maskSecrets()`
+ * Formerly the masking lived twice — `AiStreamController::maskSecrets()`
  * and an inline copy in `CliBridgeController` — and both knew exactly three
  * shapes: `sk-ant-…`, `sk-` plus alphanumerics, and `Bearer …`. Measured against
  * seven realistic key formats, four went through unmasked, including **OpenAI's
@@ -24,7 +24,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service;
  * The patterns stay as a net for secrets we do *not* hold: a bearer token from
  * somewhere else, a key pasted into a prompt by a user.
  *
- * ## Why it lives in the core bundle (moved 2026-09-04)
+ * ## Why it lives in the core bundle
  *
  * It was written in the backend bundle, where the first two call sites were.
  * {@see ErrorReportBuilder} needs the same masking and lives here, because the

@@ -8,14 +8,14 @@ use Webwerkwien\ContaoAiCoreBundle\Contract\ContractReader;
 
 #[AiContract(
     writes: true,
-    tables: ['tl_ww_buchung', 'tl_ww_gutschein'],
+    tables: ['tl_acme_booking', 'tl_acme_voucher'],
     trace: ['tl_log'],
     traceWhen: 'before',
     irreversible: 'sends a confirmation mail to the guest',
     repeatable: false,
     optionValues: ['status' => ['offen', 'bestaetigt', 'storniert']],
     answerShape: ['status', 'id', 'gutschein'],
-    genericPathUnsuitable: ['tl_ww_buchung' => 'the transitions hang on save_callbacks'],
+    genericPathUnsuitable: ['tl_acme_booking' => 'the transitions hang on save_callbacks'],
 )]
 class FullyDeclaredCommand
 {
@@ -103,11 +103,11 @@ class ContractReaderTest extends TestCase
 
         self::assertNotNull($contract);
         self::assertSame([], $contract['problems']);
-        self::assertSame(['tl_ww_buchung', 'tl_ww_gutschein'], $contract['fields']['tables']);
+        self::assertSame(['tl_acme_booking', 'tl_acme_voucher'], $contract['fields']['tables']);
         self::assertSame('before', $contract['fields']['traceWhen']);
         self::assertFalse($contract['fields']['repeatable']);
         self::assertSame(
-            ['tl_ww_buchung' => 'the transitions hang on save_callbacks'],
+            ['tl_acme_booking' => 'the transitions hang on save_callbacks'],
             $contract['fields']['genericPathUnsuitable'],
         );
     }
@@ -155,8 +155,7 @@ class ContractReaderTest extends TestCase
      * correct statement, and the only way to avoid it was to leave the field
      * out, which says the same thing less clearly.
      *
-     * Reported by the ww-buchung session on 2026-09-01, from the first real
-     * declaration written against this attribute.
+     * Reported from the first real declaration written against this attribute.
      */
     public function testExplicitNullIsAStatementAndNotAMistake(): void
     {
@@ -224,7 +223,7 @@ class ContractReaderTest extends TestCase
     {
         $contract = ContractReader::read(FullyDeclaredCommand::class);
 
-        self::assertSame(['tl_ww_buchung', 'tl_ww_gutschein'], $contract['fields']['tables']);
+        self::assertSame(['tl_acme_booking', 'tl_acme_voucher'], $contract['fields']['tables']);
     }
 
     public function testWritingWithoutNamingATraceIsReported(): void

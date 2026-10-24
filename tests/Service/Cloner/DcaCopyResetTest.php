@@ -28,7 +28,7 @@ class DcaCopyResetTest extends TestCase
     /**
      * `unique` on its own, without `doNotCopy` — as `tl_member.username` in Contao or an
      * extension's code field. Every other test field carries both, and removing the
-     * `unique` branch went unnoticed (Fable review before v1.8.0).
+     * `unique` branch went unnoticed (before v1.8.0).
      */
     public function testAUniqueFieldWithoutDoNotCopyIsEmptiedToo(): void
     {

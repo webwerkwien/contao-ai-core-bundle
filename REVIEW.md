@@ -28,7 +28,8 @@ else is a nit.
 Specifically Important, because each has happened:
 
 - A new command that depends on an optional Contao bundle and whose **filename
-  does not match the existing exclusion pattern** — the 2026-08-31 case. Check
+  does not match the existing exclusion pattern** — see "Things that go wrong here" in
+  `AGENTS.md`. Check
   the pattern, not the intent.
 - A command that calls the writer without `$this->framework->initialize()`.
 - A write that goes around the record writer, so no `tl_version` entry is

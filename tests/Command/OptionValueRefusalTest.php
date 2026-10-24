@@ -9,7 +9,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
 /**
  * A field with a declared option list takes one of those values — nothing else.
  *
- * 🔴 **The gap, measured on 2026-09-11.** `--set consho_shop=999` wrote a number
+ * 🔴 **The gap.** `--set consho_shop=999` wrote a number
  * with no record behind it and answered `{"status":"ok"}`. The back end prevents
  * that with a select list; the database does not, and this write path goes
  * around the widget. Same shape as `unique`, `eval.rgxp` and the empty-value
@@ -58,7 +58,7 @@ class OptionValueRefusalTest extends TestCase
             // Numeric list: keys 0..11, values 1..12. The off-by-one trap.
             'span'      => ['options' => [1, 2, 3]],
             // A list declared associative: the index is the value. Contao's
-            // `tl_page.useSSL`, the only such field in 5.7.13 (Nr. 53).
+            // `tl_page.useSSL`, the only such field in 5.7.13.
             'useSSL'    => ['options' => ['http://', 'https://'], 'eval' => ['isAssociative' => true]],
             // Multi-value: arrives as "a,b" and is serialized further down.
             'tags'      => ['options' => ['red', 'green', 'blue'], 'eval' => ['multiple' => true]],

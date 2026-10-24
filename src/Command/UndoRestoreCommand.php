@@ -83,7 +83,7 @@ class UndoRestoreCommand extends AbstractWriteCommand
             ));
         }
 
-        // 🔴 C-1 (Audit 2026-09-02): Bis dahin lief der Restore ohne Transaktion.
+        // 🔴 Früher lief der Restore ohne Transaktion.
         // Schlug eine Zeile fehl, blieben die bereits eingefügten stehen UND der
         // Undo-Eintrag blieb vollständig erhalten. Beim nächsten Versuch
         // kollidierten genau diese IDs — der Eintrag war damit für immer
@@ -112,13 +112,13 @@ class UndoRestoreCommand extends AbstractWriteCommand
         // der ist nach einem Teil-Restore garantiert zum Scheitern verurteilt,
         // ohne dass jemand den Grund sieht.
         //
-        // Der Merksatz aus dem Vault gilt in beide Richtungen: erst nachsehen,
+        // Die Regel gilt in beide Richtungen: erst nachsehen,
         // wie Contao es macht — und dann entscheiden, ob dessen Antwort für
         // unseren Aufrufer taugt. Hier tut sie es nicht.
         //
         // Die `onundo_callback`s laufen seit v1.8.1 IN der Transaktion, je Zeile
-        // direkt nach ihrem Insert, wie DC_Table::undo() (Entscheidung Michael,
-        // 2026-10-14): Bis v1.8.0 liefen sie nach dem Commit, mit dem Befehl als
+        // direkt nach ihrem Insert, wie DC_Table::undo(). Bis v1.8.0 liefen sie
+        // nach dem Commit, mit dem Befehl als
         // `$dc`, und ihr Scheitern blieb eine Warnung unter einem `ok`. Was ein
         // Callback außerhalb der Datenbank tut, holt ein Rollback nicht zurück —
         // aber eine halbe Wiederherstellung, die als ganze gemeldet wird, wiegt
@@ -136,7 +136,7 @@ class UndoRestoreCommand extends AbstractWriteCommand
             // was passed over, and the transaction below deleted the entry anyway: an
             // `ok` with nothing restored, and the only copy gone. The check also
             // demanded `tl_`, so a deleted Catalog Manager entry (its tables never have
-            // the prefix) met exactly that — found on c5, 2026-10-15.
+            // the prefix) met exactly that.
             if (!TableName::isValid((string) $table)) {
                 $failed[(string) $table] = 'not a table name';
                 continue;
@@ -176,7 +176,7 @@ class UndoRestoreCommand extends AbstractWriteCommand
 
                 // $kept for onundo: the row as DC_Table::undo() hands it on, with the
                 // column names as they are — not the quoted keys of the insert, under
-                // which a callback reading $row['id'] found nothing (c5, 2026-10-14).
+                // which a callback reading $row['id'] found nothing.
                 $pending[] = [$table, $insert, $record, $kept];
             }
         }
@@ -194,7 +194,7 @@ class UndoRestoreCommand extends AbstractWriteCommand
         }
 
         // One guard for every branch above that passes over a part of the payload
-        // (v1.9.2, Fable review): with nothing left to insert, the transaction below
+        // (v1.9.2): with nothing left to insert, the transaction below
         // would only delete the entry and answer `ok`. Contao keeps it in that case.
         if ([] === $pending) {
             return $this->outputError(\sprintf(
@@ -241,7 +241,7 @@ class UndoRestoreCommand extends AbstractWriteCommand
 
             // A refusal (a callback's InvalidArgumentException, a taken ID) is the
             // caller's to act on; anything else — a TypeError in a callback — goes on to
-            // JsonErrorBoundary, which marks it a defect (Fable review before v1.8.1).
+            // JsonErrorBoundary, which marks it a defect (since v1.8.1).
             if (!$refusal) {
                 throw new \RuntimeException($message, 0, $e);
             }
@@ -249,12 +249,12 @@ class UndoRestoreCommand extends AbstractWriteCommand
             return $this->outputError($message);
         }
 
-        // 🔴 HIER MACHEN WIR ES BESSER ALS DAS BACKEND, mit Absicht (entschieden
-        // 2026-09-13). `DC_Table::undo()` ruft `invalidateCacheTags()` auf sich
+        // 🔴 HIER MACHEN WIR ES BESSER ALS DAS BACKEND, mit Absicht.
+        // `DC_Table::undo()` ruft `invalidateCacheTags()` auf sich
         // selbst — und dessen Tabelle ist in dem Moment tl_undo. Die
         // wiederhergestellten Datensätze werden nie entwertet, ihre
         // `oninvalidate_cache_tags_callback`s laufen nie (Contao 5.3, 5.7, 6.0).
-        // Am 13.09. auf c5 gesehen: ein wiederhergestellter Consho-Preis, und die
+        // Gesehen an einem wiederhergestellten Consho-Preis: die
         // gecachte Sitemap blieb ohne sein Produkt.
         //
         // Jede wiederhergestellte Zeile, nach dem Commit und nach onundo — damit
@@ -336,8 +336,8 @@ class UndoRestoreCommand extends AbstractWriteCommand
      * container that is not there (`sortOutProtected()`) and return before
      * tagging the response with it. A page rendered while the calendar was
      * deleted therefore carries no `contao.db.tl_calendar.<id>`, and restoring
-     * the calendar invalidates nothing that reaches it — measured on c5 on
-     * 2026-09-19: the event list stayed empty for the cache lifetime (24 h there)
+     * the calendar invalidates nothing that reaches it — measured: the event
+     * list stayed empty for the cache lifetime (24 h there)
      * although every record was back. Restoring a single event is not affected:
      * its calendar was there all along and tagged the page.
      */

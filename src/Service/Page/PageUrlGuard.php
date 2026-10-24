@@ -16,8 +16,8 @@ use Doctrine\DBAL\Connection;
  * Keeps page writes to the URL rules Contao's back end enforces.
  *
  * Until v0.14.0 the CLI wrote what `PageUrlListener` refuses in the back end: two
- * roots with the same domain and prefix, two pages with the same URL. Measured on
- * c5 on 2026-09-16, see PageUrlGuardTest.
+ * roots with the same domain and prefix, two pages with the same URL. Measured,
+ * see PageUrlGuardTest.
  *
  * Use it inside the transaction of the write, after the write: the alias check reads
  * the stored record, and a refusal must roll the write back.
@@ -37,7 +37,7 @@ final class PageUrlGuard
      * Not a refusal: the back end saves a second page with alias `index` under the same
      * root and only shows "the following pages have a similar alias that may conflict"
      * (`PageRoutingListener::generateRouteConflicts()`). Until v0.20.0 the bundle saved
-     * the same page silently (Nr. 48 of the ConpAI 1.0 acceptance test, 2026-09-17).
+     * the same page silently.
      *
      * @return list<array{id: int, title: string, alias: string, path: string}>
      */
@@ -48,7 +48,7 @@ final class PageUrlGuard
         }
 
         // Runs after the write has committed: a hint must never turn a saved page into
-        // an error answer, which an agent would retry (review 2026-09-17). Exceptions
+        // an error answer, which an agent would retry. Exceptions
         // only — an \Error is a programming mistake and must stay visible, since no unit
         // test reaches this Contao glue.
         try {

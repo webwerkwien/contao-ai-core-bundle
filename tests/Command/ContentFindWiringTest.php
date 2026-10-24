@@ -18,7 +18,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Language\LinkTargetDiagnosis;
  * What the container puts into content:find's optional argument (v1.11.0, rule 25): the
  * real services files through Symfony's own loader, not a `new` in the test. Without
  * changelanguage the service is not registered and the argument must be null rather than
- * a failing container; with it, the service. Taken over from the review (2026-10-20).
+ * a failing container; with it, the service.
  */
 class ContentFindWiringTest extends TestCase
 {

@@ -19,7 +19,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageTreeRules;
  *
  * Until v1.1.0 `page update --set pid=0` put a regular page at the top level,
  * `--set type=root` made a subpage a root, and `page create` without `--pid`
- * created a regular page at the top level. Found on 2026-10-09 while checking
+ * created a regular page at the top level. Found while checking
  * the move operations of Contao's 6.1 API (contao/contao#10400).
  */
 class PageTreeRulesTest extends TestCase
@@ -163,7 +163,7 @@ class PageTreeRulesTest extends TestCase
     }
 
     /**
-     * Review W3 (2026-10-09): `record clone` of an error page put a second 404 below
+     * `record clone` of an error page put a second 404 below
      * the same root — the clone keeps the source's parent and type. The cloner checks
      * the stored clone inside its transaction, as it does the URL rules.
      */
@@ -183,7 +183,7 @@ class PageTreeRulesTest extends TestCase
 
     /**
      * The clone is stored when it is checked, so it must not find itself as the
-     * duplicate (re-review 2026-10-09: passing null instead of the id left every
+     * duplicate (passing null instead of the id left every
      * test green, and would have refused every error page clone).
      */
     public function testAClonedErrorPageIsNotItsOwnDuplicate(): void
@@ -211,7 +211,7 @@ class PageTreeRulesTest extends TestCase
     }
 
     /**
-     * Review H1 (2026-10-09): the test above only finds the call in the source.
+     * The test above only finds the call in the source.
      * Changing `||` to `&&` in PageUpdateCommand — the rule only when type AND pid
      * are written — left every test green. This one runs the command's own
      * applyToRecord() with the rules set the way the container sets them.

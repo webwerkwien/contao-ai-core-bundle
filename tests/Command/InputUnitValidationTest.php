@@ -9,8 +9,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
 /**
  * An `inputUnit` field is two values in one column, and each half has its own rule.
  *
- * 🔴 **Measured on 2026-09-16 against 5.7.13, core-bundle v0.10.0**, in the
- * ConpAI 1.0 acceptance test:
+ * 🔴 **Measured against 5.7.13, core-bundle v0.10.0:**
  *
  * | `--set` | answer |
  * |---|---|
@@ -34,8 +33,8 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
  * through `Widget::validator()` with the rgxp, the unit comes from the select.
  * The checks now do the same.
  *
- * Regressions: the rgxp half since v0.2.28 (2026-09-01), the options half
- * since v0.9.0 (2026-09-11). No test combined an `inputUnit` field with either
+ * Regressions: the rgxp half since v0.2.28, the options half
+ * since v0.9.0. No test combined an `inputUnit` field with either
  * check, which is why both releases went out green.
  */
 class InputUnitValidationTest extends TestCase

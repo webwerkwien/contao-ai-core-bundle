@@ -27,7 +27,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\CliUser;
  * copy, cut or delete did not happen: the search index kept deleted pages, a comment
  * freed through the bundle sent no notification, and an extension's rules — Consho's
  * shop sync on `tl_page`, changelanguage's link reset — were skipped without a word.
- * Measured on c5 on 2026-10-10 in 5.3, 5.7 and 6.0: 121 callbacks of Contao and 10 of
+ * Measured in 5.3, 5.7 and 6.0: 121 callbacks of Contao and 10 of
  * Consho on the 25 tables this bundle writes, of which the bundle reproduced six by
  * hand.
  *
@@ -112,8 +112,8 @@ class DcaCallbacks
             // Only while a user is logged in — the editor in the chat, contao-ai on the
             // console. The 5.3 adjustPermissions callbacks act on a record listed there
             // and read the user's groups; for nobody, BackendUser::getInstance() is an
-            // empty user and the query built from its groups was a syntax error (c5, 5.3,
-            // 2026-10-10). Unlisted, they return early, as for a record they never saw.
+            // empty user and the query built from its groups was a syntax error (5.3).
+            // Unlisted, they return early, as for a record they never saw.
             if (null !== $this->tokens?->getToken() && $bag instanceof ArrayAttributeBag) {
                 $new = (array) $bag->get('new_records');
                 $new[$table][] = $id;
@@ -212,8 +212,8 @@ class DcaCallbacks
      *
      * Until v1.8.0 `contao:undo:restore` called these itself and passed the command as
      * `$dc`. Every callback typed `DataContainer $dc` failed with a TypeError, logged as a
-     * warning while the answer said `ok` — on c5 the Consho price and visibility
-     * projections, cache tags and stock stayed behind (2026-10-14).
+     * warning while the answer said `ok` — Consho's price and visibility
+     * projections, cache tags and stock stayed behind.
      *
      * @param array<string, mixed> $row        the restored row
      * @param array<string, mixed> $undoRecord the tl_undo row
@@ -284,13 +284,13 @@ class DcaCallbacks
             ($this->loadLanguageFile)($table);
 
             // The stored row expanded first: its JSON column must not win over the
-            // virtual fields being saved (v1.6.0, Fable review).
+            // virtual fields being saved (v1.6.0).
             $dc = RecordDataContainer::create($table, $id, array_replace(VirtualFields::expand($table, $record), $fields), $this->connection);
 
             // Only the fields of the record's palette, as only those are submitted in
             // the back end. A page create writes language '' for a non-root page, and
             // tl_page.language's callback refused it — the field is in the root
-            // palette only, so the back end never runs it there (c5, 6.0, 2026-10-10).
+            // palette only, so the back end never runs it there (Contao 6.0).
             // Contao's own getPalette() decides, selectors and sub-palettes included.
             try {
                 $inPalette = DcaPaletteCommand::fieldsOf((string) ($this->palette)($dc));
@@ -302,7 +302,7 @@ class DcaCallbacks
             // What the caller set on purpose is checked whatever the palette says: a
             // package can add a field to the palette in its onload callback for the edit
             // mask only, and changelanguage's duplicate check on languageMain was skipped
-            // that way (c5, 6.0, 2026-10-10). What a command adds itself — language ''
+            // that way (Contao 6.0). What a command adds itself — language ''
             // on a regular page — only where the palette shows it.
             $withCallbacks = array_values(array_intersect($withCallbacks, [...$inPalette, ...$requested]));
 
@@ -333,8 +333,8 @@ class DcaCallbacks
 
                 // As DC_Table::save() after its callbacks: an empty value becomes the
                 // empty value of the column type. 5.3's tl_page::checkFallback returns ''
-                // for an unchecked box, and '' in its integer column was an SQL error (c5,
-                // 5.3, 2026-10-10).
+                // for an unchecked box, and '' in its integer column was an SQL error
+                // (Contao 5.3).
                 if (!\is_array($value) && '' === (string) $value) {
                     $value = Widget::getEmptyValueByFieldType($definitions[$field]['sql'] ?? []);
                 }
@@ -417,7 +417,7 @@ class DcaCallbacks
 
         // The labels the back end has loaded before DC_Table runs: `default` and the
         // table's own. On the console nothing is loaded, and the record preview of a
-        // deleted page warned "Undefined array key selectNode" (c5, 6.0, 2026-10-10).
+        // deleted page warned "Undefined array key selectNode" (Contao 6.0).
         ($this->loadLanguageFile)('default');
         ($this->loadLanguageFile)($table);
 
@@ -473,7 +473,7 @@ class DcaCallbacks
 
         // One for the whole run, as the back end has one: oncreate lists the new page in
         // new_records, onsubmit's generateArticleForPage looks for it there. With a fresh
-        // session per event the list was gone by then (c5, 6.0, 2026-10-10).
+        // session per event the list was gone by then (Contao 6.0).
         if (null === $this->consoleSession) {
             $this->consoleSession = new Session(new MockArraySessionStorage());
 

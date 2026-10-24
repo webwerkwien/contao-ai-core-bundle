@@ -17,7 +17,7 @@ use PHPUnit\Framework\TestCase;
  * ⚠️ **Was dieser Test kann und was nicht.** Er liest Quelltext und prüft, dass
  * niemand den Hash wieder selbst ausrechnet. Er belegt **nicht**, dass der
  * geschriebene Wert stimmt — dafür braucht es eine echte Contao-Installation,
- * und die gibt es hier nicht. Der Beweis kam am 2026-09-05 aus dem Live-Test
+ * und die gibt es hier nicht. Der Beweis kam aus dem Live-Test
  * gegen 5.7.13 und 6.0.0. Dieser Test hält nur fest, dass es nicht unbemerkt
  * zurückgedreht wird.
  */
@@ -96,7 +96,7 @@ class DbafsHashIsNotComputedLocallyTest extends TestCase
      *
      * Ein Ordner-Hash wird aus denen seiner Kinder gebildet. Bis v0.26.0 setzte
      * `FileWriteCommand` beim Überschreiben nur den Datei-Hash; jeder Ordner darüber
-     * behielt den alten, bis `contao:filesync` lief — gemessen am 2026-09-18 auf
+     * behielt den alten, bis `contao:filesync` lief — gemessen auf
      * 5.3.51, 5.7.13 und 6.0.0 im Regressionslauf vor 1.0. Gleiche Grenze wie oben:
      * Das prüft den Quelltext, der Beweis kam aus dem Live-Lauf (`file sync` meldet
      * danach „No changes“).

@@ -37,7 +37,7 @@ class UserUpdateCommand extends AbstractWriteCommand
         'backupcodes',          // 2FA recovery codes
         'trustedtokenversion',  // bumping it forges "this device is trusted"
         'session',              // forging a session is forging a login
-        // 🔴 Added after the pre-release review of v1.1.0: the old allow list
+        // 🔴 Added before the release of v1.1.0: the old allow list
         // withheld it by omission, the first draft of this list let it through,
         // and it is not a preference.
         'amg',                  // allowed member groups: Contao's front-end preview
@@ -78,7 +78,7 @@ class UserUpdateCommand extends AbstractWriteCommand
         $this->framework->initialize();
         $username = $this->input->getArgument('username');
 
-        // Locked here as in the back end (review K2): enabling it or giving it a
+        // Locked here as in the back end: enabling it or giving it a
         // password would make an admin that can log in.
         if (CliUser::USERNAME === $username) {
             return $this->outputError(CliUser::REFUSAL);
@@ -111,7 +111,7 @@ class UserUpdateCommand extends AbstractWriteCommand
 
         $id = (int) $user->id;
 
-        // 🔴 H-2 (Audit 2026-09-02): hier wurden die Werte ROH aufs Model
+        // 🔴 Früher wurden hier die Werte ROH aufs Model
         // geschrieben und gespeichert. Zwei Fehler in einem:
         //
         //  1. kein tl_version-Snapshot — die Änderung war nicht rückholbar
@@ -121,7 +121,7 @@ class UserUpdateCommand extends AbstractWriteCommand
         // 🎯 Punkt 2 ist derselbe Fehler, den AbstractWriteCommand in seinem
         // eigenen Docblock beschreibt: *"of eleven create commands that accept
         // --set … the rest wrote a raw string into a serialized column and
-        // reported success"*. Er wurde am 31.08. für den generischen Pfad
+        // reported success"*. Er wurde zuerst für den generischen Pfad
         // behoben und mit einem Test abgesichert — dieser Befehl lief daran
         // vorbei, weil er den Datensatz über den Benutzernamen sucht.
         $fields = $this->convertFields(UserModel::getTable(), $fields, $id);

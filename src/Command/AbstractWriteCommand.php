@@ -86,8 +86,8 @@ abstract class AbstractWriteCommand extends Command
      * The context for a line this command writes to one of Contao's own channels.
      *
      * Without it, a line written on the console is labelled FE / N/A: Contao's
-     * processor fills the columns from the request, and there is none (Nr. 59,
-     * Nr. 66). Empty without a SystemLog, as in the hand-built command tests.
+     * processor fills the columns from the request, and there is none. Empty
+     * without a SystemLog, as in the hand-built command tests.
      *
      * @return array{contao?: \Contao\CoreBundle\Monolog\ContaoContext}
      */
@@ -157,8 +157,8 @@ abstract class AbstractWriteCommand extends Command
 
         // A command is a service: in the back-end chat one instance serves every run
         // of the request. Nothing of a previous run — a refused one above all — may
-        // reach this one's answer or its callbacks (pre-release reviews, K3 and M-A:
-        // the second `page create` reported the first one's earlier versions).
+        // reach this one's answer or its callbacks (the second `page create` once
+        // reported the first one's earlier versions).
         $this->deferredSaveFields = [];
         $this->earlierVersions    = [];
         $this->aliasWarning       = null;
@@ -371,7 +371,7 @@ abstract class AbstractWriteCommand extends Command
      * Both halves arrived one command at a time: `convertFileTreeFields()` in
      * v0.2.15, `convertMultipleFields()` in v0.2.18. Both times the create
      * commands were missed, because each one had to remember to call them.
-     * Measured on 2026-08-31: of eleven create commands that accept `--set`,
+     * Measured, not assumed: of eleven create commands that accept `--set`,
      * four converted fileTree values and exactly one converted multi-value
      * fields. The rest wrote a raw string into a serialized column and reported
      * success — the same silent shape as the bugs the two helpers fixed.
@@ -414,7 +414,7 @@ abstract class AbstractWriteCommand extends Command
         // are still readable as the caller typed them.
         $this->refuseInvalidOptions($table, $fields);
         // Also on the raw input: convertFileTreeFields() drops what is not a
-        // UUID, so a half-wrong list would pass afterwards (Nr. 69).
+        // UUID, so a half-wrong list would pass afterwards.
         $this->refuseInvalidFileTreeValues($table, $fields);
         $this->refuseTakenUniqueValues($table, $fields, $excludeId);
         // A child needs a parent that exists (v0.27.0). See there.
@@ -452,7 +452,7 @@ abstract class AbstractWriteCommand extends Command
         // — DC_Table::create() inserts first and the mask saves the fields with the
         // record's ID. Run here, with ID 0 and no row, a callback that loads its
         // record found nothing: changelanguage's languageMain check refused a
-        // legitimate `page create --set languageMain=…` (pre-release review M3).
+        // legitimate `page create --set languageMain=…`.
         if (null === $excludeId && $this instanceof CreatesRecord) {
             $this->deferredSaveFields[$table] = $fields;
 
@@ -551,7 +551,7 @@ abstract class AbstractWriteCommand extends Command
      * a typo read as a successful change.
      *
      * 🎯 **That is the failure this project keeps hunting: a silent no-op that
-     * reports success.** The same shape as the bulk run of 2026-08-29 (174 IDs,
+     * reports success.** The same shape as an earlier bulk run (174 IDs,
      * one record changed, "0 failed") and the pipx no-op of v0.4.3. A wrong
      * answer that looks like an answer is worse than an error, because nobody
      * goes looking.
@@ -564,9 +564,9 @@ abstract class AbstractWriteCommand extends Command
      *
      * ⚠️ **Checked against the real columns, not the DCA.** They are not the
      * same set — a DCA can declare a field without an `sql` key, and an extension
-     * can leave a column behind. (Until 2026-09-16 this named `tl_layout.rows` as
-     * the example; the column exists in 5.3 and 5.7. What the undo work of
-     * 2026-08-31 ran into was `rows` being a reserved word in MySQL 8.) What decides
+     * can leave a column behind. (This once named `tl_layout.rows` as the
+     * example; the column exists in 5.3 and 5.7. What the undo work ran into
+     * was `rows` being a reserved word in MySQL 8.) What decides
      * whether a write lands is the column list, so that is what this asks, via
      * the very function `Model::save()` uses to make that decision.
      *
@@ -586,8 +586,8 @@ abstract class AbstractWriteCommand extends Command
      * has explicit handling for it — *"Track primary key changes"*, it keeps the
      * OLD key for the `WHERE` and writes the new one into the `SET`
      * (`Contao\Model::save()`). `ModelWriter::update()` assigns every field to
-     * the model, so nothing stood in the way. Measured on c5 against the
-     * released v1.0.0:
+     * the model, so nothing stood in the way. Measured against the released
+     * v1.0.0:
      *
      *     member-group update 12 --set id=9012
      *     -> {"status":"ok","id":12,"updated":["id"]}      … and the row is 9012
@@ -611,7 +611,7 @@ abstract class AbstractWriteCommand extends Command
      * case-sensitive, so `--set ID=9012` addresses the same column, and only the
      * spelling would have differed.
      *
-     * Found by the pre-release review of v1.1.0 and fixed there, but the hole is
+     * Found before the release of v1.1.0 and fixed there, but the hole is
      * older: it was open on every table whose update command had no allow list
      * of its own, which was all of them but `tl_member` and `tl_user`.
      *
@@ -706,7 +706,7 @@ abstract class AbstractWriteCommand extends Command
      * `--email` and the computed values beside them were assigned straight onto
      * the model afterwards. So `theme create --name "Contao Official Demo"`
      * happily made a second theme under a name `eval.unique` forbids —
-     * demonstrated on c5 on 2026-09-01, half an hour after the `unique` check
+     * demonstrated half an hour after the `unique` check
      * was added and believed to cover creates.
      *
      * Three commands had noticed and each written their own check
@@ -800,7 +800,7 @@ abstract class AbstractWriteCommand extends Command
         }
 
         // Today convertFields() has loaded the DCA by here; loaded anyway, so the result
-        // does not hang on the order of the calls (review v1.11.2, same kind as its fix).
+        // does not hang on the order of the calls (v1.11.2, same kind as its fix).
         if (!isset($GLOBALS['TL_DCA'][$table]['config'])) {
             Controller::loadDataContainer($table);
         }
@@ -832,7 +832,7 @@ abstract class AbstractWriteCommand extends Command
      * `DC_Table::create()` does this before its INSERT (5.3, 5.7, 6.0): for each
      * field with a `default` that is a real column, the value — a closure is
      * called, an array serialized. None of the create commands did, and some of
-     * those defaults are not cosmetic (practical test 2026-09-19):
+     * those defaults are not cosmetic (found in a practical test):
      *
      *  - `tl_module.nl_subscribe`/`nl_unsubscribe`/`reg_text`/`reg_password`, the
      *    mail texts: a subscribe module created here had none, and the first
@@ -923,7 +923,7 @@ abstract class AbstractWriteCommand extends Command
         // Generated: by the field's own Contao callback where there is one, which
         // honours the language and `validAliasCharacters` of the page the record
         // belongs to. Until v0.16.0 every create made `über-uns` where Contao makes
-        // `ueber-uns` (review 2026-09-16, ContaoAliasTest). Pages are generated after
+        // `ueber-uns` (ContaoAliasTest). Pages are generated after
         // the write by PageUrlGuard; the callback needs the saved page.
         if ([] !== $record && 'tl_page' !== $table) {
             try {
@@ -933,7 +933,7 @@ abstract class AbstractWriteCommand extends Command
                 // needs) leaves the alias to the fallback below rather than failing
                 // the create — the fallback is what every create did until v0.16.0.
                 // Not silently: in the first live test a missing import landed here
-                // and looked exactly like success (2026-09-16).
+                // and looked exactly like success.
                 $alias = null;
                 $this->aliasWarning = \sprintf("Contao's alias callback for %s failed (%s: %s); the alias was generated without it.", $table, $e::class, $e->getMessage());
 
@@ -1190,7 +1190,7 @@ abstract class AbstractWriteCommand extends Command
      * Refuse what `Widget::validator()` refuses besides `rgxp`: `maxlength`,
      * `minlength`, `minval`, `maxval` and `nospace`.
      *
-     * Found in the review before v0.26.0: `member create --username "anna muster"`
+     * Found before v0.26.0: `member create --username "anna muster"`
      * was stored, where the back end says "no spaces allowed"; a username over 64
      * characters ended in a database error on a strict server and was cut off
      * silently on a lax one. The rules are the widget's, checked the widget's way:
@@ -1296,7 +1296,7 @@ abstract class AbstractWriteCommand extends Command
     /**
      * Refuse a `pid` that points at no record of the parent table.
      *
-     * Found on 2026-09-18 while probing the widget limits on c5: `content create
+     * Found while probing the widget limits: `content create
      * --pid 99999` stored an element below an article that does not exist, and
      * `article`, `news` and `faq create` did the same. The back end cannot get
      * there — `DC_Table` creates a child from its parent's list — so this is
@@ -1335,7 +1335,7 @@ abstract class AbstractWriteCommand extends Command
             Controller::loadDataContainer($table);
         }
 
-        // The stored row only for the half that is not given (review v0.27.0:
+        // The stored row only for the half that is not given (until v0.27.0
         // one SELECT per record on a bulk move was spent for nothing).
         $dynamic = (bool) ($GLOBALS['TL_DCA'][$table]['config']['dynamicPtable'] ?? false);
         $stored  = null !== $excludeId && (!$hasPid || ($dynamic && !$hasPtable))
@@ -1517,7 +1517,7 @@ abstract class AbstractWriteCommand extends Command
 
         if (!\is_array($unserialized)) {
             // The comma form of a list field is split later by
-            // convertMultipleFields(); measured here the same way (review v0.27.0).
+            // convertMultipleFields(); measured here the same way (v0.27.0).
             $storesArray = ($def['eval']['multiple'] ?? false)
                 || \in_array($def['inputType'] ?? null, self::ARRAY_INPUT_TYPES, true);
 
@@ -1543,11 +1543,11 @@ abstract class AbstractWriteCommand extends Command
     /**
      * Refuse a value of a palette selector that Contao does not offer (v1.6.1).
      *
-     * 🔴 **Measured on 2026-10-12:** `content create --type texxt` stored a visible
+     * 🔴 **Measured:** `content create --type texxt` stored a visible
      * element of a type that does not exist, `page update --set type=foo` a page type
      * nobody registered. refuseInvalidOptions() checks declared `options` only, and
      * the selectors of pages and content elements take theirs from a callback — the
-     * general decision against `options_callback` (2026-09-11) predates OptionsResolver.
+     * general decision against `options_callback` predates OptionsResolver.
      * A selector decides the whole palette, so a wrong one leaves a record nothing can
      * render; this is the narrow case. All callback options are a separate question
      * (they may answer per record and per user).
@@ -1619,7 +1619,7 @@ abstract class AbstractWriteCommand extends Command
     /**
      * Refuse a `customTpl` that is not among the templates Contao offers for the record.
      *
-     * 🟡 **Measured on 2026-09-16 on c5:** `--set customTpl=content_element/text/
+     * 🟡 **Measured:** `--set customTpl=content_element/text/
      * gibtesnicht` was stored with `ok`; the element then silently renders its default.
      *
      * `options_callback` fields are not enforced in general (see refuseInvalidOptions()).
@@ -1802,7 +1802,7 @@ abstract class AbstractWriteCommand extends Command
      * be inventing a vocabulary Contao does not have, and every caller would
      * then have to guess which words this bundle happens to know.
      *
-     * They were never a working input either. Measured on 2026-09-05:
+     * They were never a working input either. Measured:
      * `--set published=true` exits 1 with a `DriverException` on Contao 5.7.13
      * and leaves the record untouched. Accepting it here would not restore old
      * behaviour — it would add new behaviour, on the one field where being
@@ -1813,7 +1813,7 @@ abstract class AbstractWriteCommand extends Command
     /**
      * Refuse a value that is not in the field's declared option list.
      *
-     * 🔴 **The gap, measured on 2026-09-11.** `--set consho_shop=999` wrote a
+     * 🔴 **The gap, measured.** `--set consho_shop=999` wrote a
      * number with no record behind it and answered `{"status":"ok"}`. The back
      * end prevents that with a select list; the database does not, and this
      * write path goes around the widget. Same shape as `unique`, `eval.rgxp`
@@ -1897,7 +1897,7 @@ abstract class AbstractWriteCommand extends Command
             // A timePeriod field (`repeatEach` of an event): the same split — the
             // options list the units, the value half is a number for `rgxp`. Until
             // v0.28.0 the whole serialized pair was held against the units, so no
-            // recurring event could be created (found on 5.3.51, 2026-09-19). A
+            // recurring event could be created (found on 5.3.51). A
             // value that is not a pair is left to refuseUnstructuredValues().
             if ('timePeriod' === ($def['inputType'] ?? null)) {
                 $pair = \is_string($value) ? @unserialize($value, ['allowed_classes' => false]) : $value;
@@ -1986,7 +1986,7 @@ abstract class AbstractWriteCommand extends Command
     /**
      * Refuse a non-boolean value for a boolean column.
      *
-     * 🔴 **Measured on 2026-09-05 against 5.7.13 and 6.0.0**, same command, same
+     * 🔴 **Measured against 5.7.13 and 6.0.0**, same command, same
      * input:
      *
      * | `--set` | Contao 5.7.13 | Contao 6.0.0 |
@@ -2074,8 +2074,8 @@ abstract class AbstractWriteCommand extends Command
      * Refuse text for a field that stores a number or a point in time.
      *
      * Two kinds of field, one failure: `--set startTime=17:30` on an event ended
-     * in `DriverException: Data truncated for column 'startTime'` (practical test
-     * 2026-09-19) — an integer column, and the database the only one to object.
+     * in `DriverException: Data truncated for column 'startTime'` (practical
+     * test) — an integer column, and the database the only one to object.
      * Where the column is text, nothing objects at all: `tl_news.start` is a
      * `varchar(10)` holding a timestamp, and `--set start=2026-10-01` was stored
      * as that string, which Contao then compares with the current time.
@@ -2280,7 +2280,7 @@ abstract class AbstractWriteCommand extends Command
             $decoded = json_decode($value, true);
             if (\is_array($decoded)) {
                 // A page list as integers, like the comma form (castListValues()) and
-                // Contao's picker. Until v0.16.0 JSON stored strings (review 2026-09-16).
+                // Contao's picker. Until v0.16.0 JSON stored strings.
                 $fields[$key] = 'pageTree' === ($def['inputType'] ?? null) && array_is_list($decoded)
                     ? serialize(array_map('intval', $decoded))
                     : serialize(self::stringLeaves($decoded));
@@ -2291,7 +2291,7 @@ abstract class AbstractWriteCommand extends Command
             $invalid[] = \sprintf('%s=%s', $key, mb_strimwidth($value, 0, 60, '…'));
         }
 
-        // 🔴 Measured on 2026-09-18 (agent test with Codex, Windows PowerShell 5.1):
+        // 🔴 Measured with Windows PowerShell 5.1:
         // the shell dropped the double quotes of `--set 'listitems=["Eins","Zwei","Drei"]'`,
         // so `[Eins,Zwei,Drei]` arrived. Left alone, the comma conversion further down
         // split it into `['[Eins', 'Zwei', 'Drei]']` and the command answered ok —
@@ -2330,7 +2330,7 @@ abstract class AbstractWriteCommand extends Command
     /**
      * Refuse a value that is not an array for a field whose widget stores one.
      *
-     * 🔴 **Measured on 2026-09-16 on c5 (5.7.13, v0.11.0):** `layout update 25
+     * 🔴 **Measured on Contao 5.7.13 (v0.11.0):** `layout update 25
      * --set modules=66` answered `{"status":"ok"}` and stored the string `66`.
      * The layout lost its module list and a page on it rendered nothing — with
      * no error anywhere. The back end cannot produce that: a `moduleWizard`
@@ -2465,7 +2465,7 @@ abstract class AbstractWriteCommand extends Command
      * "Editors" is exactly the kind of thing nobody notices until the day it
      * matters which one a user is in.
      *
-     * ⚠️ **Superseded by `refuseTakenUniqueValues()` (2026-09-01), which runs
+     * ⚠️ **Superseded by `refuseTakenUniqueValues()`, which runs
      * inside `convertFields()` and therefore covers create and update alike.**
      * Kept because a few create commands still call it directly; the checks
      * agree, so the duplicate is harmless — but new code should not add one.
@@ -2595,7 +2595,7 @@ abstract class AbstractWriteCommand extends Command
             // the permission widgets: `tl_user_group.cud` and `tl_page.chmod`
             // store a flat serialized list exactly like a multiple field, but
             // carry no `multiple` flag — the widget itself is the list. Verified
-            // against live data on c5: cud is a:60:{i:0;s:21:"tl_form_field::create";…},
+            // against live data: cud is a:60:{i:0;s:21:"tl_form_field::create";…},
             // chmod is a:9:{i:0;s:2:"u1";…}.
             $storesArray = ($def['eval']['multiple'] ?? false)
                 || \in_array($def['inputType'] ?? null, self::ARRAY_INPUT_TYPES, true);
@@ -2627,7 +2627,7 @@ abstract class AbstractWriteCommand extends Command
      * validator runs `array_map('\intval', …)`, so a page mount reaches the
      * database as `a:1:{i:0;i:1;}` and not `a:1:{i:0;s:1:"1";}`.
      *
-     * Measured on 2026-08-31 rather than assumed. Of every widget in
+     * Measured rather than assumed. Of every widget in
      * core-bundle, exactly two cast to int at all — `PageTree` and `Picker` —
      * and `Picker` only does so on its single-value branch: a comma-separated
      * Picker list stays strings. So the rule is `pageTree` plus `multiple`,
@@ -2666,7 +2666,7 @@ abstract class AbstractWriteCommand extends Command
             $multiple = (bool) ($dca[$key]['eval']['multiple'] ?? false);
 
             // An empty JSON list clears the field, as '' does. Left raw, the text
-            // "[]" would be stored and answered ok (review before v0.24.0).
+            // "[]" would be stored and answered ok (before v0.24.0).
             if ($multiple && [] === json_decode(trim($value), true)) {
                 $fields[$key] = '';
                 continue;
@@ -2728,8 +2728,8 @@ abstract class AbstractWriteCommand extends Command
     /**
      * Refuse a fileTree value that would not resolve to a file.
      *
-     * 🔴 **Measured on 2026-09-17 on a production installation (Contao 5.7.13, v0.23.0),
-     * Nr. 69:** `layout update 2 --set 'external=["7cb2d18f-…"]'` answered
+     * 🔴 **Measured on a production installation (Contao 5.7.13, v0.23.0):**
+     * `layout update 2 --set 'external=["7cb2d18f-…"]'` answered
      * `{"status":"ok"}` and stored the JSON text. The layout never linked its
      * stylesheet. The JSON list was what `layout read` answered for the field,
      * so the read value could not be written back, and nothing said so.
@@ -2802,7 +2802,7 @@ abstract class AbstractWriteCommand extends Command
      * Contao stores these as a serialized {value, unit} pair. This writes value
      * first, as the column's SQL default does (a:2:{s:5:"value";...;s:4:"unit";...}).
      * Records saved in the back end may hold unit first — 139 of 144 headlines on
-     * a production installation (2026-09-17, Nr. 56) — and Contao reads both by key, so the
+     * a production installation — and Contao reads both by key, so the
      * order carries no meaning. The unit is resolved in
      * this order:
      *   1. a companion "<field>_unit" key in the --set payload
@@ -2860,7 +2860,7 @@ abstract class AbstractWriteCommand extends Command
 
         // A unit without its value: `--set headline_unit=h1` changes the level of
         // the stored headline. Until v0.16.0 the companion key was consumed below
-        // and the command answered "ok" with nothing written (review 2026-09-16).
+        // and the command answered "ok" with nothing written.
         // The stored value is carried over as the JSON form, so the steps below
         // treat it like any caller-given value — the unit check included.
         foreach ($fields as $key => $value) {
@@ -2938,7 +2938,7 @@ abstract class AbstractWriteCommand extends Command
 
             // A unit the caller named — companion key or JSON — is refused when
             // the DCA does not list it. Until v0.10.0 it was silently replaced
-            // by the default and answered "ok" (measured on c5, 2026-09-16).
+            // by the default and answered "ok" (measured).
             // Only the caller's own unit: a stored or default unit that is not
             // listed still falls back below, so old data cannot make a record
             // unwritable.
@@ -3054,8 +3054,7 @@ abstract class AbstractWriteCommand extends Command
             $data['aliasWarning'] = $this->aliasWarning;
         }
 
-        // A hint, not a refusal — what Contao's back end shows under the alias field
-        // (Nr. 48 of the ConpAI 1.0 acceptance test, 2026-09-17).
+        // A hint, not a refusal — what Contao's back end shows under the alias field.
         if ([] !== $this->routeConflicts) {
             $data['routeConflicts'] = $this->routeConflicts;
         }

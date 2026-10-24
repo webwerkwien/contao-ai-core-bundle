@@ -14,8 +14,8 @@ use Webwerkwien\ContaoAiCoreBundle\Command\AiRunCommand;
 use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 
 /**
- * contao:ai:run hands its --operator on to the command it runs (v1.7.1). In the Consho
- * chat test (2026-10-12) an editor's change was stored in tl_version under the shell
+ * contao:ai:run hands its --operator on to the command it runs (v1.7.1). Before that,
+ * an editor's change made through the back-end chat was stored in tl_version under the shell
  * user: the operator reached the log entry only. Through the real command and a real
  * console application; the targets record what they were given.
  */
@@ -47,7 +47,7 @@ class AiRunOperatorTest extends TestCase
             'contao:probe-ignore'   => ['ignore' => true] + $plain,
             'contao:probe-flag'     => ['mode' => InputOption::VALUE_NONE] + $plain,
             'contao:probe-plain'    => ['mode' => null] + $plain,
-            // A shortcut inside a cluster (`-xo`) and a default that is a user (second review).
+            // A shortcut inside a cluster (`-xo`) and a default that is a user.
             'contao:probe-default'  => ['shortcut' => 'o', 'default' => 'system'] + $plain,
             // `--operator` behind `--` is an argument, no refusal.
             'contao:probe-words'    => ['words' => true] + $plain,
@@ -97,11 +97,11 @@ class AiRunOperatorTest extends TestCase
 
     public function testACommandWithAnOperatorOptionGetsTheOperator(): void
     {
-        $this->aiRun(['--command-line' => 'contao:probe-operator -- "-5"', '--operator' => 'testredakteur']);
+        $this->aiRun(['--command-line' => 'contao:probe-operator -- "-5"', '--operator' => 'editor']);
 
-        $this->assertSame([['operator' => 'testredakteur', 'id' => '-5']], $this->received, 'an argument behind -- stays an argument');
-        $this->assertStringContainsString('--operator "testredakteur"', $this->logged[0]['message'] ?? '');
-        $this->assertSame('testredakteur', $this->logged[0]['operator'] ?? null);
+        $this->assertSame([['operator' => 'editor', 'id' => '-5']], $this->received, 'an argument behind -- stays an argument');
+        $this->assertStringContainsString('--operator "editor"', $this->logged[0]['message'] ?? '');
+        $this->assertSame('editor', $this->logged[0]['operator'] ?? null);
     }
 
     /**
@@ -173,7 +173,7 @@ class AiRunOperatorTest extends TestCase
     }
 
     /**
-     * Every way of naming another user, or none, in the line (review S1, S2, S3).
+     * Every way of naming another user, or none, in the line.
      *
      * @return iterable<string, array{string}>
      */

@@ -80,7 +80,7 @@ final class AiContract
         // its own log line before starting for exactly that reason.
         public readonly ?string $traceWhen = null,
         // The field a caller has to stop at. A database write has tl_undo; a
-        // sent email has nothing. Both this bundle and the ww-buchung session
+        // sent email has nothing. Both this bundle and another project
         // arrived at it independently, which is the best evidence available
         // that it is general rather than one project's special case.
         public readonly ?string $irreversible = null,
@@ -88,7 +88,7 @@ final class AiContract
         public readonly array $optionValues = [],
         public readonly array $answerShape = [],
         // Said by the extension about its own table, and it bites before a
-        // wrapper exists rather than after: "for tl_ww_buchung the generic
+        // wrapper exists rather than after: "for tl_acme_booking the generic
         // path is unsuitable, the transitions hang on save_callbacks."
         public readonly array $genericPathUnsuitable = [],
         // Kept out of tl_log by contao:ai:run (v1.5.0). Only for names that do not

@@ -31,7 +31,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\DcaSchemaCommand;
  * That is the same shape as the rest of this project's silent failures, with a
  * turn of the screw: this one does not stay quiet, it *answers*.
  *
- * Reported by the parallel session on a production site's booking module, which
+ * Reported from a production site's booking module, which
  * hit it on a table of its own and checked `tl_page` to rule out its own DCA.
  */
 class DcaSchemaOptionsTest extends TestCase
@@ -93,7 +93,7 @@ class DcaSchemaOptionsTest extends TestCase
      * `eval.isAssociative` turns a list into index => label, exactly as
      * `Widget::getAttributesFromDca()` reads it. Contao's `tl_page.useSSL`
      * declares `array('http://', 'https://')` and stores 0/1; comparing against
-     * the labels refused `--set useSSL=1` live on 2026-09-17 (Nr. 53).
+     * the labels refused `--set useSSL=1` live.
      */
     public function testAListDeclaredAssociativeGivesItsIndices(): void
     {
@@ -187,7 +187,7 @@ class DcaSchemaOptionsTest extends TestCase
 
     /**
      * `optionsSource` said *that* the values come from another table and left
-     * the caller unable to find out *which*. Measured on 2026-09-11 against a
+     * the caller unable to find out *which*. Measured against a
      * stock 5.7.13 with all five optional bundles: 79 of 1183 fields declare a
      * `foreignKey`, and `--set` accepts any number for every one of them.
      */

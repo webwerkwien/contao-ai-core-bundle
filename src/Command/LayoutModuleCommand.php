@@ -56,7 +56,7 @@ class LayoutModuleCommand extends AbstractWriteCommand
         $this->framework->initialize();
 
         // Backticks: `rows` is a reserved word since MySQL 8 (window functions). The
-        // unquoted query failed on c5 with a syntax error (2026-09-16).
+        // unquoted query failed with a syntax error.
         $layout = $this->connection->fetchAssociative('SELECT `id`, `pid`, `template`, `rows`, `cols`, `sections`, `modules` FROM `tl_layout` WHERE `id` = ?', [$layoutId]);
         if (false === $layout) {
             return $this->outputError("Layout not found: {$layoutId}");
@@ -160,7 +160,7 @@ class LayoutModuleCommand extends AbstractWriteCommand
 
     /**
      * The id of `content-<id>`, the form a layout stores a theme's content element in
-     * since Contao 5.7 (ModuleWizard, PageRegular). Null for anything else (Nr. 68).
+     * since Contao 5.7 (ModuleWizard, PageRegular). Null for anything else.
      */
     public static function themeElementId(string $module): ?int
     {

@@ -48,7 +48,7 @@ abstract class AbstractReadCommand extends Command
      *     "navigationImage": "GW\u{FFFD}V+8\x11\u{FFFD}\u{FFFD}\0\0(\u{FFFD}T"
      *
      * That cost a caller any way of telling which file a record points at, and
-     * on 2026-08-29 it also crashed `contao-ai-cli page read 98`, whose cp1252
+     * it also crashed `contao-ai-cli page read 98` on a console whose cp1252
      * stdout could not print the replacement characters it had been handed.
      *
      * Values that are not a binary UUID are left untouched — an empty column
@@ -56,7 +56,7 @@ abstract class AbstractReadCommand extends Command
      *
      * This lives on AbstractReadCommand rather than AbstractModelReadCommand
      * because the conversion is driven by the DCA, not by a Model: it takes a
-     * table name and a row. It sat one class lower until 2026-08-31, which left
+     * table name and a row. It once sat one class lower, which left
      * contao:record:list — the one read command that accepts *any* table, and
      * therefore the one most likely to be pointed at an unfamiliar fileTree
      * field — returning exactly the destroyed values v0.2.15 had just fixed
@@ -76,7 +76,7 @@ abstract class AbstractReadCommand extends Command
         foreach ($row as $key => $value) {
             // A binary(16) column holds a UUID whatever its widget — tl_files.uuid
             // and tl_files.pid have none at all. Without this they left as raw
-            // bytes, which JSON turned into null (v0.13.0, measured on c5).
+            // bytes, which JSON turned into null (v0.13.0).
             if (\is_string($value) && 16 === \strlen($value) && self::isBinary16Column($dca[$key]['sql'] ?? null)) {
                 $row[$key] = StringUtil::binToUuid($value);
                 continue;

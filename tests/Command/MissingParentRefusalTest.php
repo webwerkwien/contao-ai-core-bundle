@@ -9,7 +9,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
 /**
  * A child needs a parent that exists.
  *
- * Found on 2026-09-18 on c5: `content create --pid 99999` stored an element
+ * Found live: `content create --pid 99999` stored an element
  * below an article that does not exist, and `article`, `news` and `faq create`
  * did the same. The back end cannot get there, because `DC_Table` creates a
  * child from its parent's list. Such a record is reachable from nowhere: no

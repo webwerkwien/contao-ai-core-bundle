@@ -8,7 +8,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\CommandLineRedactor;
 
 /**
  * A secret on the command line of contao:ai:run stays out of tl_log (v1.5.0).
- * Reported by the Consho session: the whole line was logged, a password included.
+ * Reported from use with Consho: the whole line was logged, a password included.
  */
 class CommandLineRedactorTest extends TestCase
 {
@@ -27,7 +27,7 @@ class CommandLineRedactorTest extends TestCase
         yield 'case' => ['acme:x --set Passwort=x', 'acme:x --set Passwort=***'];
         yield 'nothing secret is unchanged, spelling kept' => ['acme:x  --set "title=Mein Laden"   5', 'acme:x  --set "title=Mein Laden"   5'];
         yield 'a value that merely contains the word stays' => ['acme:x --set title=password-reset', 'acme:x --set title=password-reset'];
-        // Fable review before v1.5.0: escapes as StringInput reads them.
+        // Escapes as StringInput reads them (v1.5.0).
         yield 'escaped space outside quotes' => ['acme:x --set password=ge\ S3CRET --set title=a', 'acme:x --set password=*** --set title=a'];
         yield 'escaped quote outside quotes' => ['acme:x --set password=a\"S3CRET', 'acme:x --set password=***'];
         yield 'escaped space after an option' => ['acme:x --token ab\ S3CRET 5', 'acme:x --token *** 5'];
@@ -45,7 +45,7 @@ class CommandLineRedactorTest extends TestCase
     }
 
     /**
-     * Review 2 before v1.5.0: an unclosed quote. StringInput takes it as a plain
+     * Before v1.5.0: an unclosed quote. StringInput takes it as a plain
      * character, a first version of this split read to the end of the line — and the
      * password after it stayed in the log.
      */
@@ -68,7 +68,7 @@ class CommandLineRedactorTest extends TestCase
         $this->assertSame(['S3 CRET', 'K3Y', 'T0K'], $values);
         $this->assertSame(['x'], CommandLineRedactor::redacted('acme:x --set pin=x --set pin=x', ['pin'])[1], 'each once');
 
-        // Fable review: an inner line whose first key reads secret is blanked whole, and
+        // An inner line whose first key reads secret is blanked whole, and
         // its values are still collected one by one — a message may quote just one.
         [$line, $values] = CommandLineRedactor::redacted("contao:ai:run --command-line='acme:x --set password=S3CRET --set name=a --pin P1N'", ['pin']);
         $this->assertSame('contao:ai:run --command-line=acme:x --set password=***', $line);

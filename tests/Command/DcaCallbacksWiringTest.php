@@ -67,7 +67,7 @@ class DcaCallbacksWiringTest extends TestCase
             $source = (string) file_get_contents($file);
 
             // The cloners on AbstractDcaCloner (v1.8.0) pass the table as a variable; the
-            // literal search below finds nothing there and would pass empty (Fable review).
+            // literal search below finds nothing there and would pass empty.
             // Their order is checked by running them: DcaClonerTest.
             if (str_contains($source, 'extends AbstractDcaCloner')) {
                 $this->assertStringNotContainsString('createInitialVersion(', $source, basename($file) . ' writes versions past AbstractDcaCloner');

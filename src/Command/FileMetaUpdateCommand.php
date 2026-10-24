@@ -84,7 +84,7 @@ class FileMetaUpdateCommand extends AbstractWriteCommand
             $updated[] = $key;
         }
 
-        // 🔴 H-2 (Audit 2026-09-02): hier wurde direkt gespeichert, also ohne
+        // 🔴 Früher wurde hier direkt gespeichert, also ohne
         // tl_version-Snapshot.
         //
         // 🎯 Dieser Befehl hat als einziger der fünf einen echten Grund für

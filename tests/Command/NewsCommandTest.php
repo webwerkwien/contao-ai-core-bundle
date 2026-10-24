@@ -133,8 +133,8 @@ class NewsCommandTest extends TestCase
             ['id' => 1, 'headline' => serialize(['value' => 'Contao ist beliebt', 'unit' => 'h1'])],
             ['id' => 2, 'headline' => 'Schon sauberer Titel'],
         ]);
-        // 🔴 Dieser Test verlangte bis zum 2026-09-02 genau den rohen
-        // `$connection->update()` — also den Fehler (H-3): eine Reparatur ohne
+        // 🔴 Dieser Test verlangte früher genau den rohen
+        // `$connection->update()` — also den Fehler: eine Reparatur ohne
         // tl_version-Snapshot, die sich nicht zurücknehmen ließ. Er war grün und
         // hat das Verhalten festgeschrieben.
         //

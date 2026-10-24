@@ -14,8 +14,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Template\TemplateCacheRefresher;
 /**
  * Delete a Twig template below templates/ — as Contao's Template Studio does.
  *
- * Until v0.20.0 there was no way to delete a template through the bundle (Nr. 51 of the
- * ConpAI 1.0 acceptance test, 2026-09-17). See TemplateDeleteCommandTest.
+ * Until v0.20.0 there was no way to delete a template through the bundle. See
+ * TemplateDeleteCommandTest.
  *
  * Mirrors the Template Studio of 5.7 (`DeleteOperation`, `AbstractDeleteVariantOperation`):
  * the file, then compiled templates and hierarchy, then — for a variant of a content

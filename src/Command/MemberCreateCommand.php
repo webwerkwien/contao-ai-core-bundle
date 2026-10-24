@@ -15,7 +15,7 @@ use Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface;
  * 🔴 **Until v0.26.0 this command did not exist**, although the CLI offered `member
  * create` since the start and pointed at it: every call ended in "contao:member:create
  * not available. Update contao-ai-core-bundle to v1.x+". Found in the regression run
- * before 1.0 (2026-09-18) — no test had ever called it, so nothing turned red.
+ * before 1.0 — no test had ever called it, so nothing turned red.
  *
  * - **The password comes on standard input** (`--password-stdin`), never as an option,
  *   checked and hashed as Contao's password field does it — see MemberPassword.
@@ -132,8 +132,8 @@ class MemberCreateCommand extends AbstractWriteCommand implements CreatesRecord
         // argument is the same either way.
         //
         // After the version too: a callback that throws must not leave a member that
-        // exists without a version, and the error has to say that it exists (review
-        // before v0.26.0).
+        // exists without a version, and the error has to say that it exists (since
+        // v0.26.0).
         try {
             $hash = $this->runPasswordSaveCallbacks((string) $member->password, $member);
         } catch (\Throwable $e) {

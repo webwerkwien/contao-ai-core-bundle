@@ -146,7 +146,7 @@ class UndoCommandTest extends TestCase
      * 🔴 Until v1.9.2 such a key was skipped and the restore answered `ok` while
      * deleting the entry: nothing restored, the only copy gone. This test asserted
      * that `ok`. With the old `tl_` check it hit every deleted Catalog Manager entry,
-     * whose tables never have the prefix (c5, 2026-10-15).
+     * whose tables never have the prefix.
      */
     public function testAPayloadKeyThatIsNotATableNameIsRefusedAndTheEntryKept(): void
     {
@@ -166,7 +166,7 @@ class UndoCommandTest extends TestCase
 
     /**
      * A payload with no row that could be written never reaches the transaction —
-     * the transaction is what deletes the entry (v1.9.2, Fable review). Asserted on
+     * the transaction is what deletes the entry (v1.9.2). Asserted on
      * `transactional`, not `delete`: under this mock the closure never runs, so a
      * `never()` on `delete` would hold whatever the command did.
      */
@@ -244,10 +244,10 @@ class UndoCommandTest extends TestCase
         $this->assertSame([3], $out['tables']['tl_news']['idsTaken']);
     }
 
-    // --- C-1: alles oder nichts ---
+    // --- Alles oder nichts ---
 
     /**
-     * 🔴 C-1 (Audit 2026-09-02). Bis dahin lief der Restore ohne Transaktion:
+     * 🔴 Früher lief der Restore ohne Transaktion:
      * Zeile für Zeile einfügen, bei einem Fehler abbrechen, den Undo-Eintrag
      * behalten — und die bereits geschriebenen Zeilen stehen lassen. Beim
      * nächsten Versuch kollidierten genau die, und der Eintrag war damit auch
@@ -344,7 +344,7 @@ class UndoCommandTest extends TestCase
             'transactional(',
             $code,
             'UndoRestoreCommand no longer wraps the inserts — a partial restore would leave the '
-            . 'undo entry unusable for the rows that never arrived (C-1, 2026-09-02).',
+            . 'undo entry unusable for the rows that never arrived.',
         );
 
         $this->assertGreaterThan(1000, \strlen($code), 'the source scan read almost nothing');

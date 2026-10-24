@@ -116,15 +116,15 @@ class ContentFindCommandTest extends TestCase
 
     /**
      * A text field stores what the back end posts through Input::encodeInput: `(` as
-     * `&#40;`, `'` as `&#39;` (Fable review 2026-10-20; htmlspecialchars alone searched
+     * `&#40;`, `'` as `&#39;` (htmlspecialchars alone searched
      * `&#039;` and missed it).
      */
     public function testTheFormATextFieldStoresIsSearchedToo(): void
     {
         $tester = $this->tester([]);
-        $tester->execute(['query' => "Preise (Michael's)"]);
+        $tester->execute(['query' => "Preise (Anna's)"]);
 
-        self::assertContains('%Preise &#40;Michael&#39;s&#41;%', $this->queries[0][1]);
+        self::assertContains('%Preise &#40;Anna&#39;s&#41;%', $this->queries[0][1]);
     }
 
     /**
@@ -253,7 +253,7 @@ class ContentFindCommandTest extends TestCase
     }
 
     /**
-     * v1.11.0, the showcase case over a real SQLite site (LanguageVersionsTest): the English
+     * v1.11.0, the slider case over a real SQLite site (LanguageVersionsTest): the English
      * slider is found by its text, and the hit names the linked German page and article —
      * the chat had claimed there was no other language.
      *
@@ -273,7 +273,7 @@ class ContentFindCommandTest extends TestCase
 
     /**
      * From the linked side: the German element names the English main version and the
-     * French one (review 2026-10-20: only the main side was tested end to end).
+     * French one (before, only the main side was tested end to end).
      */
     public function testAHitOnTheLinkedSideNamesTheMainAndTheOtherVersions(): void
     {

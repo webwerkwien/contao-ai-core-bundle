@@ -10,7 +10,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Cloner;
  * is generated anew from the subject with a uniqueness suffix (`eval.unique`).
  *
  * 🎯 **Recipients only with `recipients` in the options** (`--with-recipients`),
- * decided by Michael on 2026-10-14. Contao's own copy takes them along. But a
+ * on purpose. Contao's own copy takes them along. But a
  * recipient consented to the source channel, not to its copy, and after a clone into
  * another language they would receive a channel they never subscribed to. Whoever
  * passes the option carries that consent, as with Contao's CSV import. Copied

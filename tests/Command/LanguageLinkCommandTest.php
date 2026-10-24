@@ -12,7 +12,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 use Webwerkwien\ContaoAiCoreBundle\Service\Writer\RecordWriterInterface;
 
 /**
- * `contao:language:link` through its real doExecute() and convertFields() (review M6:
+ * `contao:language:link` through its real doExecute() and convertFields() (before,
  * no test called the command). The database is a stand-in: the stored row and the writer.
  *
  * `--main 0` removes a link. It reaches the writer only because the option check in
@@ -124,7 +124,7 @@ class LanguageLinkCommandTest extends TestCase
     /**
      * changelanguage adds languageMain to the palette only for the edit mask; its
      * duplicate check runs only because the command marks the field as set on purpose
-     * (second pre-release review: removing that line left every test green).
+     * (without this test, removing that line left every test green).
      */
     public function testTheLinkFieldReachesTheSaveCallbacksAsSetOnPurpose(): void
     {

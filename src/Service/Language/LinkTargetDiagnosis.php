@@ -9,10 +9,10 @@ use Doctrine\DBAL\Connection;
  *
  * The package lists the articles of the page in the main language as targets — but it
  * finds that page through its PageFinder, which skips unpublished pages and roots (and
- * those outside their start/stop time). On showcase the resource pages "_Ressourcen" and
- * "_Resources" are unpublished on purpose; `language check` reported their articles as a
+ * those outside their start/stop time). Pages kept unpublished on purpose (resource
+ * pages, for example) had `language check` report their articles as a
  * gap, and `language link` refused with "the article's page has to be linked first" — the
- * page was linked. The gap cannot be closed, here or in the back end (2026-10-20).
+ * page was linked. The gap cannot be closed, here or in the back end.
  *
  * What changelanguage checks, and so what this checks: the article's page is linked
  * (`languageMain`), the page it points to exists, is shown, and its root is shown. Not
@@ -93,8 +93,7 @@ class LinkTargetDiagnosis
         $rootWhy = null === $root ? null : $this->notShown($root);
 
         if (null !== ($why = $this->notShown($counterpart))) {
-            // Both named when both are the reason: publishing the page alone would not do
-            // (review 2026-10-20).
+            // Both named when both are the reason: publishing the page alone would not do.
             return null === $rootWhy
                 ? \sprintf('Page %d is linked to page %d of the main language, but page %d %s. changelanguage offers article targets only on published pages and roots — in the back end as well — so this article can be linked once page %d is published.', $pageId, $main, $main, $why, $main)
                 : \sprintf('Page %d is linked to page %d of the main language, but page %d %s and its website root %d %s. changelanguage offers article targets only on published pages and roots — in the back end as well — so this article can be linked once both are published.', $pageId, $main, $main, $why, (int) $root['id'], $rootWhy);

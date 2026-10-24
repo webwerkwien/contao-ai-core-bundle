@@ -28,7 +28,7 @@ class AiRunGuardTest extends TestCase
     {
         yield 'own command'       => ['contao:page:tree'];
         yield 'contao core'       => ['contao:migrate'];
-        yield 'plugin-style name' => ['contao:ww-buchung:sync'];
+        yield 'plugin-style name' => ['contao:acme-booking:sync'];
     }
 
     /**
@@ -40,9 +40,9 @@ class AiRunGuardTest extends TestCase
     }
 
     /**
-     * A declared contract opens the door as well (2026-09-01).
+     * A declared contract opens the door as well.
      *
-     * A parallel session measured 22 namespaces on a live site: `cookiebar:`
+     * 22 namespaces were counted on a live site: `cookiebar:`
      * is a published Contao extension using its own product name, and
      * Symfony's docs recommend `app:` for application commands. A prefix of
      * one's own is the convention, and `contao:` would be the one wrong
@@ -132,7 +132,7 @@ class AiRunGuardTest extends TestCase
      * The log entry is written before the target runs, not after.
      *
      * A log written afterwards records only the runs that went well, which is
-     * the opposite of what an audit trail is for. Proven live on 2026-09-01: a
+     * the opposite of what an audit trail is for. Proven live: a
      * passthrough that failed on a missing argument still left its entry.
      */
     public function testTheInvocationIsRecordedBeforeItRuns(): void

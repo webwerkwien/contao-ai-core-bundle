@@ -83,7 +83,7 @@ class VersionRestoreCommand extends Command
 
         // A version from before this record was created belongs to an earlier record
         // that had the same ID — restoring it would write that record's data onto
-        // this one. Measured on c5 on 2026-09-16 (RecordIdReuseTest).
+        // this one. Measured (RecordIdReuseTest).
         if ($this->versionManager->belongsToEarlierRecord($table, $id, $version)) {
             $output->writeln(json_encode([
                 'status'  => 'error',

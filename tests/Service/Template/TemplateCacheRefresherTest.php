@@ -10,7 +10,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Template\TemplateCacheRefresher;
 /**
  * A written template is usable at once — as after saving in the Template Studio.
  *
- * 🟡 **Nr. 47 of the ConpAI 1.0 acceptance test, 2026-09-17:** `template write --mode
+ * 🟡 **Found before ConpAI 1.0:** `template write --mode
  * variant --name consho_hero` wrote the file, `template list` showed it — and
  * `content create --set customTpl=content_element/text/consho_hero` refused it as
  * "not a template Contao offers" until `cache clear`. In production Contao keeps the
@@ -53,7 +53,7 @@ class TemplateCacheRefresherTest extends TestCase
     }
 
     /**
-     * Review 2026-09-17: Contao 5.3 keeps the hierarchy in cache.system — with APCu a
+     * Contao 5.3 keeps the hierarchy in cache.system — with APCu a
      * layer the console cannot reach. Contao 5.7 uses cache.app, a filesystem pool.
      */
     public function testALoaderOnTheSystemCacheIsReportedAsNotFullyRefreshed(): void

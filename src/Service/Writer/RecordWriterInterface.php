@@ -19,9 +19,8 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Writer;
  * expected to bring core operations (`DataContainerStateProcessor`) that own
  * versioning, undo and validation — an implementation built on those never sees a
  * `Contao\Model`. An interface phrased in models would look swappable and not be.
- * See the decision points in the Contao 6 notes before building implementation B:
- * as of 2026-08-29 that processor is three TODO comments, so this is a seam, not
- * a migration.
+ * When this interface was written, that processor was three TODO comments, so this
+ * is a seam, not a migration.
  *
  * What deliberately stays outside: building a record's field values. Which fields
  * a page create takes, how an alias is derived, how an `inputUnit` is serialised —
@@ -34,16 +33,15 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Writer;
  * (autowire `RecordWriterInterface`) and get what the bundle's commands get: a version
  * per write through Contao's Versions class, the record callbacks of the DCA run as
  * DC_Table runs them, an undo entry with the cascade on delete, cache invalidation,
- * one transaction per write. Decided with the maintainer on 2026-10-10; changes to
- * these signatures need a major version.
+ * one transaction per write. Changes to these signatures need a major version.
  *
  * Values are handed over in their stored form. The fields' save_callbacks run when the
  * caller asks for them with `$saveCallbacks` — for every field handed over, where
  * DC_Table runs them: on a create after the INSERT and `oncreate`, before `onsubmit`;
  * on an update before the save. Consho's onsubmit listeners work with values only
  * the save_callbacks produce (net prices, shop relations), so a caller cannot run them
- * itself around create() — onsubmit would see the raw values (asked for by Consho,
- * 2026-10-10). Without the flag the caller may run them through DcaCallbacks::save().
+ * itself around create() — onsubmit would see the raw values (asked for by Consho).
+ * Without the flag the caller may run them through DcaCallbacks::save().
  *
  * The table's `onbeforesubmit_callback`s run on every write that is not a move, with
  * or without the flag, as `onsubmit` does (v1.5.0): after the save_callbacks, before the

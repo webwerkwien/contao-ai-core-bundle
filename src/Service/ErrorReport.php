@@ -69,7 +69,7 @@ final class ErrorReport
      *
      * Used where a caller may see that something broke but not what: the back
      * end hands this to editors, and reserves the full report for admins so the
-     * `safeMessage()` promise (H-6) keeps holding for exactly the audience it
+     * `safeMessage()` promise keeps holding for exactly the audience it
      * was written for.
      */
     public function withoutMessage(): self
@@ -123,7 +123,7 @@ final class ErrorReport
      * into smilies. A colon followed by a letter is ordinary in exception
      * messages (`Fatal error: p…`, Windows paths, `array:2`), and the parser
      * does not require a word boundary — a checker that assumed one missed a
-     * real occurrence on 2026-09-02. Inside `[CODE]` the question does not
+     * real occurrence. Inside `[CODE]` the question does not
      * arise at all, which is the cheaper guarantee than getting the pattern
      * right.
      */
@@ -157,7 +157,7 @@ final class ErrorReport
     /**
      * Flattens the summary into label/value pairs for rendering.
      *
-     * 🔴 Found on c5, not by a unit test. A map is worth splitting into
+     * 🔴 Found on a real installation, not by a unit test. A map is worth splitting into
      * `versionen.core`, `versionen.contao` — the sub-keys carry meaning. A
      * *list* is not: the argument keys came out as `argument_schluessel.0`,
      * `argument_schluessel.1`, numbering that says nothing and pushes the

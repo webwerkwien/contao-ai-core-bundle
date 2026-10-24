@@ -31,7 +31,7 @@ final class PageTreeRules
     /**
      * Check a page that is already stored, inside the transaction that wrote it.
      *
-     * For the cloner (review W3): a clone keeps the source's type and parent, so a
+     * For the cloner: a clone keeps the source's type and parent, so a
      * cloned error page was a second one below the same root. Checked as a new page
      * would be, the clone itself excluded from the duplicate search.
      *

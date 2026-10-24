@@ -99,7 +99,7 @@ trait JsonErrorBoundary
      *
      * Exactly that class, not its subclasses: Symfony's Console, DependencyInjection
      * and Finder extend it for programming errors (an option name with a typo, a
-     * missing service), and those are defects (pre-release review 2026-10-10).
+     * missing service), and those are defects.
      *
      * @return array{exception?: string}
      */

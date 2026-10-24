@@ -72,7 +72,7 @@ trait MovesRecord
             }
         }
 
-        // Review H3: with --after the element takes the sibling's parent table.
+        // With --after the element takes the sibling's parent table.
         if ($this->hasPtableOption() && '' !== $after && '' !== (string) ($this->input->getOption('ptable') ?? '')) {
             return $this->outputError('--ptable goes with --to; with --after the element takes the sibling\'s parent table.');
         }
@@ -133,7 +133,7 @@ trait MovesRecord
             throw new \InvalidArgumentException(\sprintf('A %s record cannot be moved behind itself. Nothing was written.', $table));
         }
 
-        // Before the renumbering below writes anything (review W1): a mistyped ID
+        // Before the renumbering below writes anything: a mistyped ID
         // renumbered someone else's siblings and only then answered "not found".
         if ([] === $this->storedRow($table, $id)) {
             throw new \InvalidArgumentException(\sprintf('No %s record with ID %d to move. Nothing was written.', $table, $id));

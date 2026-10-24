@@ -13,8 +13,8 @@ use PHPUnit\Framework\TestCase;
  * `services_<bundle>.yaml` only when that bundle is actually installed, so an
  * installation without news does not get a command whose model class is absent.
  *
- * 🔴 **The patterns are filenames, and that is exactly how it broke.** On
- * 2026-08-31 four commands for `tl_calendar` were added as `Calendar*Command`
+ * 🔴 **The patterns are filenames, and that is exactly how it broke.** Once
+ * four commands for `tl_calendar` were added as `Calendar*Command`
  * — the exclusion for the calendar bundle reads `Event*.php`, because that is
  * what its existing commands are called. The four slipped through the filter
  * and were registered on every installation, including ones with no calendar
@@ -65,7 +65,7 @@ class PluginCommandRegistrationTest extends TestCase
      * installed (v1.11.0). testOptionalUsersTakeTheServiceAsNullable keeps them honest.
      *
      * Only these exact pieces are taken out before the scan; anything else in the file
-     * that names a package still counts (review 2026-10-20: skipping the whole file let
+     * that names a package still counts (skipping the whole file let
      * a `use Terminal42\ChangeLanguage\…` through).
      *
      * @var array<string, list<string>>
@@ -186,7 +186,7 @@ class PluginCommandRegistrationTest extends TestCase
 
     /**
      * A scan that finds nothing passes just as quietly as a scan that finds
-     * everything — the lesson from 2026-08-30, applied to this one too.
+     * everything — a lesson learned earlier, applied to this one too.
      */
     public function testOptionalUsersTakeTheServiceAsNullable(): void
     {

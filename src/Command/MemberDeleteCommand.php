@@ -34,7 +34,7 @@ class MemberDeleteCommand extends AbstractWriteCommand
 
         $id = (int) $member->id;
 
-        // 🔴 H-1 (Audit 2026-09-02): hier stand `$member->delete()` — ein nacktes
+        // 🔴 Hier stand früher `$member->delete()` — ein nacktes
         // Contao\Model::delete(). Kein tl_undo-Snapshot, keine Kaskade, kein
         // Systemlog: der Befehl meldete `deleted` und `contao:undo:restore`
         // konnte den Datensatz nicht zurückholen.

@@ -10,7 +10,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
  * `Widget::validator()` refuses more than `rgxp`: `maxlength`, `minlength`,
  * `minval`, `maxval` and `nospace`. None of it was checked on this write path.
  *
- * Found in the review before v0.26.0: `member create --username "anna muster"`
+ * Found before v0.26.0: `member create --username "anna muster"`
  * was stored where the back end says "no spaces allowed", and a username over
  * 64 characters ended in a database error (strict) or was cut off (lax).
  */

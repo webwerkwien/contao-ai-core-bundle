@@ -18,7 +18,7 @@ use Webwerkwien\ContaoAiCoreBundle\Tests\NeedsContaoContainerTrait;
  *
  * Until v1.8.0 the callbacks ran after the commit with the command as `$dc`; a failure
  * was a warning on the console while the answer said `ok` and the undo entry was gone.
- * On c5 a restored Consho product came back without its list price and visibility.
+ * A restored Consho product came back without its list price and visibility.
  */
 class UndoRestoreCallbacksTest extends TestCase
 {
@@ -35,8 +35,8 @@ class UndoRestoreCallbacksTest extends TestCase
             'data' => serialize(['tl_news' => [['id' => 7, 'headline' => 'Erste'], ['id' => 8, 'headline' => 'Zweite']]]),
         ]);
         // Quoted as DBAL quotes: the first version of this test returned the name as it
-        // was, and passed while onundo got the insert's quoted keys — on c5 Consho read
-        // $row['id'], found nothing and queued product 0 (2026-10-14).
+        // was, and passed while onundo got the insert's quoted keys — Consho read
+        // $row['id'], found nothing and queued product 0.
         $connection->method('quoteIdentifier')->willReturnCallback(static fn (string $name): string => '`' . $name . '`');
         $connection->method('transactional')->willReturnCallback(static fn (callable $fn) => $fn());
         $connection->method('insert')->willReturnCallback(static function (string $table, array $row) use (&$log): int {
@@ -106,7 +106,7 @@ class UndoRestoreCallbacksTest extends TestCase
 
     /**
      * A TypeError in a callback is a defect, not a refusal: rolled back as well, marked
-     * with `exception`, and its own class named in the message (second Fable review).
+     * with `exception`, and its own class named in the message.
      */
     public function testADefectInACallbackRollsBackAndIsMarkedAsOne(): void
     {

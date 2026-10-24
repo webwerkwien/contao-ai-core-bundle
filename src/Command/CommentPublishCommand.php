@@ -37,7 +37,7 @@ class CommentPublishCommand extends AbstractWriteCommand
             return $this->outputError("Invalid action '$action'. Use: publish or unpublish");
         }
 
-        // 🔴 H-2 (Audit 2026-09-02): hier stand `$comment->published = …; $comment->save();` —
+        // 🔴 Hier stand früher `$comment->published = …; $comment->save();` —
         // am Writer vorbei. Folge: kein tl_version-Eintrag, also war ein
         // versehentliches publish über die Versionshistorie nicht rückholbar.
         //

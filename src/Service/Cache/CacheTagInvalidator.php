@@ -17,7 +17,7 @@ use Symfony\Contracts\Service\ResetInterface;
  * `Contao\Model::save()` does not invalidate on its own — so every write through
  * contao-ai left cached pages as they were, and `/sitemap.xml` (cached for
  * thirty days, `s-maxage=2592000`) as it was for a month. Reported from the
- * Consho project on 2026-09-13.
+ * Consho project.
  *
  * The tags are the ones `invalidateCacheTags()` builds, identical in Contao 5.3,
  * 5.7 and 6.0:
@@ -30,7 +30,7 @@ use Symfony\Contracts\Service\ResetInterface;
  *     tl_calendar_events, tl_news_archive — and in every extension that puts
  *     addresses of its own into the sitemap.
  *
- * ⚠️ **The callbacks run** (decided 2026-09-13, when they were the only kind of
+ * ⚠️ **The callbacks run** (decided when they were the only kind of
  * extension code this bundle ran; since v1.4.0 the other DCA callbacks run too,
  * see DcaCallbacks). They are declared in the DCA and hand back a list of tags.
  * Without them the sitemap would stay stale, which is the defect this class
@@ -172,7 +172,7 @@ class CacheTagInvalidator implements ResetInterface
     /**
      * What happened since the last call, for the command's JSON answer.
      *
-     * Public API since v1.4.1 (maintainer, 2026-10-11, asked for by Consho): an
+     * Public API since v1.4.1 (asked for by Consho): an
      * extension's own command writing through RecordWriterInterface reports the tags
      * as `cacheTags` and the warnings as `cacheWarnings`, as this bundle's commands do.
      * Call reset() when the command starts — the service lives for the request (Symfony

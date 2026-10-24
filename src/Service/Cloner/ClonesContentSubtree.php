@@ -7,7 +7,7 @@ use Contao\ContentModel;
 /**
  * Clones the `tl_content` subtree hanging under a record.
  *
- * 🔴 H-5 (Audit 2026-09-02). `PageCloner` did this and the other cloners did
+ * 🔴 `PageCloner` did this and the other cloners did
  * not — so `contao:record:clone` on a news archive or a calendar copied the
  * archive and its news, left every content element behind, counted only the
  * news and answered `ok`. The command description says *"including all
@@ -86,8 +86,8 @@ trait ClonesContentSubtree
         // Visibility comes with the source row, as in a back-end copy: `invisible` has
         // no `doNotCopy`. What keeps a clone offline is its unpublished page, article,
         // news item or event. Until v0.21.1 every element was forced invisible, and a
-        // cloned site stayed empty after it was published (ConpAI 1.0, Nr. 61, checked
-        // against Contao's "copy with subpages" on c5, 2026-09-17).
+        // cloned site stayed empty after it was published (checked against Contao's
+        // "copy with subpages").
         $clone->save();
 
         return (int) $clone->id;

@@ -5,8 +5,8 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 /**
  * Refuse writes to the two fields that fake a newsletter send.
  *
- * This bundle deliberately offers no send command (decision of 2026-08-31,
- * recorded in the project file). Contao's send routine is browser-driven — a
+ * This bundle deliberately offers no send command. Contao's send routine is
+ * browser-driven — a
  * JS timer advances the cycles — and a mail that has gone out cannot be taken
  * back, so the send stays with a person in the back end.
  *

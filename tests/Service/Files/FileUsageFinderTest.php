@@ -11,7 +11,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Files\FileUsageFinder;
  * Contao checks nothing when a file is deleted (`DC_Folder::delete()`, 5.7.13 and 6.0.0):
  * an image element pointing at it by UUID keeps the UUID and renders nothing. There is
  * no `tl_undo` for files either. So `contao:file:delete` refuses a file in use unless
- * `--force` is given (Nr. 46 of the ConpAI 1.0 acceptance test, 2026-09-16).
+ * `--force` is given.
  *
  * Which columns are searched is decided from the DCA, pinned here; the queries themselves
  * are verified live.
@@ -63,7 +63,7 @@ class FileUsageFinderTest extends TestCase
     }
 
     /**
-     * 🟡 Review 2026-09-16: `LOCATE('files/media', …)` also matched `files/media2/…` and
+     * 🟡 `LOCATE('files/media', …)` also matched `files/media2/…` and
      * `files/a.png.bak`, and a refusal named records that use something else.
      *
      * @return array<string, array{string, string, bool}>
@@ -81,7 +81,7 @@ class FileUsageFinderTest extends TestCase
             'a different case'         => ['files/A.png', 'files/a.png', false],
             'a longer name before it'  => ['myfiles/a.png', 'files/a.png', false],
             'umlauts belong to a name' => ['files/größe.png', 'files/größe', false],
-            // Pre-release review 2026-09-16: a full stop after the path hid the use.
+            // A full stop after the path hid the use.
             'at the end of a sentence' => ['Download: files/docs/agb.pdf.', 'files/docs/agb.pdf', true],
             'a dot and a new sentence' => ['files/a.png. Next', 'files/a.png', true],
             'not valid UTF-8'          => ["ok \xff files/a.png", 'files/a.png', true],

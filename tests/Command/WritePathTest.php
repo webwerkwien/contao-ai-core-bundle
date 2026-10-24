@@ -9,7 +9,7 @@ use PHPUnit\Framework\TestCase;
  *
  * 🎯 This test exists because {@see CreateCommandConversionTest} did its job and
  * that turned out to be the problem: it guards the *create* family, so the same
- * omission simply happened somewhere else. An audit on 2026-09-02 found seven
+ * omission simply happened somewhere else. A later check found seven
  * commands writing straight to the model —
  *
  *   contao:user:delete          $user->delete()      no tl_undo, no cascade
@@ -193,7 +193,7 @@ class WritePathTest extends TestCase
 
     public function testEveryCommandThatUsesTheWriterInitialisesTheFramework(): void
     {
-        // 🎯 Found on c5, not here. The H-3 fix routed
+        // 🎯 Found live, not here. A fix routed
         // `contao:news:repair-headlines` through the writer, and the writer
         // needs `$GLOBALS['TL_MODELS']`. The command had only ever taken a
         // `Connection` — raw SQL needs no framework — so the real run died with

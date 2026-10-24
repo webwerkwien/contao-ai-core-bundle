@@ -13,9 +13,9 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\PageCloner;
 /**
  * What each cloner owes, and what it deliberately does not.
  *
- * Two findings from the audit on 2026-09-02 live here:
+ * Two earlier defects are pinned here:
  *
- * **H-5** — `PageCloner` pulled the `tl_content` subtree along, the news and
+ * **Content subtree** — `PageCloner` pulled the `tl_content` subtree along, the news and
  * calendar cloners did not. Cloning an archive copied the archive and its news
  * and left every content element behind, counted only the news and answered
  * `ok`, while the command description promises *"including all cascading
@@ -24,13 +24,13 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\PageCloner;
  * events"* — so deleting a news item took its content with it and cloning one
  * did not bring it along.
  *
- * **H-6** — child aliases were generated but never checked. `Model::save()` does
+ * **Unique child aliases** — child aliases were generated but never checked. `Model::save()` does
  * not run the DCA `save_callback`, so Contao's own uniqueness check never ran.
  *
  * 🎯 The interesting assertion is the last one. `PageCloner` must **not** use
  * `uniqueAlias`, because `tl_page.alias` and `tl_article.alias` carry no
  * `eval.unique` — a page alias may repeat across roots and Contao scopes the
- * check by root and domain. Applying H-6 to every cloner would have renamed
+ * check by root and domain. Applying the alias check to every cloner would have renamed
  * pages for a clash that is not one. A rule worth having is worth bounding.
  */
 class ClonerCascadeTest extends TestCase
@@ -75,8 +75,8 @@ class ClonerCascadeTest extends TestCase
     /**
      * A cloned content element keeps the visibility of its source, as a back-end copy does.
      *
-     * Until v0.21.1 every clone was forced to `invisible = '1'`. Checked on c5 on 2026-09-17
-     * (ConpAI 1.0, Nr. 61): Contao's "copy with subpages" left the article unpublished and
+     * Until v0.21.1 every clone was forced to `invisible = '1'`. Checked against
+     * Contao's own "copy with subpages", which left the article unpublished and
      * the elements as they were — visible stayed visible, hidden stayed hidden.
      * `tl_content.invisible` has no `doNotCopy`; `DC_Table::copy()` resets only those.
      * Live, a cloned English site showed an empty page after page and article were published.
@@ -110,7 +110,7 @@ class ClonerCascadeTest extends TestCase
         self::assertContains(
             'ClonesContentSubtree',
             $this->traitsOf($class),
-            "$file no longer clones the content subtree — H-5 would be back",
+            "$file no longer clones the content subtree — content elements would be left behind again",
         );
 
         self::assertStringContainsString(
@@ -171,7 +171,7 @@ class ClonerCascadeTest extends TestCase
 
     public function testThePageClonerDeliberatelyDoesNotSuffixAliases(): void
     {
-        // 🎯 The boundary of H-6. `tl_page.alias` and `tl_article.alias` have no
+        // 🎯 The boundary of the alias check. `tl_page.alias` and `tl_article.alias` have no
         // `eval.unique`; Contao scopes them by root and domain in its own
         // callback. Suffixing here would rename a page for a clash that is not
         // one — the mistake a blanket application of the fix would have made.

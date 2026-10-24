@@ -23,7 +23,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Dca\RecordDataContainer;
  * **The password only arrives on standard input, never as an option.** An option is an
  * argument of the process, and on the server any user can read another process's
  * command line — the reason `contao:user:password` reads from its prompt and the CLI
- * sends it over stdin (audit 2026-09-02, H3). One line is read; only the line break is
+ * sends it over stdin. One line is read; only the line break is
  * stripped, because a password may begin or end with a space.
  *
  * What Contao's `Password` widget does, in its order (`Widget\Password::validator()`):

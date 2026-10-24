@@ -9,7 +9,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Language\LanguageVersions;
 
 /**
  * Language versions as changelanguage links them (v1.11.0), over a real SQLite database
- * shaped like showcase: an English main tree (root 1), a German one (root 76) whose pages
+ * shaped like a real multilingual site: an English main tree (root 1), a German one (root 76) whose pages
  * point at the English ones, and a French one (root 50).
  */
 class LanguageVersionsTest extends TestCase
@@ -26,9 +26,9 @@ class LanguageVersionsTest extends TestCase
 
         foreach ([
             // id, pid, sorting, type, title, language, fallback, published, languageMain
-            [1, 0, 128, 'root', 'Showcase EN', 'en', 1, 1, 0],
-            [76, 0, 256, 'root', 'Showcase DE', 'de', 0, 1, 0],
-            [50, 0, 384, 'root', 'Showcase FR', 'fr', 0, 1, 0],
+            [1, 0, 128, 'root', 'Site EN', 'en', 1, 1, 0],
+            [76, 0, 256, 'root', 'Site DE', 'de', 0, 1, 0],
+            [50, 0, 384, 'root', 'Site FR', 'fr', 0, 1, 0],
             [2, 1, 1, 'regular', 'Home', '', 0, 1, 0],
             [34, 1, 2, 'regular', 'Login', '', 0, 1, 0],
             [77, 76, 1, 'regular', 'Startseite', '', 0, 1, 2],
@@ -36,7 +36,7 @@ class LanguageVersionsTest extends TestCase
             [90, 76, 3, 'regular', 'Nicht verknüpft', '', 0, 1, 0],
             [91, 76, 4, 'regular', 'Kaputt', '', 0, 1, 999],
             [51, 50, 1, 'regular', 'Accueil', '', 0, 1, 2],
-            // a level deeper: the root is two steps up (review 2026-10-20)
+            // a level deeper: the root is two steps up
             [3, 2, 1, 'regular', 'Team', '', 0, 1, 0],
             [78, 77, 1, 'regular', 'Team DE', '', 0, 1, 3],
         ] as [$id, $pid, $sorting, $type, $title, $language, $fallback, $published, $main]) {

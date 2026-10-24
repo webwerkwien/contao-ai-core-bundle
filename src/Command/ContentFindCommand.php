@@ -17,14 +17,14 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Language\LanguageVersions;
  * The way an agent found an element until now was the search index (`contao:search:query`,
  * which answers pages, not elements) or listing tables one by one. Both fail where it
  * matters: a page with `noindex` is not indexed — Contao's SearchIndexListener and the
- * crawler skip it, so on a staging site or a showcase the index stays empty — and listing
- * took a chat on showcase 9–10 calls and half a minute to change one slider headline
- * (2026-10-19). This searches `tl_content` itself.
+ * crawler skip it, so on a staging or demo site the index stays empty — and listing
+ * took a chat 9–10 calls and half a minute to change one slider headline. This
+ * searches `tl_content` itself.
  *
  * Since v1.11.0 each hit names the linked versions of its page and article in the other
- * languages (`versions`), where terminal42/contao-changelanguage is installed: a chat on
- * showcase had changed the English headline and claimed there was no other language, while
- * the linked German page had the same slider (2026-10-20). Without the package there are no
+ * languages (`versions`), where terminal42/contao-changelanguage is installed: a chat
+ * had changed the English headline and claimed there was no other language, while
+ * the linked German page had the same slider. Without the package there are no
  * links to read; on a site with several roots the answer says so (`versionsNote`).
  *
  * Read-only, and like every command here it trusts its operator: it does not ask
@@ -83,14 +83,14 @@ class ContentFindCommand extends AbstractReadCommand
         $offset = (int) $rawOffset;
 
         // A root that is no root would find nothing, silently; 0 or text would find only
-        // the elements without one (Fable review 2026-10-20).
+        // the elements without one.
         if (null !== $root && 'root' !== ($this->page($root)['type'] ?? null)) {
             return $this->outputError(\sprintf('Page %d is not a website root (type root); --root takes the id of one.', $root));
         }
 
         // A text typed as the page shows it is searched in the forms Contao stores: as
         // typed, as a text field stores it (Input::encodeInput, `(` as `&#40;`, `'` as
-        // `&#39;` — Fable review 2026-10-20) and as the rich text editor does (`&amp;`).
+        // `&#39;`) and as the rich text editor does (`&amp;`).
         $needles = self::needles($query);
 
         $where = [];
@@ -113,7 +113,7 @@ class ContentFindCommand extends AbstractReadCommand
         $capped  = false;
         while (\count($found) < $wanted) {
             if ($scanned >= self::MAX_SCAN) {
-                // Exactly MAX_SCAN matching rows is not "more" (review v1.12.0): one row
+                // Exactly MAX_SCAN matching rows is not "more" (v1.12.0): one row
                 // further decides.
                 $capped = [] !== $this->connection->fetchAllAssociative(
                     'SELECT id FROM tl_content WHERE ' . implode(' OR ', $where) . ' ORDER BY id LIMIT 1 OFFSET ' . $scanned,
@@ -205,7 +205,7 @@ class ContentFindCommand extends AbstractReadCommand
         }
 
         // Once per record and run: twenty hits in one article would otherwise read the
-        // same versions twenty times (review 2026-10-20).
+        // same versions twenty times.
         $of = fn (string $table, int $id): array => $this->versionCache[$table][$id] ??= ($this->versions->of($table, $id)['versions'] ?? []);
 
         if (isset($location['article'])) {
@@ -258,7 +258,7 @@ class ContentFindCommand extends AbstractReadCommand
 
         // Matched only in markup (an attribute, a link) or in an encoded form: the field
         // whose stored value holds it — the headline's value, not its serialized frame.
-        // Until the Fable review this took the first non-empty field and called "value" a
+        // At first this took the first non-empty field and called "value" a
         // hit in every headline.
         foreach (self::FIELDS as $field) {
             $raw = (string) ($row[$field] ?? '');

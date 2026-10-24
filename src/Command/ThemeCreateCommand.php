@@ -49,8 +49,8 @@ class ThemeCreateCommand extends AbstractWriteCommand implements CreatesRecord
 
         // `tl_theme.name` carries eval.unique, and --name never reaches
         // convertFields() — only `--set` pairs do. Without this, two themes
-        // could be created under the same name; demonstrated on c5 on
-        // 2026-09-01. Same check the two group create commands already make.
+        // could be created under the same name (demonstrated). Same check the
+        // two group create commands already make.
         if ($this->valueTaken(ThemeModel::class, 'name', $name)) {
             return $this->outputError(\sprintf(
                 'A theme named "%s" already exists. Theme names are unique in Contao.',

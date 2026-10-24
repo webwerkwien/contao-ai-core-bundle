@@ -33,7 +33,7 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
     /**
      * Turn the raw `--ids` value into a list of record IDs.
      *
-     * Strict on purpose. The bulk run of 2026-08-29 went wrong precisely because
+     * Strict on purpose. An earlier bulk run went wrong precisely because
      * a silent skip looked like a success: 174 IDs went in, one record came out
      * changed, and the report said "1 succeeded, 0 failed". Anything that is not
      * a positive integer is therefore named and refused rather than dropped.
@@ -147,7 +147,7 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
             }
 
             // Per record, so a hint cannot be read as belonging to another id of the
-            // bulk (review 2026-09-17: the bulk answer dropped it entirely).
+            // bulk (the bulk answer once dropped it entirely).
             $found = $this->takeRouteConflicts();
 
             if ([] !== $found) {
@@ -180,7 +180,7 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
 
         $this->output->writeln(json_encode($answer, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
 
-        // A non-zero exit is what lets a shell loop notice. The 2026-08-29 run
+        // A non-zero exit is what lets a shell loop notice. An earlier bulk run
         // reported success while doing almost nothing.
         return [] === $failed ? Command::SUCCESS : Command::FAILURE;
     }
@@ -232,8 +232,8 @@ abstract class AbstractModelUpdateCommand extends AbstractWriteCommand
         // it is the same call the create commands make, on purpose.
         // The id is passed so the `unique` check excludes the record being
         // edited. Without it, saving a unique field without changing it would
-        // find itself and refuse — which is why the check was create-only until
-        // 2026-09-01. `DC_Table::save()` passes the same id for the same reason.
+        // find itself and refuse — which is why the check was create-only at
+        // first. `DC_Table::save()` passes the same id for the same reason.
         $fields = $this->convertFields($class::getTable(), $fields, $id);
         // A new parent puts the record behind its new siblings (v1.2.0).
         $fields = $this->sortingForMove($class::getTable(), $fields, $record->row());

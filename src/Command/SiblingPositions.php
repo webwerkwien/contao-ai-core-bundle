@@ -12,7 +12,7 @@ use Contao\Database;
  *
  * Shared by the move commands (`--after`, v1.2.0) and the create commands (`--after`,
  * v1.12.0) — one rule, not two. Until v1.12.0 a new element between two others meant
- * computing `--set sorting=` by hand (Consho docs on consho.eu, 2026-10-22).
+ * computing `--set sorting=` by hand (as the Consho docs described).
  */
 trait SiblingPositions
 {
@@ -101,7 +101,7 @@ trait SiblingPositions
     {
         // The position is computed before any write path has loaded the DCA. Unloaded,
         // tl_content read as a table without a per-record parent table: --ptable was
-        // dropped and the parent checked against the stored one — on web.werk.wien 25
+        // dropped and the parent checked against the stored one — on a production site 25
         // elements moved "to article 35" ended up below content elements 35–38, with
         // status ok (v1.11.2). The unit tests had set the DCA by hand.
         if (!isset($GLOBALS['TL_DCA'][$table]['config'])) {
@@ -155,7 +155,7 @@ trait SiblingPositions
      *
      * @param list<string>         $excludes options that must not come with --after
      * @param array<string, mixed> $set      the --set pairs: pid, ptable and sorting there
-     *                                        would override the slot (review v1.12.0)
+     *                                        would override the slot (v1.12.0)
      *
      * @return int|string|null
      */

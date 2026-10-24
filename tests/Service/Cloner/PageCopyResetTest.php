@@ -10,7 +10,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\PageCopyReset;
  *
  * Until v1.7.3 the cloner copied every `tl_page` field but the alias. Both guides
  * promised "pages and articles come out unpublished, as Contao's copy with subpages
- * does"; only the articles were. On showcase.conpai.eu (2026-10-14) a recursive clone
+ * does"; only the articles were. On a real installation a recursive clone
  * of a whole language tree came out public, and a root cloned without an explicit
  * `"fallback": ""` became a second main language on its domain.
  */
@@ -40,7 +40,7 @@ class PageCopyResetTest extends TestCase
     private function publishedEnglishRoot(): array
     {
         return [
-            'id' => 1, 'type' => 'root', 'title' => 'conpai.eu', 'published' => 1, 'fallback' => 1,
+            'id' => 1, 'type' => 'root', 'title' => 'example.com', 'published' => 1, 'fallback' => 1,
             'disableLanguageRedirect' => 1, 'robotsTxt' => "User-agent: *\nDisallow: /", 'language' => 'en',
             'urlPrefix' => '', 'robots' => 'noindex,nofollow',
         ];

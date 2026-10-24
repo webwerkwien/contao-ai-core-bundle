@@ -57,7 +57,7 @@ class CliUserProtectionListener
             $ids = [(int) $request->query->get('id')];
         } elseif (\in_array($act, self::LOCKED_BULK_ACTIONS, true)) {
             // The select mode keeps its IDs in the session (`CURRENT.IDS`), set by a
-            // POST the list's filter does not stand in front of (review K2).
+            // POST the list's filter does not stand in front of.
             $current = $request->hasSession() ? $request->getSession()->get('CURRENT') : null;
             $ids     = array_map('intval', (array) (\is_array($current) ? ($current['IDS'] ?? []) : []));
         } else {
@@ -72,7 +72,7 @@ class CliUserProtectionListener
     }
 
     /**
-     * Nobody switches into it (review K1). Contao checks `disable` only at login, not
+     * Nobody switches into it. Contao checks `disable` only at login, not
      * when an admin switches user, and changes made as `contao-ai` would carry its name
      * in versions and the system log — a trail that points at the bundle, not at the
      * person.

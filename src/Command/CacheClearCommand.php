@@ -20,7 +20,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
  * Symfony's `cache:clear` leaves no trace. Contao's own purge in the back end logs
  * "Purged the internal cache" in the cron channel (`Automator::purgeInternalCache()`).
  * Until v0.20.0 a `cache clear` through the CLI was the only step of a whole build that
- * `tl_log` did not show (Nr. 50 of the ConpAI 1.0 acceptance test, 2026-09-17). See
+ * `tl_log` did not show. See
  * CacheClearCommandTest.
  *
  * Runs Symfony's `cache:clear` in the same process and writes the entry afterwards. That

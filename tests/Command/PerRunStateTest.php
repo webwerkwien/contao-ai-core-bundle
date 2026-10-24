@@ -12,8 +12,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 /**
  * A command is a service: in the back-end chat one instance runs several times in a
- * request. The second answer must not carry what the first run left behind (second
- * pre-release review, M-A: `earlierVersions` of the first create in the second's answer).
+ * request. The second answer must not carry what the first run left behind (such as
+ * `earlierVersions` of the first create in the second's answer).
  */
 class PerRunStateTest extends TestCase
 {

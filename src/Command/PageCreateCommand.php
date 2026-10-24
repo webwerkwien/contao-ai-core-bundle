@@ -80,7 +80,7 @@ class PageCreateCommand extends AbstractWriteCommand implements CreatesRecord
             'sorting'  => $slot['sorting'] ?? $this->nextSorting('tl_page', $pid),
             'title'    => $title,
             'type'     => $this->input->getOption('type'),
-            // Only a root stores a language, as in the back end (v0.22.0, Nr. 62).
+            // Only a root stores a language, as in the back end (v0.22.0).
             'language' => PageLanguage::forType((string) $this->input->getOption('type'), (string) $this->input->getOption('language')),
             // A given alias is taken as is. A missing one is Contao's, generated after
             // the write below — PageUrlListener::generateAlias() needs the saved page.
@@ -115,8 +115,8 @@ class PageCreateCommand extends AbstractWriteCommand implements CreatesRecord
 
             // Contao's alias, as the back end makes it when the field is left blank:
             // from the title, with the root's language and validAliasCharacters, unique
-            // for the URL. Until v0.16.0 `über-uns` where Contao makes `ueber-uns`
-            // (review 2026-09-16, Nr. 45). generateAlias() detaches the instance it
+            // for the URL. Until v0.16.0 `über-uns` where Contao makes `ueber-uns`.
+            // generateAlias() detaches the instance it
             // looks up, so the alias is saved through a fresh one, as in PageCloner.
             if (null !== $this->pageUrlGuard && '' === (string) $page->alias) {
                 $alias = $this->pageUrlGuard->generateAlias((int) $page->id);

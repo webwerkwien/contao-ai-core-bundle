@@ -10,8 +10,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
  * `eval.rgxp` is held against the parts Contao's widget holds it against — never
  * against a serialized whole or a comma list.
  *
- * 🔴 **Measured on 2026-09-16 on c5 (Contao 5.7.13, core-bundle v0.13.0)** in the ConpAI
- * 1.0 acceptance test:
+ * 🔴 **Measured on Contao 5.7.13 with core-bundle v0.13.0:**
  *
  * | `--set` | answer |
  * |---|---|

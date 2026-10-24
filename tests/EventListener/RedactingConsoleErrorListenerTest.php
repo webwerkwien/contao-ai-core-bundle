@@ -123,7 +123,7 @@ class RedactingConsoleErrorListenerTest extends TestCase
     }
 
     /**
-     * Fable review before v1.6.0: at -vvv the boundary rethrows, so contao:ai:run logs
+     * At -vvv the boundary rethrows, so contao:ai:run logs
      * the error too — with the inner line blanked whole, and a message quoting only the
      * pin, which a value list of `S3CRET --set name=a --pin …` did not strike.
      */
@@ -176,7 +176,7 @@ class RedactingConsoleErrorListenerTest extends TestCase
     }
 
     /**
-     * Found on c5: Symfony's binding errors quote a token. A `--set` forgotten, and
+     * Symfony's binding errors quote a token. A `--set` forgotten, and
      * the password stood in the message and in the serialised exception.
      */
     public function testSymfonysMessageQuotingAValueIsStruck(): void
@@ -201,7 +201,7 @@ class RedactingConsoleErrorListenerTest extends TestCase
     }
 
     /**
-     * v1.7.2 (Consho, c5, 2026-10-13): a refused input stood as CRITICAL next to real crashes.
+     * v1.7.2: a refused input stood as CRITICAL next to real crashes.
      * Still struck: the message names the pin.
      */
     public function testARefusalOfACommandWithAContractIsAWarning(): void
@@ -230,7 +230,7 @@ class RedactingConsoleErrorListenerTest extends TestCase
     }
 
     /**
-     * Second Fable review: the names came from a regex over the quoted line, and a value
+     * The names used to come from a regex over the quoted line, and a value
      * like "Hallo --welt" or "Max -Anna Muster" put `--welt -Anna` into the log.
      */
     public function testWordsInsideAValueThatLookLikeOptionsStayOut(): void
@@ -244,7 +244,7 @@ class RedactingConsoleErrorListenerTest extends TestCase
     }
 
     /**
-     * Fable review before v1.8.1: this bundle's commands answer a refusal through
+     * Before v1.8.1: this bundle's commands answer a refusal through
      * JsonErrorBoundary, so no console.error fires — and the debug exit line, the only
      * one written, still carried every value. Measured with a real application.
      */
@@ -269,7 +269,7 @@ class RedactingConsoleErrorListenerTest extends TestCase
     }
 
     /**
-     * Fable review before v1.7.2: at -vvv the boundary rethrows, and contao:ai:run (no
+     * At -vvv the boundary rethrows, and contao:ai:run (no
      * contract) logs it CRITICAL on top of the target's warning. Deliberate: the debug path.
      */
     public function testAtVeryVerboseContaoAiRunLogsTheRefusalCriticalOnTop(): void

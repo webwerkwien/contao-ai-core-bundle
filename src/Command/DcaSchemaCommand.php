@@ -94,7 +94,7 @@ class DcaSchemaCommand extends AbstractReadCommand
      * useful: a caller knows it may not invent a value and still cannot find
      * out which values exist.
      *
-     * 🔴 **The gap this closes, measured on 2026-09-11.** A field added to
+     * 🔴 **The gap this closes, measured.** A field added to
      * `tl_page` by an extension (`consho_shop`, `foreignKey` →
      * `tl_consho_shop.title`) accepts any number through `--set`. The back end
      * prevents a dangling reference with its select list, the database does

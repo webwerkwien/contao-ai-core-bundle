@@ -37,7 +37,7 @@ class OptionsResolver
     /**
      * The stored values a field allows — what its widget would offer.
      *
-     * Public API since v1.4.2 (maintainer, 2026-10-11, asked for by Consho): the
+     * Public API since v1.4.2 (asked for by Consho): the
      * writer persists without checking a value against the field's options, so an
      * extension's command that should refuse what the widget would refuse asks here
      * instead of rebuilding the callback call. Null means "cannot say", not "nothing
@@ -57,7 +57,7 @@ class OptionsResolver
         $options = $this->options($table, $field, $activeRecord, $id);
 
         // `options()` has loaded the DCA. The eval travels along: an `isAssociative`
-        // list stores its index, whether the options are static or a callback's (Nr. 53).
+        // list stores its index, whether the options are static or a callback's.
         return null === $options ? null : $this->optionValues([
             'options' => $options,
             'eval'    => $GLOBALS['TL_DCA'][$table]['fields'][$field]['eval'] ?? [],
@@ -102,8 +102,8 @@ class OptionsResolver
         try {
             // The labels the back end has loaded before it builds a widget's options.
             // changelanguage's master options format theirs from tl_news_archive's
-            // language file, and sprintf() got null on the console (c5, 5.3,
-            // 2026-10-10). Without a booted kernel (unit tests) there is nothing to load.
+            // language file, and sprintf() got null on the console (Contao 5.3).
+            // Without a booted kernel (unit tests) there is nothing to load.
             if (null !== System::getContainer()) {
                 System::loadLanguageFile('default');
                 System::loadLanguageFile($table);

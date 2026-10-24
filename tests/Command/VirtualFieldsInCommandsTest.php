@@ -17,7 +17,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
  * Virtual fields (5.7/6.0) at the command layer (v1.6.0): writeBack() folds them into
  * their target, the column check lets them pass, `read` and `version read` show them
  * expanded. Through the real methods; only the database is a stand-in. Written after
- * the Fable review, whose mutations of all four places left the suite green.
+ * mutations of all four places had left the suite green.
  */
 class VirtualFieldsInCommandsTest extends TestCase
 {

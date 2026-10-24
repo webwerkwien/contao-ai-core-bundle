@@ -17,7 +17,7 @@ use Webwerkwien\ContaoAiCoreBundle\Tests\NeedsContaoContainerTrait;
 /**
  * The theme layer, first entity.
  *
- * Image sizes were unreachable in either direction until 2026-08-31. Reading
+ * Image sizes were once unreachable in either direction. Reading
  * came first, through the generic record group; this is the write half.
  *
  * Update and delete are six-line subclasses on purpose — they inherit

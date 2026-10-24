@@ -11,7 +11,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\SensitiveFields;
 /**
  * No read command hands out a password hash, a two-factor secret or an API key (v1.8.1).
  *
- * Measured on c5 before the fix: `record list tl_user --fields id,ai_api_key,password`
+ * Measured on a test installation before the fix: `record list tl_user --fields id,ai_api_key,password`
  * answered with the keys of three users in plain text (108 characters each) and their
  * password hashes.
  */

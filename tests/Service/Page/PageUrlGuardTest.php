@@ -11,14 +11,13 @@ use Webwerkwien\ContaoAiCoreBundle\Tests\Service\Cloner\PageCopyResetTest;
 /**
  * A page write may not produce a URL Contao's back end refuses.
  *
- * 🔴 **Measured on 2026-09-16 on c5 (Contao 5.7.13, core-bundle v0.14.0)** in phase 4
- * of the ConpAI 1.0 acceptance test:
+ * 🔴 **Measured on Contao 5.7.13 with core-bundle v0.14.0:**
  *
  * | write | answer |
  * |---|---|
- * | `page update 132 --set urlPrefix=en` while root 138 on the same domain has `en` | `ok` — two roots `conpai.eu/en` |
+ * | `page update 132 --set urlPrefix=en` while root 138 on the same domain has `en` | `ok` — two roots `example.com/en` |
  * | `page update 141 --set alias=packages` while 140 in the same branch has it | `ok` — two pages at `/en/packages` |
- * | `record clone` of a root | two roots `conpai.eu` without prefix, because `language`/`urlPrefix` were not accepted as modifications |
+ * | `record clone` of a root | two roots `example.com` without prefix, because `language`/`urlPrefix` were not accepted as modifications |
  *
  * Contao refuses all of it in `PageUrlListener` — `validateUrlPrefix()` and
  * `generateAlias()`, save callbacks the bundle does not run. Domain and prefix pick
@@ -45,7 +44,7 @@ class PageUrlGuardTest extends TestCase
     }
 
     /**
-     * Nr. 48 of the ConpAI 1.0 acceptance test, 2026-09-17: a second page with alias
+     * A second page with alias
      * `index` under the same root is accepted by Contao's back end too — it only shows
      * "the following pages have a similar alias that may conflict". The bundle saved it
      * silently. Contao's rule (`PageRoutingListener::generateRouteConflicts()`): same
@@ -53,13 +52,13 @@ class PageUrlGuardTest extends TestCase
      */
     public function testRouteConflictsFollowContaosBackEndHint(): void
     {
-        $current = ['id' => 176, 'title' => 'Imprint', 'alias' => 'index', 'domain' => 'consho.eu', 'url' => '/en/index', 'path' => '/en/index{!parameters}', 'routable' => true];
+        $current = ['id' => 176, 'title' => 'Imprint', 'alias' => 'index', 'domain' => 'example.org', 'url' => '/en/index', 'path' => '/en/index{!parameters}', 'routable' => true];
 
         $conflicts = PageUrlGuard::selectRouteConflicts($current, [
-            ['id' => 174, 'title' => 'Home', 'alias' => 'index', 'domain' => 'consho.eu', 'url' => '/en/index', 'path' => '/en/index{!parameters}', 'routable' => true],
-            ['id' => 169, 'title' => 'Startseite', 'alias' => 'index', 'domain' => 'consho.eu', 'url' => '/index', 'path' => '/index{!parameters}', 'routable' => true],
-            ['id' => 133, 'title' => 'Startseite', 'alias' => 'index', 'domain' => 'conpai.eu', 'url' => '/en/index', 'path' => '/en/index{!parameters}', 'routable' => true],
-            ['id' => 99, 'title' => 'Ordner', 'alias' => 'index', 'domain' => 'consho.eu', 'url' => '/en/index', 'path' => '/en/index', 'routable' => false],
+            ['id' => 174, 'title' => 'Home', 'alias' => 'index', 'domain' => 'example.org', 'url' => '/en/index', 'path' => '/en/index{!parameters}', 'routable' => true],
+            ['id' => 169, 'title' => 'Startseite', 'alias' => 'index', 'domain' => 'example.org', 'url' => '/index', 'path' => '/index{!parameters}', 'routable' => true],
+            ['id' => 133, 'title' => 'Startseite', 'alias' => 'index', 'domain' => 'example.com', 'url' => '/en/index', 'path' => '/en/index{!parameters}', 'routable' => true],
+            ['id' => 99, 'title' => 'Ordner', 'alias' => 'index', 'domain' => 'example.org', 'url' => '/en/index', 'path' => '/en/index', 'routable' => false],
         ]);
 
         $this->assertSame([['id' => 174, 'title' => 'Home', 'alias' => 'index', 'path' => '/en/index{!parameters}']], $conflicts);
@@ -77,11 +76,11 @@ class PageUrlGuardTest extends TestCase
     public function testASecondRootWithTheSameDomainAndPrefixIsRefused(): void
     {
         $connection = $this->createMock(Connection::class);
-        $connection->method('fetchAssociative')->willReturn(['id' => 132, 'type' => 'root', 'dns' => 'conpai.eu', 'urlPrefix' => 'en']);
+        $connection->method('fetchAssociative')->willReturn(['id' => 132, 'type' => 'root', 'dns' => 'example.com', 'urlPrefix' => 'en']);
         $connection->method('fetchOne')->willReturn(1);
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/conpai\.eu.*en/');
+        $this->expectExceptionMessageMatches('/example\.com.*en/');
 
         $this->guard($connection)->assertRootUnique(132);
     }
@@ -89,10 +88,10 @@ class PageUrlGuardTest extends TestCase
     public function testAnEmptyPrefixCountsAsAPrefix(): void
     {
         $connection = $this->createMock(Connection::class);
-        $connection->method('fetchAssociative')->willReturn(['id' => 138, 'type' => 'root', 'dns' => 'conpai.eu', 'urlPrefix' => '']);
+        $connection->method('fetchAssociative')->willReturn(['id' => 138, 'type' => 'root', 'dns' => 'example.com', 'urlPrefix' => '']);
         $connection->expects($this->once())
             ->method('fetchOne')
-            ->with($this->stringContains('urlPrefix'), $this->callback(static fn (array $p): bool => '' === $p['urlPrefix'] && 'conpai.eu' === $p['dns'] && 138 === $p['rootId']))
+            ->with($this->stringContains('urlPrefix'), $this->callback(static fn (array $p): bool => '' === $p['urlPrefix'] && 'example.com' === $p['dns'] && 138 === $p['rootId']))
             ->willReturn(1);
 
         $this->expectException(\InvalidArgumentException::class);
@@ -103,7 +102,7 @@ class PageUrlGuardTest extends TestCase
     public function testAUniqueRootPasses(): void
     {
         $connection = $this->createMock(Connection::class);
-        $connection->method('fetchAssociative')->willReturn(['id' => 138, 'type' => 'root', 'dns' => 'conpai.eu', 'urlPrefix' => 'en']);
+        $connection->method('fetchAssociative')->willReturn(['id' => 138, 'type' => 'root', 'dns' => 'example.com', 'urlPrefix' => 'en']);
         $connection->method('fetchOne')->willReturn(0);
 
         $this->guard($connection)->assertRootUnique(138);
@@ -113,14 +112,14 @@ class PageUrlGuardTest extends TestCase
     public function testASecondMainLanguageOnTheSameDomainIsRefused(): void
     {
         $connection = $this->createMock(Connection::class);
-        $connection->method('fetchAssociative')->willReturn(['id' => 150, 'type' => 'root', 'dns' => 'showcase.conpai.eu', 'fallback' => 1]);
+        $connection->method('fetchAssociative')->willReturn(['id' => 150, 'type' => 'root', 'dns' => 'www.example.org', 'fallback' => 1]);
         $connection->expects($this->once())
             ->method('fetchOne')
-            ->with($this->stringContains('fallback = 1'), ['dns' => 'showcase.conpai.eu', 'rootId' => 150])
+            ->with($this->stringContains('fallback = 1'), ['dns' => 'www.example.org', 'rootId' => 150])
             ->willReturn(1);
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/Root page 1 .*showcase\.conpai\.eu.*page update 1 --set fallback=/s');
+        $this->expectExceptionMessageMatches('/Root page 1 .*www\.example\.org.*page update 1 --set fallback=/s');
 
         $this->guard($connection)->assertSingleFallback(150);
     }

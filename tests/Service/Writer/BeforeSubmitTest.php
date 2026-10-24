@@ -21,7 +21,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Writer\ModelWriter;
  * StartStopValidationListener there (tl_page, tl_article, tl_content, tl_member,
  * tl_user and their groups), so `--set stop=…` before the start was stored; Consho
  * hangs a shop's currency, a cross-field rule and its gross-to-net conversion there.
- * Asked for by Consho, decided with the maintainer on 2026-10-11.
+ * Asked for by Consho.
  */
 class BeforeSubmitTest extends TestCase
 {

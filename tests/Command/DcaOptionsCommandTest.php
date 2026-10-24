@@ -13,7 +13,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Dca\OptionsResolver;
  * asked from the installation instead of a list in the CLI.
  *
  * Replaces the CLI's hard-coded page type list, which could not know types a bundle
- * registers (`consho_product` was missing on c5, 2026-09-16). See OptionsResolverTest.
+ * registers (`consho_product` was missing). See OptionsResolverTest.
  */
 class DcaOptionsCommandTest extends TestCase
 {
@@ -44,7 +44,7 @@ class DcaOptionsCommandTest extends TestCase
 
     /**
      * The command derives `values` itself, so it needs `eval.isAssociative` as much as
-     * the resolver does (Nr. 53, Fable review before v0.21.1).
+     * the resolver does (since v0.21.1).
      */
     public function testAListDeclaredAssociativeAnswersItsIndices(): void
     {

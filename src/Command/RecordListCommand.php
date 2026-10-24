@@ -100,7 +100,7 @@ class RecordListCommand extends AbstractReadCommand
         // Shown masked, and never a filter or sort key: `--filter ai_api_key=sk-…`
         // would answer whether a guessed key is right (v1.8.1, see SensitiveFields).
         // With the JSON column of a sensitive virtual field: an equality filter on it
-        // would confirm a guessed secret as well (Fable review). The output masks only
+        // would confirm a guessed secret as well. The output masks only
         // the sensitive keys inside that column, see SensitiveFields::maskTable().
         $this->sensitive = array_map('strtolower', SensitiveFields::columns($table));
 
@@ -125,8 +125,8 @@ class RecordListCommand extends AbstractReadCommand
         // calls above, but was the one of the three left unguarded — so an
         // unknown --fields column came back as an uncaught PHP exception with a
         // stack trace on stderr, while an unknown --order or --filter column
-        // got the structured message it was supposed to. Found live on
-        // 2026-08-31. RecordListTool passes the same failure to the browser
+        // got the structured message it was supposed to. Found live.
+        // RecordListTool passes the same failure to the browser
         // chat, where a model naming a column that does not exist learned
         // nothing it could act on.
         try {
@@ -270,7 +270,7 @@ class RecordListCommand extends AbstractReadCommand
         }
         // Stable tie-breaker: append id DESC unless the caller already orders
         // by id. Prevents the "all rows share the same date" trap that broke
-        // the agent's "neueste" interpretation on 2026-05-01 — Contao stores
+        // an agent's "neueste" interpretation — Contao stores
         // tl_news.date at midnight, so two same-day records tie and MySQL's
         // implicit ordering is undefined.
         if (!$usesId && in_array('id', $allowedColumns, true)) {
@@ -443,7 +443,7 @@ class RecordListCommand extends AbstractReadCommand
      * means an unfamiliar table describes itself the way Contao describes it,
      * instead of the caller having to guess column names.
      *
-     * Until 2026-08-31 the default arm returned `['id', 'tstamp']` for
+     * Earlier the default arm returned `['id', 'tstamp']` for
      * everything outside the ten curated tables, which made the zero-argument
      * call useless in exactly the case this command exists for: `record:list
      * tl_image_size` answered an "I do not know this table, show me what is in

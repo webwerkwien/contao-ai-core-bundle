@@ -10,9 +10,9 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Dca\OptionsResolver;
 /**
  * A palette selector only takes a value Contao offers (v1.6.1).
  *
- * 🔴 **Measured on 2026-10-12:** `content create --type texxt` stored a visible element
- * of a type that does not exist (c5, 5.7, removed again), `page update --set type=foo`
- * a page type nobody registered (c5, 6.0). The selectors of both take their options
+ * 🔴 **Measured:** `content create --type texxt` stored a visible element
+ * of a type that does not exist (5.7, removed again), `page update --set type=foo`
+ * a page type nobody registered (6.0). The selectors of both take their options
  * from a callback, which refuseInvalidOptions() does not ask. Through the real method;
  * the options resolver and the stored row are stand-ins.
  */
@@ -93,7 +93,7 @@ class SelectorValueRefusalTest extends TestCase
         (new \ReflectionMethod($command, 'refuseUnknownSelectorValues'))->invoke($command, 'tl_probe_sel', ['type' => 'headline'], 5);
     }
 
-    /** Fable review: the value a record already has is kept, as the back end keeps it. */
+    /** The value a record already has is kept, as the back end keeps it. */
     public function testTheValueTheRecordAlreadyHasIsNotAsked(): void
     {
         $resolver = $this->createMock(OptionsResolver::class);

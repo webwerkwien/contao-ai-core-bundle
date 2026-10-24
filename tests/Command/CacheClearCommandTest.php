@@ -16,8 +16,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 /**
  * Clearing the internal cache leaves a trace, as it does in the back end.
  *
- * ⚪ **Nr. 50 of the ConpAI 1.0 acceptance test, 2026-09-17:** the audit of phase 5 found
- * every write in `tl_log` — except `cache clear`, which ran Symfony's `cache:clear` and
+ * ⚪ **Why this exists:** every write was found in `tl_log` — except `cache clear`, which ran Symfony's `cache:clear` and
  * left nothing. Contao's back end logs "Purged the internal cache"
  * (`Automator::purgeInternalCache()`).
  */
@@ -58,7 +57,7 @@ class CacheClearCommandTest extends TestCase
         $this->application(0)->add($command);
 
         $tester = new CommandTester($command);
-        $tester->execute(['--operator' => 'michael']);
+        $tester->execute(['--operator' => 'editor']);
 
         $out = json_decode($tester->getDisplay(), true);
         $this->assertSame('ok', $out['status'], $tester->getDisplay());
@@ -73,7 +72,7 @@ class CacheClearCommandTest extends TestCase
         $this->assertSame(ContaoContext::CRON, $contao->getAction());
         $this->assertSame(SystemLog::SOURCE, $contao->getSource());
         $this->assertSame('contao:cache:clear', $contao->getFunc());
-        $this->assertSame('michael', $contao->getUsername());
+        $this->assertSame('editor', $contao->getUsername());
     }
 
     public function testAFailedClearIsAnErrorAndNotLogged(): void

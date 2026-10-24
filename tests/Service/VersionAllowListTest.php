@@ -7,9 +7,9 @@ use PHPUnit\Framework\TestCase;
 /**
  * Creating and restoring a version ask the same question about a table.
  *
- * 🟡 **Measured on 2026-09-16 on c5:** `version restore --table tl_image_size` answered
+ * 🟡 **Measured on a test installation:** `version restore --table tl_image_size` answered
  * *"Table not allowed"*, although `image-size create` and `update` write versions for
- * that table. The allow-list of the security audit of 2026-04-23 never grew with what
+ * that table. The original allow-list for restores never grew with what
  * the bundle versioned; this test used to keep the two in step.
  *
  * Since v1.4.0 there is no list: a table qualifies when its DCA keeps versions

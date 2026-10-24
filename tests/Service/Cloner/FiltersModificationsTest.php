@@ -6,7 +6,7 @@ use PHPUnit\Framework\TestCase;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\FiltersModifications;
 
 /**
- * Pins the fix for the silently dropped --modifications found on 2026-08-29.
+ * Pins the fix for silently dropped --modifications.
  *
  * A clone call carrying {"published":"","hide":"1"} had both keys discarded by
  * the whitelist without a word in the response. The clones inherited
@@ -62,7 +62,7 @@ class FiltersModificationsTest extends TestCase
     }
 
     /**
-     * The exact call from 2026-08-29. Empty string means "not published" to a
+     * The exact call that failed. Empty string means "not published" to a
      * caller, but writing '' into tl_page.published throws on a server with
      * strict SQL mode — the v0.2.10 failure. It has to become '0'.
      *
@@ -78,7 +78,7 @@ class FiltersModificationsTest extends TestCase
      */
     public static function falsyFlags(): iterable
     {
-        yield 'empty string (the 2026-08-29 call)' => [''];
+        yield 'empty string (the failing call)'    => [''];
         yield 'string zero'                        => ['0'];
         yield 'integer zero'                       => [0];
         yield 'boolean false'                      => [false];

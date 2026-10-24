@@ -10,11 +10,11 @@ use Webwerkwien\ContaoAiCoreBundle\Command\FolderPublishCommand;
 /**
  * A folder is made public — or protected again — the way the back end does it.
  *
- * 🔴 **The gap, found on 2026-09-16** in the ConpAI 1.0 acceptance test: there was no
- * way to publish a folder from the CLI. `folder create --public` was removed on
- * 2026-04-19 because it wrote to a `tl_files.public` column that does not exist;
+ * 🔴 **The gap:** there was no
+ * way to publish a folder from the CLI. `folder create --public` had been removed
+ * because it wrote to a `tl_files.public` column that does not exist;
  * the mechanism Contao actually uses was never built instead. Without it the front
- * end does not serve `files/conpai/…`, and a site cannot be built through the CLI.
+ * end does not serve the folder's files, and a site cannot be built through the CLI.
  *
  * ## What Contao does (tl_files.php, 5.7.13, the `protected` field's input callback)
  *
@@ -23,7 +23,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\FolderPublishCommand;
  *    changed here; the back end disables the checkbox (see contao/contao#712)
  * 3. publish: `Folder::unprotect()` touches `.public`; protect: `Folder::protect()`
  * 4. `Automator::generateSymlinks()` — the web dir only follows after this (the command
- *    runs the same `contao.command.symlinks` itself, to log with the operator, Nr. 59)
+ *    runs the same `contao.command.symlinks` itself, to log with the operator)
  * 5. `monolog.logger.contao.files`: *Folder "…" has been published* / *protected*
  *
  * The command does the same five steps. Step 2 is answered with an error instead of
@@ -32,7 +32,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\FolderPublishCommand;
 class FolderPublishCommandTest extends TestCase
 {
     /**
-     * Both lines Contao's channels write for a publish carry the CLI context (Nr. 59).
+     * Both lines Contao's channels write for a publish carry the CLI context.
      * `Automator::generateSymlinks()` logs without one, so it is replaced by the same
      * `contao.command.symlinks` call with a context of our own.
      */

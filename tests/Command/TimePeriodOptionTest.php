@@ -9,7 +9,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
 /**
  * A `timePeriod` field holds `{value, unit}`; its options list the units.
  *
- * Found on Contao 5.3.51 on 2026-09-19: `event create --set recurring=1
+ * Found on Contao 5.3.51: `event create --set recurring=1
  * --set repeatEach={"unit":"weeks","value":1}` was refused with "Not an allowed
  * value … repeatEach=a:2:{…} (allowed: days, weeks, months, years)" — the whole
  * serialized pair was held against the unit list, so no recurring event could be

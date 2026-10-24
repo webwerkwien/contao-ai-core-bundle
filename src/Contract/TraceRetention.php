@@ -15,8 +15,8 @@ use Contao\Config;
  *     tl_version   versionPeriod  90 days
  *
  * `PurgeExpiredDataCron` runs hourly. Whoever relies on a trail relies on its
- * period too, and neither wording carried it — the omission was found by the
- * ww-buchung session on 2026-09-01 and is the reason this class exists.
+ * period too, and neither wording carried it — that omission is the reason this
+ * class exists.
  *
  * 🎯 **It is read, never declared.** The value belongs to the installation, not
  * to the command, and a command that stated its own period would be stating

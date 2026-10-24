@@ -40,7 +40,7 @@ class CliUserMigrationTest extends TestCase
     }
 
     /**
-     * Review M2: on a fresh install contao:migrate runs before the administrator is
+     * On a fresh install contao:migrate runs before the administrator is
      * created. contao-ai would become user 1 — Contao's and the bundle's fallback
      * author — and an installer looking for an admin would find it.
      */

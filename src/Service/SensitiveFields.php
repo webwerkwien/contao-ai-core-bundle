@@ -78,7 +78,7 @@ final class SensitiveFields
      * The sensitive columns of a table as stored: its sensitive fields, and the JSON
      * column a sensitive virtual field lives in (Contao 5.7/6.0). A reader that does not
      * expand virtual fields — `record list` — would otherwise hand out the column whole,
-     * the secret inside it (Fable review before v1.8.1; Consho keeps bank data so).
+     * the secret inside it (fixed in v1.8.1; Consho keeps bank data so).
      *
      * @return list<string>
      */
@@ -104,7 +104,7 @@ final class SensitiveFields
     /**
      * $row as stored, masked: sensitive fields by name, and inside the JSON column of a
      * virtual field only the keys of the sensitive ones — a non-sensitive neighbour in
-     * the same column stays readable (second Fable review before v1.8.1: masking the
+     * the same column stays readable (before v1.8.1, masking the
      * whole column hid every field of a Consho payment method in `record list`, the only
      * read path such a table has). A column that does not decode to an object is masked
      * whole: what it holds is unknown.

@@ -9,14 +9,14 @@ use Webwerkwien\ContaoAiCoreBundle\Command\FolderCreateCommand;
  * A folder created here gets a UUID and its place in the DBAFS tree — and one that
  * lacks them is repaired, not left as it is.
  *
- * 🔴 **Measured on 2026-09-16 on c5 (Contao 5.7.13, core-bundle v0.12.0)**, read with
+ * 🔴 **Measured on Contao 5.7.13 with core-bundle v0.12.0**, read with
  * SQL because the CLI could not show it (see the binary(16) tests in
  * FileTreeReadConversionTest):
  *
  * | id | path | pid | uuid |
  * |---|---|---|---|
- * | 1311 | `files/conpai` (folder, via `file folder-create`) | 16 zero bytes | **empty** |
- * | 1312 | `files/conpai/wortmarke-hell.svg` (via `file write`) | **empty** | set |
+ * | 1 | `files/demo` (folder, via `file folder-create`) | 16 zero bytes | **empty** |
+ * | 2 | `files/demo/logo.svg` (via `file write`) | **empty** | set |
  *
  * `FolderCreateCommand` built `new FilesModel()` by hand and never set a UUID; for a
  * top-level folder it wrote `''` as pid, which a binary(16) column stores as zeros.

@@ -7,7 +7,7 @@ use Contao\StringUtil;
 /**
  * An alias that is free, for the tables whose DCA says it has to be.
  *
- * 🔴 H-6 (Audit 2026-09-02). The cloners generated a child alias with
+ * 🔴 The cloners generated a child alias with
  * `StringUtil::generateAlias()` and saved it. `Contao\Model::save()` does not run
  * the DCA `save_callback`, so Contao's own uniqueness check never happened —
  * cloning a news item called *Sommerfest* produced a second row with the alias

@@ -19,9 +19,9 @@ use Webwerkwien\ContaoAiCoreBundle\Service\SensitiveFields;
  * Every read path masks what Contao's detail view hides — run through the commands (v1.8.1).
  *
  * The first version of this release tested SensitiveFields and the filter refusal on
- * their own; the Fable review removed the mask from `record list`, the model reads and
- * `settings read` one by one, and the suite stayed green each time. The leak measured
- * on c5 — `record list tl_user --fields ai_api_key,password,secret` — had no test that
+ * their own; removing the mask from `record list`, the model reads and
+ * `settings read` one by one left the suite green each time. The leak measured
+ * live — `record list tl_user --fields ai_api_key,password,secret` — had no test that
  * would notice it coming back.
  */
 class SensitiveReadPathsTest extends TestCase
@@ -92,7 +92,7 @@ class SensitiveReadPathsTest extends TestCase
 
     /**
      * Only the sensitive key inside the JSON column: the holder next to the IBAN stays
-     * readable (second Fable review — masking the whole column hid every field of a
+     * readable (masking the whole column hid every field of a
      * Consho payment method, for which `record list` is the only read path).
      */
     public function testRecordListMasksTheSensitiveKeyInsideAVirtualFieldsColumn(): void
@@ -200,7 +200,7 @@ class SensitiveReadPathsTest extends TestCase
 
     /**
      * A model read expands virtual fields first and masks them by name: the IBAN goes,
-     * the holder next to it stays (second Fable review — untested until then).
+     * the holder next to it stays (untested until then).
      */
     public function testAModelReadMasksASensitiveVirtualFieldByName(): void
     {

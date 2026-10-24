@@ -161,7 +161,7 @@ class PreparedFieldsTest extends TestCase
         $this->assertSame('mein-alias', $this->alias('', 'Mein Alias', 'tl_loose'));
     }
 
-    // --- Contao's own alias callback (review 2026-09-16, see ContaoAliasTest) ---
+    // --- Contao's own alias callback (see ContaoAliasTest) ---
 
     public function testAGeneratedAliasComesFromTheDcaCallbackWhenThereIsOne(): void
     {

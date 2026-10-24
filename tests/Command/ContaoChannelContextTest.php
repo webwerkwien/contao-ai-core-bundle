@@ -8,8 +8,8 @@ use PHPUnit\Framework\TestCase;
  * Every line this bundle writes to one of Contao's own log channels carries a context.
  *
  * Without one, Contao's processor fills the columns from the request, and on the
- * console there is none: the line reads FE / N/A. Nr. 59 fixed `file folder-publish`,
- * then Nr. 66 (2026-09-17) found `settings update` doing the same, and the sweep that
+ * console there is none: the line reads FE / N/A. That was fixed in `file folder-publish`,
+ * then `settings update` turned out to do the same, and the sweep that
  * followed two more (`undo restore`, the upload downscale). So this checks all of src/.
  */
 class ContaoChannelContextTest extends TestCase

@@ -75,7 +75,7 @@ class CliUserProtectionListenerTest extends TestCase
     }
 
     /**
-     * Review K2: the select mode keeps the IDs in the session, set by a POST.
+     * The select mode keeps the IDs in the session, set by a POST.
      *
      * @param list<int> $ids
      */
@@ -111,7 +111,7 @@ class CliUserProtectionListenerTest extends TestCase
     }
 
     /**
-     * Review K1: Contao checks `disable` at login only, not when an admin switches.
+     * Contao checks `disable` at login only, not when an admin switches.
      */
     public function testNobodySwitchesIntoIt(): void
     {
@@ -125,7 +125,7 @@ class CliUserProtectionListenerTest extends TestCase
 
     public function testSwitchingToSomeoneElseIsLeftAlone(): void
     {
-        $this->listener(null)->refuseSwitch(new \Symfony\Component\Security\Http\Event\SwitchUserEvent(new Request(), new \Symfony\Component\Security\Core\User\InMemoryUser('testredakteur', null)));
+        $this->listener(null)->refuseSwitch(new \Symfony\Component\Security\Http\Event\SwitchUserEvent(new Request(), new \Symfony\Component\Security\Core\User\InMemoryUser('editor', null)));
 
         $this->addToAssertionCount(1);
     }

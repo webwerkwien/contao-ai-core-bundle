@@ -15,8 +15,8 @@ class MemberUpdateCommand extends AbstractWriteCommand
      *
      * 🔴 Until v1.0.0 this was an ALLOW list of twenty field names, and it had a
      * consequence nobody intended: **a bundle that adds columns to `tl_member`
-     * could not be served through the CLI at all.** Found on 2026-09-23 while
-     * taking delivery of the Consho shipping address — `--set
+     * could not be served through the CLI at all.** Found when Consho added
+     * its shipping address — `--set
      * consho_shippingStreet=…` answered *"Field(s) not allowed"*, although
      * `contao:dca:schema tl_member` lists the very same field as writable.
      * Two commands of this bundle contradicted each other about one table.
@@ -89,7 +89,7 @@ class MemberUpdateCommand extends AbstractWriteCommand
 
         $id = (int) $member->id;
 
-        // 🔴 H-2 (Audit 2026-09-02): hier wurden die Werte ROH aufs Model
+        // 🔴 Früher wurden hier die Werte ROH aufs Model
         // geschrieben und gespeichert. Zwei Fehler in einem:
         //
         //  1. kein tl_version-Snapshot — die Änderung war nicht rückholbar
@@ -99,7 +99,7 @@ class MemberUpdateCommand extends AbstractWriteCommand
         // 🎯 Punkt 2 ist derselbe Fehler, den AbstractWriteCommand in seinem
         // eigenen Docblock beschreibt: *"of eleven create commands that accept
         // --set … the rest wrote a raw string into a serialized column and
-        // reported success"*. Er wurde am 31.08. für den generischen Pfad
+        // reported success"*. Er wurde zuerst für den generischen Pfad
         // behoben und mit einem Test abgesichert — dieser Befehl lief daran
         // vorbei, weil er den Datensatz über den Benutzernamen sucht.
         $fields = $this->convertFields(MemberModel::getTable(), $fields, $id);

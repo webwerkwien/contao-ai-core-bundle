@@ -14,7 +14,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
 
 /**
- * 🔴 H-4 (Audit 2026-09-02): Dieser Befehl überschreibt Dateiinhalte, ohne die
+ * 🔴 Dieser Befehl überschreibt Dateiinhalte, ohne die
  * vorherigen Bytes zu sichern — und deklarierte das nirgends.
  *
  * ⚠️ Nachgesehen, wie Contao es macht: `DC_Folder::source()` versioniert um den
@@ -154,8 +154,8 @@ class FileWriteCommand extends AbstractWriteCommand
             // `Contao\File::getHash()` ist dort `md5_file()`, ab Contao 6.0
             // aber `hash_file('xxh128', …)`. Auf Contao 6 landete nach jedem
             // Überschreiben ein falscher Hash in tl_files, bis der nächste
-            // `contao:filesync` ihn korrigierte. Gemessen am 2026-09-05 gegen
-            // 5.7.13 und 6.0.0.
+            // `contao:filesync` ihn korrigierte. Gemessen gegen 5.7.13 und
+            // 6.0.0.
             //
             // Contaos eigener Datei-Editor macht es genauso (`DC_Folder::source()`:
             // `$objMeta->hash = $objFile->hash; $objMeta->save();`) — die
@@ -168,7 +168,7 @@ class FileWriteCommand extends AbstractWriteCommand
             // A folder's hash is built from its children's, so it changed too.
             // Until v0.26.0 only the file's hash was stored and every parent
             // folder kept the old one until the next `contao:filesync` —
-            // measured on 5.3.51, 5.7.13 and 6.0.0 on 2026-09-18. The create
+            // measured on 5.3.51, 5.7.13 and 6.0.0. The create
             // path below never had this: `Dbafs::addResource()` updates the
             // folders itself. Contao's own editor writes through the virtual
             // filesystem, which syncs the path and its folders.
@@ -176,7 +176,7 @@ class FileWriteCommand extends AbstractWriteCommand
             // Caught, like addResource() below: the bytes, the version and the file
             // hash are already stored. An exception here would answer "error" for a
             // file that was written — a stale folder hash only costs the next sync
-            // (review before v0.26.0).
+            // (since v0.26.0).
             try {
                 Dbafs::updateFolderHashes($path);
             } catch (\Throwable $e) {

@@ -15,7 +15,7 @@ use Symfony\Component\Security\Core\User\UserProviderInterface;
  * Contao's callbacks assume a logged-in user. On the console there is none, and
  * `BackendUser::getInstance()` answers with an empty one: RecordPreviewListener warned
  * "Undefined array key admin" on every delete, generateArticleForPage gave a new page
- * no article, the 5.3 adjustPermissions built a query from no groups (c5, 2026-10-10).
+ * no article, the 5.3 adjustPermissions built a query from no groups.
  *
  * `contao-ai` is an admin that cannot log in — disabled and without a password, both
  * checked only at login by Contao's UserChecker — and is hidden and locked in the back

@@ -6,7 +6,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
  * Reading option lists out of a DCA field definition — `options`, plus
  * `eval.isAssociative`, which decides whether a list's index or its text is the value.
  *
- * Extracted from `DcaSchemaCommand` on 2026-09-11, when the write path needed
+ * Extracted from `DcaSchemaCommand` when the write path needed
  * the same answer. `AbstractReadCommand` and `AbstractWriteCommand` share no
  * base class, so a copy was the alternative — and a second reading of the same
  * DCA construct is exactly the duplication this project keeps removing rather
@@ -24,7 +24,7 @@ trait ReadsDcaOptions
     /**
      * The values a caller may actually set, in Contao's two-and-a-half forms.
      *
-     * 🔴 Until 2026-08-31 this was `array_keys($def['options'])`
+     * 🔴 This once was `array_keys($def['options'])`
      * unconditionally, which is right for exactly one of them:
      *
      *   array('de' => 'Deutsch')                   assoc — the key IS the value
@@ -41,9 +41,8 @@ trait ReadsDcaOptions
      * throughout. A caller building `--set` from it gets rejected by the DCA
      * and goes looking in the wrong place.
      *
-     * Reported by the parallel session working on a production site's booking
-     * module, which hit it on a table of its own and checked `tl_page` to rule
-     * out its own DCA.
+     * Reported from work on a booking module, which hit it on a table of its
+     * own and checked `tl_page` to rule out its own DCA.
      *
      * Nested option groups are flattened: Contao allows
      * `array('Group' => array('a', 'b'))` for an optgroup, and the group name
@@ -66,7 +65,7 @@ trait ReadsDcaOptions
      * `$declaredAssociative` is `eval.isAssociative`, which makes a list read as
      * index => label. Contao's `tl_page.useSSL` declares `array('http://',
      * 'https://')` and stores 0/1; without the flag `--set useSSL=1` was refused
-     * against the labels (live on a production installation, 2026-09-17, Nr. 53). As in
+     * against the labels (live on a production installation). As in
      * `Widget::getAttributesFromDca()` it applies to the top level only — an
      * optgroup decides by its own keys, so the recursion does not pass it on.
      *
@@ -80,7 +79,7 @@ trait ReadsDcaOptions
         // List form only when the keys are exactly 0..n-1. An integer key alone
         // is not enough: image sizes come as `[6 => 'ConpAI Hero']`, where 6 is
         // the value and the text the label. Until v0.16.0 that answered the label
-        // (measured 2026-09-16, OptionsResolverTest).
+        // (measured, OptionsResolverTest).
         $isList = !$declaredAssociative && array_is_list($options);
 
         foreach ($options as $key => $value) {

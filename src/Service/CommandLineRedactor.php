@@ -12,7 +12,7 @@ use Symfony\Component\Console\Input\StringInput;
  * (see AiRunCommand). A command that takes a password or an API key as an option —
  * `--set password=…`, `--api-key=…` — left it there in plain text: readable for every
  * admin in the system log, kept for the log period, and in every database backup
- * taken meanwhile. Reported by the Consho session, 2026-10-11.
+ * taken meanwhile. Reported from the Consho project.
  *
  * What counts as a secret: a name that reads like one (password, passwd, pass,
  * secret, token, api key, credential …), and what a command declares in
@@ -24,7 +24,7 @@ use Symfony\Component\Console\Input\StringInput;
  * quote kinds, glued parts — character by character: what the command reads as
  * `password=…` is what is blanked here. A first version used a regular expression and
  * gave the line back unchanged when a quoted value passed 8 KB (PCRE's JIT stack), a
- * secret after it included (Fable review before v1.5.0).
+ * secret after it included (fixed before v1.5.0).
  *
  * ⚠️ This keeps the secret out of the log, nothing more. The line still travels to
  * the server as a process argument, and from the back-end chat to the model provider.
@@ -164,7 +164,7 @@ final class CommandLineRedactor
 
         // Blanked whole, but read as a line as well, for the values alone: the pair's
         // value runs to the end (`S3CRET --set name=a --pin P1N`), and a message quoting
-        // only `P1N` would not be struck (Fable review before v1.6.0).
+        // only `P1N` would not be struck (fixed before v1.6.0).
         // Only where the "key" itself has whitespace, i.e. is the start of a line;
         // `"password=S3 CRET"` is one value with a space in it.
         // Its own withheld flag: the pair is blanked already, and an inner line that
@@ -344,7 +344,7 @@ final class CommandLineRedactor
 
                     if ($i >= $length) {
                         // No closing quote: StringInput takes the quote as a plain
-                        // character and splits at the next whitespace (review 2 before v1.5.0).
+                        // character and splits at the next whitespace.
                         $text .= $char;
                         $i = $open + 1;
                         continue;

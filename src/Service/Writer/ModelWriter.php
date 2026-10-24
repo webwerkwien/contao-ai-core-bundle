@@ -49,7 +49,7 @@ class ModelWriter implements RecordWriterInterface
     private function doUpdate(string $table, int $id, array $fields, string $operator, bool $saveCallbacks = false): ?array
     {
         // On both paths: Model::save() drops a key that is no column without a word,
-        // and the answer would name it as written (pre-release review M4). The
+        // and the answer would name it as written. The
         // commands check beforehand; an extension through the public API may not.
         // A DCA field without a column may pass on to an onbeforesubmit_callback
         // (v1.5.0); what is still no column after it is refused in beforeSubmit().
@@ -59,7 +59,7 @@ class ModelWriter implements RecordWriterInterface
         // list). Its tags are read now, while the record still names it (v1.2.0).
         // Before findById(): tl_page's sitemap callback calls findWithDetails(),
         // which takes the loaded instance out of the registry, and a detached
-        // instance cannot be saved (c5, 2026-10-09).
+        // instance cannot be saved.
         $before = \array_key_exists('pid', $fields) || \array_key_exists('ptable', $fields)
             ? ($this->cacheTags?->collect($table, $id) ?? [])
             : [];
@@ -94,7 +94,7 @@ class ModelWriter implements RecordWriterInterface
 
             // Virtual fields as they are: the model folds them into their target column
             // itself in 5.7 and 6.0, from its own values — folded here, save() rebuilt the
-            // column from the old ones (c5, 6.0, 2026-10-12).
+            // column from the old ones (Contao 6.0).
             foreach ($fields as $key => $value) {
                 $record->$key = $value;
             }

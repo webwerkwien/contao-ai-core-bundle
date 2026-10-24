@@ -9,7 +9,7 @@ use PHPUnit\Framework\TestCase;
  *
  * PluginCommandRegistrationTest guards the commands; the cloners had no such guard —
  * deleting the line in services_newsletter.yaml would have left the suite green
- * (Fable review before v1.8.0, the same gap as NewsArchiveCloner before it).
+ * (the same gap as NewsArchiveCloner before it).
  */
 class ClonerRegistrationTest extends TestCase
 {

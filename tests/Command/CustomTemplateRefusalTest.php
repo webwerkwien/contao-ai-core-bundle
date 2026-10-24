@@ -10,7 +10,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Dca\OptionsResolver;
 /**
  * A custom template has to exist.
  *
- * 🟡 **Measured on 2026-09-16 on c5 (Contao 5.7.13)**: `content update 649 --set
+ * 🟡 **Measured on Contao 5.7.13**: `content update <id> --set
  * customTpl=content_element/text/gibtesnicht` answered `{"status":"ok"}`. The element
  * then renders its default template, and nothing says why the variant is ignored.
  *

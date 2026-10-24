@@ -11,7 +11,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\CreatesRecord;
 
 /**
  * A create runs in one transaction, so a refusing oncreate/onsubmit callback leaves
- * no record behind (v1.4.0). Review M1: nothing tested execute()'s transaction.
+ * no record behind (v1.4.0). Before, nothing tested execute()'s transaction.
  *
  * The commands below run through the real execute(); only the work inside is a stand-in.
  */

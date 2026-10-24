@@ -26,7 +26,7 @@ class EventCreateCommand extends AbstractWriteCommand implements CreatesRecord
         $this->addOption('startDate', null, InputOption::VALUE_OPTIONAL, 'Start date (Y-m-d)', date('Y-m-d'));
         // No default: a single day event has no end date in Contao. Until v0.28.0
         // this defaulted to the day of the call, which ended every event created
-        // without it on that day (practical test 2026-09-19, see EventTimes).
+        // without it on that day (found in a practical test, see EventTimes).
         $this->addOption('endDate',   null, InputOption::VALUE_OPTIONAL, 'End date (Y-m-d), only for events over several days');
         $this->addOption('startTime', null, InputOption::VALUE_OPTIONAL, 'Start time (H:i) — makes it an event with a time');
         $this->addOption('endTime',   null, InputOption::VALUE_OPTIONAL, 'End time (H:i), needs --startTime');

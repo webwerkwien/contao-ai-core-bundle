@@ -119,7 +119,7 @@ class LanguageCheckCommand extends Command
 
             // An article whose counterpart page or root is unpublished cannot be linked —
             // changelanguage offers no target, in the back end either. Reported apart with
-            // the reason, not as a gap to close (v1.11.1, showcase "_Ressourcen").
+            // the reason, not as a gap to close (v1.11.1, e.g. resource pages).
             ['closable' => $closable, 'unlinkable' => $unlinkable] = $this->diagnosis->forArticles($articles);
 
             $roots[] = [

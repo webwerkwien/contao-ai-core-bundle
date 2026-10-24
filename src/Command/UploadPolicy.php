@@ -89,7 +89,7 @@ trait UploadPolicy
      *
      * The size is computed here and handed to Contao's `File::resizeTo()`, the call
      * `FileUpload::resizeUploadedImage()` ends in. Until v0.16.0 that method was called
-     * itself, which had two flaws on the console (review and measurement 2026-09-16):
+     * itself, which had two flaws on the console (measured):
      *
      * - it calls `Message::addInfo()`, which needs a session. It only got through
      *   because the language file is not loaded there, so the message was empty and
@@ -139,7 +139,7 @@ trait UploadPolicy
      * each keeping the aspect ratio. Unlike `FileUpload::resizeUploadedImage()`
      * (5.3 to 6.0), a limit below 1 counts as unset. There, `imageWidth=100` with
      * `imageHeight=0` passes the width step and then finds any height `> 0`, so it
-     * scales to `round(0 * w / h)` × 0 — measured on c5: a 600×20 PNG became a file
+     * scales to `round(0 * w / h)` × 0 — measured: a 600×20 PNG became a file
      * of 0 bytes.
      *
      * @return array{int, int}|null

@@ -11,10 +11,10 @@ use Webwerkwien\ContaoAiCoreBundle\Command\FileMoveCommand;
 /**
  * A file or folder is moved into another folder the way the back end moves it.
  *
- * 🟡 **The gap, found on 2026-09-17** in the ConpAI 1.0 acceptance test (production installation):
- * the site's files were to go from `files/conpai` into `files/conpai-consho/layout`. There
+ * 🟡 **The gap, found on a production installation:**
+ * a site's files were to go from one folder into another. There
  * was no command for it — deleting and writing anew changes the UUID, and every image
- * element pointing at the file renders nothing (Nr. 64).
+ * element pointing at the file renders nothing.
  *
  * ## What Contao does (`DC_Folder::cut()`, 5.7.13 and 6.0.0; 5.3 the same with `Dbafs::moveResource()`)
  *
@@ -190,7 +190,7 @@ class FileMoveCommandTest extends TestCase
     }
 
     /**
-     * Review before v0.23.0: the DBAFS manager refuses to sync a path whose first segment
+     * Since v0.23.0: the DBAFS manager refuses to sync a path whose first segment
      * below files/ starts with a dot ("Dot path … is not allowed") — after the rename the
      * file would be moved and tl_files stale. Refused before anything moves, both ways.
      *

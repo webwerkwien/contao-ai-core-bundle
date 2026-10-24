@@ -13,8 +13,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\MissingBundleHint;
  * A reader sees "DCA not found" and starts looking for a broken data container,
  * when the answer is that an optional extension was never added.
  *
- * 🎯 **This is the same shape as the mistyped session name fixed the same day:
- * an answer that is accurate and still sends the reader in the wrong
+ * 🎯 **An answer that is accurate and still sends the reader in the wrong
  * direction.** Nothing is wrong, so there is nothing to find, so the search
  * goes on for a while.
  *
@@ -82,7 +81,7 @@ class MissingBundleHintTest extends TestCase
 
     public function testAnUnknownTableGetsNoHint(): void
     {
-        self::assertNull(MissingBundleHint::for('tl_ww_buchung', static fn (string $class): bool => false));
+        self::assertNull(MissingBundleHint::for('tl_acme_booking', static fn (string $class): bool => false));
     }
 
     public function testTheDefaultDetectorAnswersForThisInstallation(): void

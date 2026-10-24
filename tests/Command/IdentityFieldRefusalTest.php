@@ -12,7 +12,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
  * Contao's `Model::save()` has explicit handling for a changed primary key —
  * *"Track primary key changes"* — and keeps the OLD key for the `WHERE` while
  * writing the new one into the `SET`. `ModelWriter::update()` assigns every
- * given field to the model, so nothing stood in the way. Measured on c5 against
+ * given field to the model, so nothing stood in the way. Measured against
  * the released v1.0.0:
  *
  *     member-group update 12 --set id=9012
@@ -93,8 +93,8 @@ class IdentityFieldRefusalTest extends TestCase
     /**
      * 🎯 **Without this, deleting the call from convertFields() leaves the whole
      * suite green** — every test above invokes the guard directly, so they prove
-     * the method works and nothing proves it runs. The second pre-release review
-     * of v1.1.0 found exactly that gap; UnknownFieldRefusalTest pins its own
+     * the method works and nothing proves it runs. Before v1.1.0
+     * exactly that gap existed; UnknownFieldRefusalTest pins its own
      * call site the same way, for the same reason.
      *
      * A lexical assertion rather than a behavioural one because reaching

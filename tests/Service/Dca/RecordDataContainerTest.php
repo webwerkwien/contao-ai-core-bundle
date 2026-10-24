@@ -19,10 +19,10 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Dca\VirtualFields;
  * The record Contao's callbacks see on the console has to look like the one they see in
  * the back end.
  *
- * 🔴 **Found on 2026-09-18 in the log of a production installation:** six warnings
+ * 🔴 **Found in the log of a production installation:** six warnings
  * `Undefined array key "ptable"` from Contao's own AccordionListener (an onpalette
  * callback of tl_content), one per `schema mandatory tl_content --set type=…` call.
- * Reproduced on c5 (Contao 5.7.13) with a single call.
+ * Reproduced on Contao 5.7.13 with a single call.
  *
  * Two differences from Contao's DataContainer::getCurrentRecord():
  *

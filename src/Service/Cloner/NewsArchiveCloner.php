@@ -79,7 +79,7 @@ class NewsArchiveCloner implements EntityClonerInterface
                     $this->versionManager->createInitialVersion('tl_news', $newChildId, $operator);
                     ++$count;
 
-                    // 🔴 H-5: Inhaltselemente unter dem Kind wurden nie mitkopiert.
+                    // 🔴 Inhaltselemente unter dem Kind wurden früher nie mitkopiert.
                     // Der Löschpfad kaskadiert sie (RecordCascadeCollector: "tl_content
                     // hangs under articles, news and events"), der Klon ließ sie stehen
                     // und meldete trotzdem Erfolg.
@@ -95,7 +95,7 @@ class NewsArchiveCloner implements EntityClonerInterface
                 'id'    => $newArchiveId,
                 'table' => 'tl_news_archive',
                 'count' => $count,
-                // H-5: getrennt ausgewiesen, damit eine leere Zahl auffaellt
+                // Getrennt ausgewiesen, damit eine leere Zahl auffaellt
                 'contents' => $contents,
                 // Overrides this cloner refused. Empty on a clean call; never omitted.
                 'ignored_modifications' => $ignoredMods,
@@ -133,7 +133,7 @@ class NewsArchiveCloner implements EntityClonerInterface
         // Cloned children land as drafts — operator should review/translate
         // before publishing. Matches NewsCreateCommand's default.
         $clone->published = '0';
-        // 🔴 H-6: bis 2026-09-02 ohne Eindeutigkeitsprüfung. Model::save()
+        // 🔴 Früher ohne Eindeutigkeitsprüfung. Model::save()
         // führt den DCA-save_callback nicht aus, also lief Contaos eigener
         // Alias-Check nie — und `tl_news.alias` trägt `unique=>true` samt
         // `doNotCopy=>true`. Zwei Datensätze mit `sommerfest`, und welchen eine

@@ -67,7 +67,7 @@ class DcaOptionsCommand extends AbstractReadCommand
             'field'   => $field,
             'options' => $options,
             // With the field's eval, as OptionsResolver::values() — an `isAssociative`
-            // list answers its indices, not its labels (Nr. 53).
+            // list answers its indices, not its labels.
             'values'  => $this->optionValues([
                 'options' => $options,
                 'eval'    => $GLOBALS['TL_DCA'][$table]['fields'][$field]['eval'] ?? [],

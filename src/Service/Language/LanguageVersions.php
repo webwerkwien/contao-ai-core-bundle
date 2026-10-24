@@ -13,9 +13,9 @@ use Doctrine\DBAL\Connection;
  * record it points to, or itself when it points nowhere, plus everything that points
  * there. Elements are not linked: their page and article are.
  *
- * Why this exists: on showcase a chat changed the English slider headline and then told
+ * Why this exists: a chat changed the English slider headline and then told
  * the user the page existed in English only — the German start page, linked to it, had
- * the same slider (2026-10-20). Nothing it could call answered "which versions does this
+ * the same slider. Nothing it could call answered "which versions does this
  * page have", so it guessed. `content:find` and `language:versions` answer it now.
  *
  * Only registered when the package is installed: without it there is no `languageMain`.

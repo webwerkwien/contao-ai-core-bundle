@@ -136,7 +136,7 @@ class MoveCommandTest extends TestCase
     }
 
     /**
-     * Review W1 (2026-10-09): the renumbering runs before the update's checks. With
+     * The renumbering runs before the update's checks. With
      * the moved record left out of it, a refused move in the same parent kept its
      * old number while its neighbours got new ones — 10, 20, 30, 31 read 10, 30, 20,
      * 31 afterwards. Renumbered at its old place, it keeps the order either way.
@@ -171,7 +171,7 @@ class MoveCommandTest extends TestCase
     }
 
     /**
-     * Review H3: `--ptable` goes with `--to`. With `--after` the element takes the
+     * `--ptable` goes with `--to`. With `--after` the element takes the
      * sibling's parent table, and a given one was silently ignored.
      */
     public function testPtableWithAfterIsRefused(): void
@@ -236,7 +236,7 @@ class MoveCommandTest extends TestCase
     }
 
     /**
-     * v1.11.2, the web.werk.wien case: an element in an element group (ptable
+     * v1.11.2, the case from a production installation: an element in an element group (ptable
      * tl_content) taken into an article — with the DCA not loaded yet, as on a real
      * run. Before the fix --ptable was dropped and the element went below the content
      * element with the article's ID. The other tests set the DCA by hand and could not
@@ -311,7 +311,7 @@ class PageMoveProbe extends PageMoveCommand
         return $this->max;
     }
 
-    /** As the production query: the ptable filter only when one is given (review H4). */
+    /** As the production query: the ptable filter only when one is given. */
     protected function siblingsInOrder(string $table, int $pid, string $ptable): array
     {
         $this->asked[] = "siblings $table.$pid.$ptable";

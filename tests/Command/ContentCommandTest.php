@@ -207,7 +207,7 @@ class ContentCommandTest extends TestCase
      * A unit the caller names and the DCA does not list is refused, not replaced.
      *
      * Until v0.10.0 `headline_unit=h9` was silently swapped for the default and
-     * answered `{"status":"ok"}` — measured on c5 on 2026-09-16. The caller
+     * answered `{"status":"ok"}`. The caller
      * asked for one thing and got another without a word, which is the one
      * outcome this bundle refuses everywhere else ("refused rather than
      * coerced", see `refuseInvalidBooleans()`).

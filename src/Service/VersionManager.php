@@ -24,7 +24,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Dca\TableName;
  * Contao's class was dropped once already (April 2026) because it "requires an
  * authenticated backend session". It does not: it asks for a user only to name him,
  * and `setUsername()`/`setUserId()` name him from outside. `create()` and `restore()`
- * are the same code in 5.3, 5.7 and 6.0 (compared on c5 on 2026-10-10).
+ * are the same code in 5.3, 5.7 and 6.0 (compared).
  *
  * The timing follows Contao too: `initialize()` before a write keeps the state about
  * to be replaced if the record has no version yet, `create()` after it records the
@@ -46,8 +46,8 @@ class VersionManager
      * `tl_version.description` of the first version of a record this bundle created.
      *
      * Marks where the record's own history begins: a database can hand out the ID of a
-     * deleted record again, and its versions stay under that ID (measured on c5 on
-     * 2026-09-16, layout 25 with versions from 2026-08-31). See RecordIdReuseTest.
+     * deleted record again, and its versions stay under that ID (measured: a new
+     * layout carried the versions of a deleted one). See RecordIdReuseTest.
      */
     public const CREATED = 'created';
 
@@ -84,7 +84,7 @@ class VersionManager
      *
      * Any table whose DCA keeps versions — the bundle's own, a core bundle's, an
      * extension's. It used to be a fixed list of 24, because the name goes into SQL
-     * (security audit 2026-04-23); the name is still checked as a name before anything
+     * (a security precaution); the name is still checked as a name before anything
      * else, and the table has to exist. Needs the framework initialised.
      */
     public function refusal(string $table): ?string
@@ -123,8 +123,8 @@ class VersionManager
      * With the edit URL set, as createVersion() does (v1.7.3): for a record without any
      * version `initialize()` runs `create(true)`, which reads the URL from the current
      * request — none on the console, so every first update of such a record failed with
-     * "Call to a member function get() on null" (showcase.conpai.eu, 2026-10-13: a fresh
-     * demo had no versions, 37 of 37 pages refused). In the chat it was the chat's own
+     * "Call to a member function get() on null" (a fresh demo had no versions, 37 of 37
+     * pages refused). In the chat it was the chat's own
      * endpoint.
      */
     public function initialize(string $table, int $id): void
@@ -276,7 +276,7 @@ class VersionManager
     /**
      * The edit URL in the form the back end stores it: `contao?do=group&act=edit&id=1`,
      * with `table=` when the table is not the first of its module
-     * (`contao?do=article&table=tl_content&act=edit&id=642`, read on c5). Empty when no
+     * (`contao?do=article&table=tl_content&act=edit&id=642`). Empty when no
      * back-end module lists the table — the back end has nothing to link to either.
      */
     private function editUrl(string $table, int $id): string

@@ -8,7 +8,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\NewsletterSendGuard;
 /**
  * The guard that keeps a newsletter from being marked sent without being sent.
  *
- * 🎯 The decision of 2026-08-31 was "no send command". That decision is only
+ * 🎯 The decision was "no send command". That decision is only
  * worth something if the obvious substitute is closed too: `--set sent=1` does
  * not send a newsletter, it publishes it in the front end and labels it sent.
  * A boundary an agent can step around is a detour sign, not a boundary.
@@ -100,7 +100,7 @@ class NewsletterSendGuardTest extends TestCase
 
     /**
      * No send command, by decision. If one ever appears, this fails and whoever
-     * added it has to revisit the reasoning in the project file rather than
+     * added it has to revisit the reasoning above rather than
      * discover it afterwards.
      */
     public function testNoSendCommandExists(): void

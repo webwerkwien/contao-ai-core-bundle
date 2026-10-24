@@ -10,7 +10,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\PageUpdateCommand;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 /**
- * `--ids` — the deterministic bulk path added on 2026-08-29.
+ * `--ids` — the deterministic bulk path.
  *
  * Setting one field on 174 pages took about four minutes through the CLI: 1.4 s
  * per record, of which 0.67 s was nothing but establishing the SSH connection.

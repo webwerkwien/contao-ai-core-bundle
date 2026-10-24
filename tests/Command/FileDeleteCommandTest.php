@@ -11,8 +11,8 @@ use Webwerkwien\ContaoAiCoreBundle\Command\FileDeleteCommand;
 /**
  * A file or folder is deleted the way the back end deletes it — and not while it is used.
  *
- * 🔴 **The gap, found on 2026-09-16** (Nr. 46 of the ConpAI 1.0 acceptance test): three
- * probe images on c5 could not be removed. Neither the core-bundle nor the CLI had a way
+ * 🔴 **The gap:** three
+ * probe images could not be removed. Neither the core-bundle nor the CLI had a way
  * to delete a file; no decision against it was ever recorded.
  *
  * ## What Contao does (`DC_Folder::delete()`, identical in 5.7.13 and 6.0.0)
@@ -98,7 +98,7 @@ class FileDeleteCommandTest extends TestCase
     }
 
     /**
-     * 🔴 Review 2026-09-16, reproduced on the Contao 6 test install: `files/rv/b//a.txt`
+     * 🔴 Reproduced on Contao 6: `files/rv/b//a.txt`
      * deleted the file, found no tl_files record by that string, so skipped the UUID search
      * and left the record behind — while answering `records: 1`.
      *
@@ -129,7 +129,7 @@ class FileDeleteCommandTest extends TestCase
     }
 
     /**
-     * 🔴 Review 2026-09-16, reproduced on the Contao 6 test install: `files/rv/link` pointed
+     * 🔴 Reproduced on Contao 6: `files/rv/link` pointed
      * at `files/rv/real`. `rrdir` emptied `real/`, the link stayed, and the answer said
      * nothing had changed. A link is now removed as a link; a path *through* one is refused.
      */

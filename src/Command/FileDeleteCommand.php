@@ -19,8 +19,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Files\FileUsageFinder;
 /**
  * Delete a file or folder below files/ — as the back end does, and not while it is used.
  *
- * Until v0.18.0 there was no way to delete a file through the bundle (Nr. 46 of the ConpAI
- * 1.0 acceptance test, 2026-09-16). See FileDeleteCommandTest.
+ * Until v0.18.0 there was no way to delete a file through the bundle. See
+ * FileDeleteCommandTest.
  *
  * Mirrors `DC_Folder::delete()` of Contao 5.7/6.0: the resource first — `Files::rrdir()`
  * plus the web dir symlink for a folder, `Files::delete()` for a file — then the script
@@ -64,7 +64,7 @@ class FileDeleteCommand extends AbstractWriteCommand
      *
      * `files/a//b.png` and `files/a/./b.png` reach the same file as `files/a/b.png`, but
      * the DBAFS lookup is by the literal string — so until v0.19.0 the record was not
-     * found, the UUID not searched for, and the record left behind (review 2026-09-16).
+     * found, the UUID not searched for, and the record left behind.
      */
     public static function canonicalPath(string $path): ?string
     {
@@ -187,8 +187,8 @@ class FileDeleteCommand extends AbstractWriteCommand
             } elseif ($gone) {
                 // The DBAFS manager refuses to sync a path starting with a dot directly below
                 // files/ ("Dot path … is not allowed") — yet a filesync records dot *folders*
-                // and their content (`files/.hidden`, verified on 6.0.0). Pre-release reviews,
-                // 2026-09-16: first `.htaccess` answered with that exception, then skipping the
+                // and their content (`files/.hidden`, verified on 6.0.0). Before the release,
+                // first `.htaccess` answered with that exception, then skipping the
                 // sync left the rows of `files/.hidden` behind. The legacy call has no such
                 // rule, exists from 5.3 to 6.0, and is safe once nothing is left on disk.
                 Dbafs::deleteResource($path);

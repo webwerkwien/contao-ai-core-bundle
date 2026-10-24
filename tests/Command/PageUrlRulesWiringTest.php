@@ -67,7 +67,7 @@ class PageUrlRulesWiringTest extends TestCase
      * `generateAlias()` detaches the instance it looks up, so the held `$clone` cannot
      * be saved again. v0.15.0 wrote the alias through the connection instead — it
      * worked, but left the model layer every other write of this bundle goes through.
-     * Michael questioned it on 2026-09-16. A fresh instance from `findByPk()` is
+     * A fresh instance from `findByPk()` is
      * registered and can be saved.
      */
     public function testTheClonedAliasIsSavedThroughAFreshModel(): void

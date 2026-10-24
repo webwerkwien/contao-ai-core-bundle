@@ -11,8 +11,7 @@ use Doctrine\DBAL\Connection;
  *
  * `DC_Folder::delete()` (5.7.13, 6.0.0) removes a file whatever points at it; an image
  * element keeps the UUID and renders nothing, and there is no `tl_undo` for files. Used by
- * `contao:file:delete` to refuse such a file unless `--force` is given (Nr. 46 of the
- * ConpAI 1.0 acceptance test, 2026-09-16).
+ * `contao:file:delete` to refuse such a file unless `--force` is given.
  *
  * Searched, in every `tl_` table with a DCA except the history tables:
  *
@@ -23,7 +22,7 @@ use Doctrine\DBAL\Connection;
  *
  * The database only preselects (`LOCATE`, case-insensitive in text columns); which
  * resource a row really uses is decided here — case-sensitively, and for a path only where
- * it ends: `files/media` is not used by `files/media2/a.jpg` (review 2026-09-16).
+ * it ends: `files/media` is not used by `files/media2/a.jpg`.
  *
  * One query per table and field for all resources, in chunks — not one per resource. A
  * folder of 200 files cost tens of thousands of full scans before v0.19.0.
@@ -90,7 +89,7 @@ final class FileUsageFinder
      * sentence (`files/a.png.` names the file, `files/a.png.bak` does not).
      *
      * Text that is not valid UTF-8 is matched byte-wise instead of being taken for "no use"
-     * (`preg_match` with `u` returns false on it — pre-release review, 2026-09-16).
+     * (`preg_match` with `u` returns false on it).
      */
     public static function textNamesPath(string $text, string $path): bool
     {

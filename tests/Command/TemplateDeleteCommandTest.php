@@ -11,8 +11,8 @@ use Webwerkwien\ContaoAiCoreBundle\Command\TemplateDeleteCommand;
 /**
  * A template file is deleted as Contao's Template Studio deletes it.
  *
- * 🟡 **Nr. 51 of the ConpAI 1.0 acceptance test, 2026-09-17:** cleaning up c5 after phase
- * 5, the variants `conpai_hero` and `consho_hero` could only be removed with `ssh rm` — the
+ * 🟡 **The gap:** when cleaning up a test installation, template variants could only be
+ * removed with `ssh rm` — the
  * CLI knew `template list`, `read`, `write` and nothing else.
  *
  * ## What Contao does (Template Studio, 5.7: `DeleteOperation`, `AbstractDeleteVariantOperation`)
@@ -64,7 +64,7 @@ class TemplateDeleteCommandTest extends TestCase
             'front-end module variant' => ['templates/frontend_module/navigation/main.html.twig', ['identifier' => 'frontend_module/navigation/main', 'table' => 'tl_module']],
             'an override is no variant' => ['templates/content_element/text.html.twig', null],
             // AbstractDeleteVariantOperation::canExecute() takes `<prefix>/[^/]+/.+`, and the
-            // Finder offers such names as variants (Fable review before v0.21.0).
+            // Finder offers such names as variants (since v0.21.0).
             'deeper variant'           => ['templates/content_element/text/a/b.html.twig', ['identifier' => 'content_element/text/a/b', 'table' => 'tl_content']],
             'theme folder'             => ['templates/mytheme/content_element/text/x.html.twig', null],
             'page variant'             => ['templates/page/regular/x.html.twig', null],
@@ -169,7 +169,7 @@ class TemplateDeleteCommandTest extends TestCase
     }
 
     /**
-     * Fable review before v0.21.0: the file was gone when the reset failed, and the answer
+     * Before v0.21.0 the file was gone when the reset failed, and the answer
      * was a bare exception message with no log entry — unlike file delete.
      */
     public function testAResetFailingAfterTheFileIsGoneIsNamedAndLogged(): void

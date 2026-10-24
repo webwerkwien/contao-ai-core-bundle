@@ -96,7 +96,7 @@ class CreateAfterTest extends TestCase
     }
 
     /**
-     * Through doExecute() up to the record about to be saved (review v1.12.0: a mutation
+     * Through doExecute() up to the record about to be saved (before v1.12.0 a mutation
      * that took pid and ptable from the options again passed every test). The probe stops
      * in preparedFields() with what the command hands it.
      *

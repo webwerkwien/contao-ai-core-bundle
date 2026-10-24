@@ -88,7 +88,7 @@ class ThemeArchive
     /**
      * Contao's theme manager asks for the export/import right; on the console the user
      * asked is `contao-ai`, an admin. Refused means it is missing — the migration that
-     * creates it has not run (review before v1.9.0: Contao's own message points elsewhere).
+     * creates it has not run (Contao's own message points elsewhere).
      */
     private static function withoutConsoleUser(AccessDeniedException $e): \InvalidArgumentException
     {
@@ -163,7 +163,7 @@ class ThemeArchive
                     }
                     // A .cto does not carry theme elements (5.6+), but layouts can place
                     // them (`content-<id>`): Contao's import finds no mapping and leaves the
-                    // slot empty, with a PHP warning (measured on c5, 5.7.13, 2026-10-15).
+                    // slot empty, with a PHP warning (measured on 5.7.13).
                     if ('tl_layout' === $tableName && 'modules' === $fieldName) {
                         $lostElements += substr_count((string) $field->nodeValue, '"content-');
                     }

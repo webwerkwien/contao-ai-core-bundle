@@ -10,7 +10,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
 
 /**
- * 🔴 H-4 (Audit 2026-09-02): Dieser Befehl überschreibt Dateiinhalte, ohne die
+ * 🔴 Dieser Befehl überschreibt Dateiinhalte, ohne die
  * vorherigen Bytes zu sichern — und deklarierte das nirgends.
  *
  * ⚠️ Nachgesehen, wie Contao es macht: `DC_Folder::source()` versioniert um den
@@ -148,7 +148,7 @@ class FileProcessCommand extends AbstractWriteCommand
         }
 
         clearstatcache(true, $absPath);
-        // 🔴 H-4: Bis 2026-09-02 hinterließ dieser Befehl NICHTS — kein
+        // 🔴 Früher hinterließ dieser Befehl NICHTS — kein
         // tl_version, kein Systemlog. Ein unumkehrbares Überschreiben ohne
         // jeden Eintrag, und der Vertragsleser hat es beim Hinschreiben der
         // Deklaration selbst gemeldet: *"writes: true but no trace declared —

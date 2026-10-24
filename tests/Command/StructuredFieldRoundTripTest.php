@@ -10,7 +10,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\PageReadCommand;
 /**
  * A field Contao stores as a serialized array is read as an array — and written as one.
  *
- * 🟡 **Measured on 2026-09-16 on c5 (Contao 5.7.13)**, ConpAI 1.0 acceptance test:
+ * 🟡 **Measured on Contao 5.7.13:**
  *
  * | read | answered |
  * |---|---|
@@ -22,7 +22,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\PageReadCommand;
  * had to parse PHP serialization — the CLI did so with a regular expression — and could
  * not write back what it had read, because writing wanted the serialized string.
  *
- * Decided on 2026-09-16, before 1.0 fixes the contract: **every read answers these
+ * Decided before 1.0 fixes the contract: **every read answers these
  * fields as arrays**, and **writing accepts them as JSON**, so what was read can be
  * written back unchanged.
  *
@@ -121,7 +121,7 @@ class StructuredFieldRoundTripTest extends TestCase
     /**
      * `--set pagemounts=1,2` stores integers, as Contao's page picker does. As JSON the
      * same list was stored as strings until v0.16.0, so a read-and-write-back changed
-     * the stored form (review 2026-09-16).
+     * the stored form.
      */
     public function testAPageTreeListIsStoredAsIntegersFromJsonToo(): void
     {
@@ -155,7 +155,7 @@ class StructuredFieldRoundTripTest extends TestCase
      * Until v0.26.0 invalid JSON was left for refuseUnstructuredValues(). That covers the
      * wizards, but a list or table field went through the comma conversion first:
      * `[Eins,Zwei,Drei]` — what Windows PowerShell leaves of a quoted JSON list — was
-     * stored as `['[Eins', 'Zwei', 'Drei]']` and answered ok (agent test, 2026-09-18).
+     * stored as `['[Eins', 'Zwei', 'Drei]']` and answered ok.
      */
     public function testInvalidJsonIsRefusedBeforeAnyConversion(): void
     {

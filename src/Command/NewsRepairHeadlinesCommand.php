@@ -50,8 +50,8 @@ class NewsRepairHeadlinesCommand extends AbstractWriteCommand
     {
         $dryRun = (bool) $this->input->getOption('dry-run');
 
-        // 🔴 Aufgefallen erst auf c5, nicht in 603 grünen Tests: seit der Fix
-        // für H-3 über `writer()->update()` läuft, braucht dieser Befehl das
+        // 🔴 Aufgefallen erst auf einer echten Installation, nicht in 603 grünen
+        // Tests: seit der Schreibvorgang über `writer()->update()` läuft, braucht dieser Befehl das
         // Model-Register. Vorher schrieb er rohes SQL und kam ohne aus.
         // Ohne diese Zeile: `There is no class for table "tl_news" registered
         // in $GLOBALS['TL_MODELS']` — und zwar **nur** im echten Lauf, weil
@@ -86,7 +86,7 @@ class NewsRepairHeadlinesCommand extends AbstractWriteCommand
             ];
 
             if (!$dryRun) {
-                // 🔴 H-3 (Audit 2026-09-02): hier stand ein rohes
+                // 🔴 Hier stand früher ein rohes
                 // `$this->connection->update('tl_news', …)`. Ohne Version.
                 //
                 // `--dry-run` zeigt vorher, was passieren würde — aber eine
@@ -114,7 +114,7 @@ class NewsRepairHeadlinesCommand extends AbstractWriteCommand
             'dry_run'  => $dryRun,
             'scanned'  => \count($rows),
             'repaired' => \count($repaired),
-            // H-3: sagt dem Aufrufer, dass ein Rückweg existiert — und im
+            // Sagt dem Aufrufer, dass ein Rückweg existiert — und im
             // Trockenlauf ausdrücklich, dass noch nichts entstanden ist.
             'versioned' => !$dryRun,
             'records'  => $repaired,

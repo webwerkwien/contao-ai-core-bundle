@@ -68,7 +68,7 @@ class CalendarCloner implements EntityClonerInterface
                     $this->versionManager->createInitialVersion('tl_calendar_events', $newChildId, $operator);
                     ++$count;
 
-                    // 🔴 H-5: Inhaltselemente unter dem Kind wurden nie mitkopiert.
+                    // 🔴 Inhaltselemente unter dem Kind wurden früher nie mitkopiert.
                     // Der Löschpfad kaskadiert sie (RecordCascadeCollector: "tl_content
                     // hangs under articles, news and events"), der Klon ließ sie stehen
                     // und meldete trotzdem Erfolg.
@@ -84,7 +84,7 @@ class CalendarCloner implements EntityClonerInterface
                 'id'    => $newId,
                 'table' => 'tl_calendar',
                 'count' => $count,
-                // H-5: getrennt ausgewiesen, damit eine leere Zahl auffaellt
+                // Getrennt ausgewiesen, damit eine leere Zahl auffaellt
                 'contents' => $contents,
                 // Overrides this cloner refused. Empty on a clean call; never omitted.
                 'ignored_modifications' => $ignoredMods,
@@ -120,7 +120,7 @@ class CalendarCloner implements EntityClonerInterface
         $clone->pid       = $newCalendarId;
         $clone->author    = $authorId;
         $clone->published = '0';
-        // 🔴 H-6 — siehe GeneratesUniqueAlias. `tl_calendar_events.alias` ist
+        // 🔴 Siehe GeneratesUniqueAlias. `tl_calendar_events.alias` ist
         // `unique=>true, doNotCopy=>true`.
         $clone->alias     = $this->uniqueAlias('tl_calendar_events', (string) ($source->title ?? ''));
 

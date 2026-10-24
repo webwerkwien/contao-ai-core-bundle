@@ -10,7 +10,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\PageReadCommand;
 /**
  * fileTree fields must come back out as UUID strings.
  *
- * Found on 2026-08-29 while chasing a CLI crash. `contao:page:read 98` returned
+ * Found while chasing a CLI crash. `contao:page:read <id>` returned
  *
  *     "navigationImage": "GW\u{FFFD}V+8\x11\u{FFFD}\u{FFFD}\0\0(\u{FFFD}T"
  *
@@ -53,7 +53,7 @@ class FileTreeReadConversionTest extends TestCase
 
     // --- binary(16) columns without a fileTree widget (v0.13.0) ---
     //
-    // 🔴 Measured on 2026-09-16 on c5: `record list tl_files --fields uuid,pid`
+    // 🔴 Measured: `record list tl_files --fields uuid,pid`
     // printed a folder's uuid and a file's pid as `null`. They were not null in the
     // database — the raw 16 bytes could not be encoded as JSON. `tl_files.uuid` and
     // `tl_files.pid` are `binary(16)` with no `inputType`, so the fileTree rule

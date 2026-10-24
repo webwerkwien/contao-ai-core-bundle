@@ -169,7 +169,7 @@ class DcaCallbacksTest extends TestCase
     public function testWithoutAUserNothingIsListedAsNew(): void
     {
         // The 5.3 adjustPermissions callbacks read the groups of the user of a listed
-        // record; for nobody that was a syntax error (c5, 5.3).
+        // record; for nobody that was a syntax error (Contao 5.3).
         $requests = $this->requests;
         $listed   = 'not read';
         $this->on('oncreate_callback', [static function () use ($requests, &$listed): void {
@@ -203,7 +203,7 @@ class DcaCallbacksTest extends TestCase
     /**
      * Contao calls in coercive mode (DC_Table has no strict_types): RecordPreviewListener
      * types `string $undoId`, an extension may type `int $insertId`. From a strict caller
-     * both were TypeErrors — the first delete on c5 (6.0) on 2026-10-10 (CallbackInvoker).
+     * both were TypeErrors — the first delete on Contao 6.0 (CallbackInvoker).
      */
     public function testCallbacksAreCalledInContaosCoerciveMode(): void
     {
@@ -225,7 +225,7 @@ class DcaCallbacksTest extends TestCase
     /**
      * onundo as DC_Table::undo() calls it: the table, the restored row, and the data
      * container of tl_undo (v1.8.1). Until v1.8.0 contao:undo:restore passed itself as
-     * `$dc`, and every callback typed `DataContainer $dc` failed (Consho on c5, 2026-10-14).
+     * `$dc`, and every callback typed `DataContainer $dc` failed (seen with Consho).
      */
     public function testOnundoGetsTheRowAndTlUndosDataContainer(): void
     {
@@ -367,7 +367,7 @@ class DcaCallbacksTest extends TestCase
     }
 
     /**
-     * v1.6.0, Fable review: a save_callback sees the virtual field being saved, not the
+     * v1.6.0: a save_callback sees the virtual field being saved, not the
      * value its JSON column still holds.
      */
     public function testASaveCallbackSeesTheNewValueOfAVirtualField(): void
@@ -447,7 +447,7 @@ class DcaCallbacksTest extends TestCase
     /**
      * The back end submits only the fields of the record's palette. tl_page.language is
      * in the root palette only; a page create writes '' for it on a regular page, and
-     * its callback refused that (c5, 6.0, 2026-10-10).
+     * its callback refused that (Contao 6.0).
      */
     public function testOnlyFieldsOfThePaletteRunTheirSaveCallbacks(): void
     {
@@ -465,7 +465,7 @@ class DcaCallbacksTest extends TestCase
 
     /**
      * changelanguage adds languageMain to the page palette in its onload callback for the
-     * edit mask only; on the console its duplicate check was skipped (c5, 6.0).
+     * edit mask only; on the console its duplicate check was skipped (Contao 6.0).
      */
     public function testAFieldSetOnPurposeRunsItsCallbacksOutsideThePaletteToo(): void
     {

@@ -10,8 +10,8 @@ use PHPUnit\Framework\TestCase;
  * 🎯 This test exists because the same omission happened twice, in the same
  * shape, six days apart. `convertFileTreeFields()` arrived with v0.2.15 and
  * `convertMultipleFields()` with v0.2.18, and both were wired into the update
- * path and then into whichever create command was being written that day. On
- * 2026-08-31 the count was: eleven create commands take `--set`, four converted
+ * path and then into whichever create command was being written that day. At
+ * one point the count was: eleven create commands take `--set`, four converted
  * fileTree values, one converted multi-value fields.
  *
  * The consequence is invisible at the call site. A UUID written as a string
@@ -20,7 +20,7 @@ use PHPUnit\Framework\TestCase;
  *
  * So the rule is not "remember to call convertFields()" — it is this test.
  *
- * ⚠️ **Sharpened on 2026-09-01: the call has to be `preparedFields()`.**
+ * ⚠️ **Sharpened later: the call has to be `preparedFields()`.**
  * `convertFields()` sees only the `--set` pairs. Every create command also has
  * options of its own — `--name`, `--title`, `--email` — and those were assigned
  * straight onto the model afterwards, past every rule. `theme create --name
@@ -96,7 +96,7 @@ class CreateCommandConversionTest extends TestCase
             . "so the command's own options are judged and converted with the --set pairs.\n"
             . 'Calling convertFields() directly is not enough: it sees only --set, and an '
             . 'option assigned straight onto the model skips every DCA rule — that is how '
-            . '`theme create --name <existing>` made a duplicate on 2026-09-01.',
+            . '`theme create --name <existing>` once made a duplicate.',
         ));
     }
 
@@ -106,7 +106,7 @@ class CreateCommandConversionTest extends TestCase
      * 🎯 **The lexical rule above can be satisfied and still leave the hole
      * open.** A command can call `preparedFields()` for its `--set` pairs and
      * then assign `$model->name = $name;` underneath — which is exactly what
-     * every create command did until 2026-09-01, and why `theme create --name
+     * every create command once did, and why `theme create --name
      * <existing>` produced a duplicate. So the check is not "does it call the
      * entry point" but "is there any other way in".
      *
@@ -126,15 +126,15 @@ class CreateCommandConversionTest extends TestCase
             // carriage return between the semicolon and the newline, and the
             // pattern silently matched nothing. Caught by mutating a command
             // and watching this test stay green — the same CRLF trap that made
-            // an md5 comparison disagree on 2026-08-31.
+            // an md5 comparison disagree once.
             // `$this->…` is excluded: an assignment to the command itself — a setter
             // for an injected service — is not a write onto the record. It matched
-            // on 2026-09-16 when PageCreateCommand got setPageUrlGuard().
+            // when PageCreateCommand got setPageUrlGuard().
             preg_match_all('/^[ \t]+\$(?!this\b)\w+->(\w+)\s*=\s*(?!\$value\b)[^\r\n]+;\r?$/m', $source, $matches);
 
             foreach ($matches[1] as $field) {
                 // The one allowed exception: a page alias generated after the write by
-                // Contao's own PageUrlListener::generateAlias() (Nr. 45, 2026-09-16) —
+                // Contao's own PageUrlListener::generateAlias() —
                 // it needs the saved page, and it is Contao's rule that makes the value.
                 // A given alias still passes preparedFields().
                 if ('PageCreateCommand.php' === $name && 'alias' === $field) {
@@ -163,7 +163,7 @@ class CreateCommandConversionTest extends TestCase
 
     /**
      * A scan that finds nothing passes just as quietly as a scan that finds
-     * everything. On 2026-08-31 a sweep over zero tables reported "no failures"
+     * everything. Once a sweep over zero tables reported "no failures"
      * for exactly this reason, so the count is asserted, not assumed.
      */
     public function testTheScanActuallyFoundCommands(): void

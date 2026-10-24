@@ -30,7 +30,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\CommandLineRedactor;
  * The error message is struck as well, and the exception in the log context replaced
  * by a {@see RedactedConsoleError} where one of its messages quotes a blanked value:
  * Symfony's own *No arguments expected, got "password=…"* does — a `--set` forgotten
- * (found on c5 while checking this listener). Only values found on the line are
+ * (found while checking this listener). Only values found on the line are
  * struck: a command that puts some other secret into its exception text puts it
  * into the log.
  *
@@ -84,7 +84,7 @@ class RedactingConsoleErrorListener extends ErrorListener
      *
      * That is the convention a refusal follows across the contao-ai packages (see
      * JsonErrorBoundary), and contao:ai:run answers it as one. Logged as CRITICAL, a typo
-     * in an input stood next to real crashes in var/logs (Consho, c5, 2026-10-13); as a
+     * in an input stood next to real crashes in var/logs; as a
      * warning, Contao's prod log (fingers_crossed, action level error) keeps it only when
      * something fails for real in the same run. Exactly that class, not its subclasses:
      * Symfony's Console, DependencyInjection and Finder extend it for programming errors.
@@ -119,8 +119,8 @@ class RedactingConsoleErrorListener extends ErrorListener
 
         // Names only, for every command (v1.8.1). This bundle's commands answer refusals
         // and defects alike through JsonErrorBoundary: no console.error fires, and this
-        // line was the only one written — with every value of the line, found in the
-        // Fable review before v1.8.1. Contao's fingers-crossed log flushes it along with
+        // line was the only one written — with every value of the line, until v1.8.1.
+        // Contao's fingers-crossed log flushes it along with
         // a later error of the same run, and the back-end chat runs many commands in one
         // request. Where an exception does reach the console, the CRITICAL entry of
         // onConsoleError keeps the redacted line; the caller has its own line anyway.
@@ -157,7 +157,7 @@ class RedactingConsoleErrorListener extends ErrorListener
     /**
      * The options of the command's definition that stand on the line, asked token by
      * token (`hasParameterOption`), so a value like `headline=Hallo --welt` yields no
-     * `--welt` (second Fable review: the regex on the quoted line let such fragments of
+     * `--welt` (the regex on the quoted line let such fragments of
      * names and texts through). Null without a command or definition — then the regex.
      *
      * @return list<string>|null

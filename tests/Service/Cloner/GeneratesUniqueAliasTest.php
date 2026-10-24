@@ -7,7 +7,7 @@ use PHPUnit\Framework\TestCase;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\GeneratesUniqueAlias;
 
 /**
- * Pins H-6 from the audit on 2026-09-02.
+ * Pins the uniqueness check for child aliases.
  *
  * The cloners generated a child alias with `StringUtil::generateAlias()` and
  * saved it. `Contao\Model::save()` does not run the DCA `save_callback`, so

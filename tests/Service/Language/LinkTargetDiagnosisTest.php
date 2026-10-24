@@ -9,7 +9,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Language\LinkTargetDiagnosis;
 
 /**
  * Why changelanguage offers no article to link to (v1.11.1), over a real SQLite database
- * shaped like showcase: the resource pages "_Resources" (main, 28) and "_Ressourcen" (80,
+ * shaped like a real multilingual site: the resource pages "_Resources" (main, 28) and "_Ressourcen" (80,
  * linked to 28) are unpublished on purpose.
  */
 class LinkTargetDiagnosisTest extends TestCase
@@ -89,7 +89,7 @@ class LinkTargetDiagnosisTest extends TestCase
 
     /**
      * At the boundary, as PageFinder::addPublishingConditions() draws it: start < now,
-     * stop > now + 60, minutes floored (review 2026-10-20: ±1 day missed an off-by-one).
+     * stop > now + 60, minutes floored (±1 day would miss an off-by-one).
      */
     public function testTheStartAndStopBoundaryIsChangelanguages(): void
     {

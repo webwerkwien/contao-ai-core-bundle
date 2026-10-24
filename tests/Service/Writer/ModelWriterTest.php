@@ -87,7 +87,7 @@ class ModelWriterTest extends TestCase
     }
 
     /**
-     * Asked for by Consho (2026-10-10): its onsubmit listeners need the values the
+     * Asked for by Consho: its onsubmit listeners need the values the
      * save_callbacks produce. With the flag, create() is DC_Table::create() plus the
      * saved mask — oncreate, save_callbacks on the record that exists, onsubmit, version.
      */

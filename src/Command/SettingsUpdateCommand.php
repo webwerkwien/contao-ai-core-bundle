@@ -175,8 +175,8 @@ class SettingsUpdateCommand extends AbstractWriteCommand
     /**
      * The one place a change entry is made — answered and logged as it is. A sensitive
      * field comes masked, as `settings read` shows it (v1.8.1): the old value of a key
-     * would otherwise come back through the write (Fable review). One producer, so the
-     * loop cannot build an entry past the mask (second Fable review).
+     * would otherwise come back through the write. One producer, so the
+     * loop cannot build an entry past the mask.
      *
      * @return array{from: string, to: string}
      */

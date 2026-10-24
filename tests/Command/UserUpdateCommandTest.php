@@ -39,7 +39,7 @@ class UserUpdateCommandTest extends TestCase
     }
 
     /**
-     * Review K2: `--set disable=` on contao-ai would make an admin that can log in.
+     * `--set disable=` on contao-ai would make an admin that can log in.
      */
     public function testTheCliUserIsNotChangedHere(): void
     {
@@ -124,8 +124,8 @@ class UserUpdateCommandTest extends TestCase
     }
 
     /**
-     * `amg` and `cud` were missed by the first draft of the deny list and found
-     * by the pre-release review. `amg` is not a preference: Contao's front-end
+     * `amg` and `cud` were missed by the first draft of the deny list and added
+     * before release. `amg` is not a preference: Contao's front-end
      * preview authenticates AS those member groups (`contao_user.amg`), so
      * setting it is impersonation. `cud` is the per-user permission table.
      *

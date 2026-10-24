@@ -5,7 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Contract;
 /**
  * Present a contract so that a reader can tell a check from a claim.
  *
- * The objection that shaped this whole design, from the ww-buchung session:
+ * The objection that shaped this whole design:
  * *"a declaration nobody verifies is an assertion."* And its sharpening, which
  * corrected the first draft: **a test run observes the happy path.** A command
  * that writes a version on success and not on the failure path passes anyway —
@@ -39,7 +39,7 @@ final class ContractPresenter
         $out    = [
             'declared_by' => 'the command itself',
             // The boundary of the whole mechanism, said in the answer rather
-            // than left to be discovered. Reported by the ww-buchung session,
+            // than left to be discovered. Reported by a project
             // which has five write paths and exactly one console command among
             // them: the status transitions hang on a DCA button_callback, the
             // booking form is a front-end controller, the voucher expiry is a

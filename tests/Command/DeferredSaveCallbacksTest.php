@@ -12,8 +12,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
 /**
- * The save_callbacks of a create run once the record exists, with its ID and row
- * (pre-release review M3). Run in convertFields() with ID 0, changelanguage's
+ * The save_callbacks of a create run once the record exists, with its ID and row.
+ * Run in convertFields() with ID 0, changelanguage's
  * languageMain check loaded page 0 and refused a legitimate `page create`.
  *
  * Through the real convertFields() and createVersion(); only the database is a stand-in.

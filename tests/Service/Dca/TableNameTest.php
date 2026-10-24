@@ -9,7 +9,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Dca\TableName;
 /**
  * A name, not a prefix. Until v1.9.2 the commands demanded `tl_`, and the
  * Catalog Manager refuses exactly that prefix for its catalog tables — so every
- * one of them was rejected as "Invalid table name" (c5, 2026-10-15).
+ * one of them was rejected as "Invalid table name".
  */
 class TableNameTest extends TestCase
 {

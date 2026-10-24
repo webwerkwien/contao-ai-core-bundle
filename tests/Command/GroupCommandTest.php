@@ -24,8 +24,7 @@ use Webwerkwien\ContaoAiCoreBundle\Tests\NeedsContaoContainerTrait;
  *
  * `tl_user_group` decides what a back end editor can see and change;
  * `tl_member_group` is what protected front end content points at. Both were
- * readable through the generic record group and writable nowhere until
- * 2026-08-31.
+ * readable through the generic record group and writable nowhere at first.
  *
  * What is specific to them, and therefore tested here:
  *

@@ -10,7 +10,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\EventUpdateCommand;
 use Webwerkwien\ContaoAiCoreBundle\Command\UndoRestoreCommand;
 
 /**
- * Where the fixes of the practical test (2026-09-19) are wired in.
+ * Where the fixes for event dates and times are wired in.
  *
  * `EventTimesTest` covers the arithmetic; this covers that create and update go
  * through it, that the answers carry the alias, and the cache note on restore.
@@ -140,7 +140,7 @@ class EventDateWiringTest extends TestCase
     {
         // tl_calendar_events.startTime/endTime default to time(); filled in by
         // preparedFields() they made every all-day create a "time without addTime"
-        // refusal. Found live on c5 before the v0.28.0 release.
+        // refusal. Found live before the v0.28.0 release.
         $source = (string) file_get_contents(__DIR__ . '/../../src/Command/EventCreateCommand.php');
 
         $this->assertStringContainsString("\$own       = ['startTime' => null, 'endTime' => null];", $source);

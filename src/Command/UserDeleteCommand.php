@@ -27,7 +27,7 @@ class UserDeleteCommand extends AbstractWriteCommand
         $this->framework->initialize();
         $username = $this->input->getArgument('username');
 
-        // Locked here as in the back end (review K2); the next migration would bring
+        // Locked here as in the back end; the next migration would bring
         // it back anyway.
         if (CliUser::USERNAME === $username) {
             return $this->outputError(CliUser::REFUSAL);
@@ -40,7 +40,7 @@ class UserDeleteCommand extends AbstractWriteCommand
 
         $id = (int) $user->id;
 
-        // 🔴 H-1 (Audit 2026-09-02): hier stand `$user->delete()` — ein nacktes
+        // 🔴 Hier stand früher `$user->delete()` — ein nacktes
         // Contao\Model::delete(). Kein tl_undo-Snapshot, keine Kaskade, kein
         // Systemlog: der Befehl meldete `deleted` und `contao:undo:restore`
         // konnte den Datensatz nicht zurückholen.

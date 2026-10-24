@@ -14,7 +14,7 @@ use Contao\System;
  * `tl_article::generateAlias`, `tl_news::…`, `tl_calendar_events::…`,
  * `tl_newsletter::…`, and whatever an extension registers under that name — use the
  * `contao.slug` service with the options of the page the record belongs to: its
- * language and `validAliasCharacters`. Measured on 2026-09-16: `Über uns` became
+ * language and `validAliasCharacters`. Measured: `Über uns` became
  * `über-uns` through the bundle and `uber-uns-kopie` through Contao.
  *
  * The callback is called with an empty value, as the back end does when the field is
@@ -36,7 +36,7 @@ final class ContaoAlias
     {
         // The create commands call this inside the array they hand to preparedFields(),
         // before anything has loaded the DCA. Without this line the callback was never
-        // found and every create fell back to the old slug — caught live on c5, not by
+        // found and every create fell back to the old slug — caught on a real installation, not by
         // the tests, which seed the DCA themselves.
         if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
             Controller::loadDataContainer($table);

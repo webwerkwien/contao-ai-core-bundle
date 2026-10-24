@@ -18,9 +18,9 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
  * line from stdin with its spaces kept.
  *
  * Until v0.26.0 `contao:member:create` did not exist although the CLI offered it
- * (regression run before 1.0, 2026-09-18), and no command could set a member password.
+ * (regression run before 1.0), and no command could set a member password.
  * The write itself — hash, save callbacks, version — needs a real installation and was
- * verified on c5 (5.3.51, 5.7.13, 6.0.0).
+ * verified live (5.3.51, 5.7.13, 6.0.0).
  */
 class MemberPasswordCommandsTest extends TestCase
 {
@@ -88,8 +88,8 @@ class MemberPasswordCommandsTest extends TestCase
      * `--set` wins over the command's own options (preparedFields()), so
      * `--username anna --set username=bob` created bob, answered `"username":
      * "anna"` and ran the "password must not equal the username" check against
-     * anna — three statements about one record, two of them wrong. Found by the
-     * pre-release review of v1.1.0; `username` is denied on create only,
+     * anna — three statements about one record, two of them wrong. Fixed in
+     * v1.1.0; `username` is denied on create only,
      * renaming stays possible with member:update.
      */
     public function testUsernameAsASetFieldIsRefused(): void

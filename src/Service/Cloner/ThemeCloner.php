@@ -12,8 +12,8 @@ use Contao\StringUtil;
  * (`.cto`). This clone does that step at once — and goes further than a plain row copy
  * would: a copy of the rows alone would leave the copied layouts placing the modules of
  * the OLD theme, a copied news list opening the old reader, a copied module using the old
- * image size, and whoever edited the copy would change the live site. (Until the
- * pre-release review this docblock said Contao's own copy behaved like that; it has none.)
+ * image size, and whoever edited the copy would change the live site. (An earlier
+ * version of this docblock said Contao's own copy behaved like that; it has none.)
  *
  * This copy bends the references that point INTO the theme to their copies:
  *
@@ -270,7 +270,7 @@ class ThemeCloner extends AbstractDcaCloner
     /**
      * `rootPageDependentModules`: `[rootPageId => "12" | "content-7"]`, serialized — the
      * module (or, since 5.6, theme element) shown below each website root. The field has
-     * neither `relation` nor `foreignKey`; found by the pre-release review.
+     * neither `relation` nor `foreignKey`.
      *
      * @param array<string, array<int, int>> $map
      */

@@ -26,7 +26,7 @@ use Symfony\Component\Console\Attribute\AsCommand;
  * It was written on the assumption that a recipient who unsubscribed could be
  * switched back on with the `active` toggle, since `checkDenyList` is a
  * `save_callback` on `email` and does not fire for it. Verified against the
- * source on 2026-08-31, and that assumption was wrong: **both** opt-out paths
+ * source, and that assumption was wrong: **both** opt-out paths
  * write the deny list entry and then delete the recipient row.
  *
  *     BlockRecipientListener:  $objDenyList->save();  …  $recipient->delete();

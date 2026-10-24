@@ -117,7 +117,7 @@ class UndoReadCommand extends AbstractReadCommand
      * Live column names, lower-cased.
      *
      * Doctrine's `listTableColumns()` lower-cases its array keys, so `singleSRC`
-     * comes back as `singlesrc` — the trap documented on 2026-08-31. Comparing
+     * comes back as `singlesrc` — a known trap. Comparing
      * lower-cased on both sides is what keeps a mixed-case column from being
      * reported as dropped when it is perfectly present.
      *

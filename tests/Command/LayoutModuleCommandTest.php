@@ -8,7 +8,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\LayoutModuleCommand;
 /**
  * `contao:layout:module --layout 25 --module 66 --col header [--remove]`
  *
- * 🟡 **Found on 2026-09-16** in the ConpAI 1.0 acceptance test: putting a module into a
+ * 🟡 **The gap:** putting a module into a
  * layout meant composing the `moduleWizard` value by hand — a PHP-serialized list,
  * built with `php -r 'echo serialize(…)'`. A layout without modules renders nothing, so
  * the step that makes a page visible needed the format this bundle warns against.
@@ -40,7 +40,7 @@ class LayoutModuleCommandTest extends TestCase
     public static function layouts(): array
     {
         return [
-            'layout 25 on c5 (2rwh, 2cll)' => [['rows' => '2rwh', 'cols' => '2cll', 'sections' => null], ['main', 'header', 'left']],
+            'two rows, two columns (2rwh, 2cll)' => [['rows' => '2rwh', 'cols' => '2cll', 'sections' => null], ['main', 'header', 'left']],
             'one column, no rows'          => [['rows' => '1rw', 'cols' => '1cl', 'sections' => ''], ['main']],
             'everything'                   => [['rows' => '3rw', 'cols' => '3cl', 'sections' => ''], ['main', 'header', 'left', 'right', 'footer']],
             'custom section'               => [['rows' => '1rw', 'cols' => '1cl', 'sections' => serialize([['title' => 'Hero', 'id' => 'hero', 'position' => 'top']])], ['main', 'hero']],
@@ -80,7 +80,7 @@ class LayoutModuleCommandTest extends TestCase
     }
 
     /**
-     * Nr. 68: a theme's content element sits in a layout as `content-<id>` (Contao 5.7).
+     * A theme's content element sits in a layout as `content-<id>` (Contao 5.7).
      */
     public function testAThemeContentElementIsRecognisedAndStoredInContaosForm(): void
     {

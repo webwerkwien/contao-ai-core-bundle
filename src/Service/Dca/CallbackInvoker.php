@@ -7,8 +7,8 @@
 // ID it hands to ondelete is a string, and `RecordPreviewListener::
 // storePrecompiledRecordPreview(DataContainer $dc, string $undoId)` takes it; an
 // extension typing `int $insertId` gets the string insert ID turned into an int.
-// Called from a strict file, the same call is a TypeError — measured on c5 (Contao
-// 6.0) on 2026-10-10, the first delete after DcaCallbacks went live.
+// Called from a strict file, the same call is a TypeError — measured on Contao 6.0,
+// the first delete after DcaCallbacks went live.
 //
 // Calling from here reproduces Contao's mode for every callback, whatever the types.
 

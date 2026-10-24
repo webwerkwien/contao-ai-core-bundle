@@ -27,7 +27,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
  * - a database backup first, always — the restore is one `backup restore` away
  * - the administrators: Contao restores the logged-in user if `tl_user` ends up empty;
  *   on the console that user is `contao-ai`, who cannot log in. So the existing admins are
- *   kept aside, and when the file brings users the caller decides (Michael, 2026-10-15):
+ *   kept aside, and when the file brings users the caller decides:
  *   `both` keeps the existing admins next to the imported ones, `existing` keeps only the
  *   existing ones and removes imported admins. On the same username the existing account
  *   wins. Without existing admins the imported ones simply arrive. `contao-ai` is always
@@ -135,10 +135,10 @@ class ExampleWebsite
         }
 
         // Also after a statement failed half-way: by then `data` has emptied tl_user, and
-        // Contao's own fallback puts back only contao-ai, who cannot log in (review before
-        // v1.9.0). And the putting back can fail itself — a `full` import that dropped
+        // Contao's own fallback puts back only contao-ai, who cannot log in. And the
+        // putting back can fail itself — a `full` import that dropped
         // tl_user and stopped before recreating it — which must not hide the cause or the
-        // backup's name (second review).
+        // backup's name.
         $admins = ['kept' => [], 'removed' => [], 'imported' => [], 'renumbered' => []];
         $restoreFailure = null;
         try {
@@ -166,7 +166,7 @@ class ExampleWebsite
             'backup'     => $backup,
             // Contao's retention (`contao.backup.keep_intervals` 1D/7D/14D/1M, `keep_max` 5 by
             // default) thins out backups made close together: the next backup made the same
-            // day removed this one (measured on c5, 6.0, 2026-10-15, two imports in a row).
+            // day removed this one (measured on Contao 6.0, two imports in a row).
             'backup_note' => 'This backup is the way back. Contao keeps one backup per interval: the next backup made today (another import, backup create, migrate) can remove it — restore first, or copy it out of var/backups.',
             'statements' => $preview['statements'],
             'admins'     => $admins,
@@ -195,7 +195,7 @@ class ExampleWebsite
 
         // On the same username the existing account wins. A row the import did not touch
         // stays as it is — deleting and re-inserting it would risk the account for nothing
-        // (review before v1.9.0); only a different row under its name is replaced.
+        // (since v1.9.0); only a different row under its name is replaced.
         $renumbered = [];
         foreach ($kept as $row) {
             $now = $this->connection->fetchAssociative('SELECT * FROM tl_user WHERE username = ?', [$row['username']]);
@@ -275,7 +275,7 @@ class ExampleWebsite
     /**
      * In `full` Contao runs every line of the file as a statement, empty ones and
      * comments included; MySQL refuses an empty query, so such a line ends the import
-     * half-way (review before v1.9.0). Said before, not found after.
+     * half-way. Said before, not found after.
      *
      * @return list<string>
      */

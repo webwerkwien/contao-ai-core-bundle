@@ -57,7 +57,7 @@ class LanguageVersionsCommand extends AbstractReadCommand
         $answer = ['table' => $table] + $found + ['otherRoots' => $roots];
         if (null === $own) {
             // An entry whose archive has no jumpTo page: its language is unknown, so
-            // "other" cannot be told from "own" (review 2026-10-20).
+            // "other" cannot be told from "own".
             $answer['rootNote'] = 'The record\'s own root could not be determined (its archive has no jumpTo page); otherRoots lists every website root.';
         }
         if (!$found['linked'] && [] !== $roots) {

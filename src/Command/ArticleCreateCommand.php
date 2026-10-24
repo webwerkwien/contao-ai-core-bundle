@@ -53,7 +53,7 @@ class ArticleCreateCommand extends AbstractWriteCommand implements CreatesRecord
         $pid = (int) ($slot['pid'] ?? $pid);
 
         // Behind an article of the left column is in the left column, unless told otherwise
-        // (review v1.12.0: it went to main).
+        // (before v1.12.0 it went to main).
         $inColumn = null !== $after && !$this->input->hasParameterOption('--inColumn')
             ? (string) ($this->storedRow('tl_article', $after)['inColumn'] ?? 'main')
             : (string) $this->input->getOption('inColumn');

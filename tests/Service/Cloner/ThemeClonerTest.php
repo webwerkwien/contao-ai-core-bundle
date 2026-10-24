@@ -226,7 +226,7 @@ class ThemeClonerTest extends TestCase
             ['mod' => '0', 'col' => 'main', 'enable' => '1'],
         ]), $layout['modules']);
 
-        // Review before v1.9.0: neither field carries relation/foreignKey to tl_module.
+        // Neither field carries relation/foreignKey to tl_module.
         self::assertSame(
             // 5.3 stores a root without a module as '' (includeBlankOption): it stays.
             serialize([1 => (string) $reader['id'], 2 => 'content-' . $element['id'], 3 => '99', 4 => '']),

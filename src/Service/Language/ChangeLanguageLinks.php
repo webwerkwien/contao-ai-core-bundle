@@ -89,7 +89,7 @@ class ChangeLanguageLinks
         }
 
         // No article to offer: say which page or root is the reason, not the general rule
-        // (v1.11.1 — on showcase the refusal said "link the page first" for a linked page
+        // (v1.11.1 — before, the refusal said "link the page first" for a linked page
         // whose counterpart is unpublished on purpose).
         $cause = [] === $values && 'tl_article' === $table ? $this->diagnosis?->forArticlePage((int) ($record['pid'] ?? 0)) : null;
 

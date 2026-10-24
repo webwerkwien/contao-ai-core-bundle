@@ -17,7 +17,7 @@ use Symfony\Component\Filesystem\Path;
  * Make a folder public, or protect it again — the back end's five steps.
  *
  * Until v0.13.0 there was no way to do this from the CLI: `--public` on folder
- * create was removed on 2026-04-19 because it wrote to a column that does not
+ * create was removed because it wrote to a column that does not
  * exist, and Contao's real mechanism was never built in its place. Without it the
  * front end does not serve the folder. See FolderPublishCommandTest.
  *
@@ -107,7 +107,7 @@ class FolderPublishCommand extends AbstractWriteCommand
         if ($changed) {
             // Automator::generateSymlinks(), with the same command and messages — but its
             // log lines carry no context, and on the console Contao fills in FE / N/A
-            // (live on a production installation, 2026-09-17, Nr. 59). In the back end the processor
+            // (live on a production installation). In the back end the processor
             // takes the editor from the session; here the operator is passed along.
             $container = System::getContainer();
             $webDir    = Path::makeRelative($container->getParameter('contao.web_dir'), $container->getParameter('kernel.project_dir'));

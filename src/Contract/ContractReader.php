@@ -57,7 +57,7 @@ final class ContractReader
      * nevertheless answered *"must be a non-empty string, got null"*: a
      * complaint about a correct statement, whose only workaround was to leave
      * the field out and say the same thing less clearly. Reported from the
-     * first real declaration written against this attribute (2026-09-01).
+     * first real declaration written against this attribute.
      *
      * The field is dropped rather than carried: silence and "explicitly
      * nothing" have to reach a reader the same way, or `repeatable: null` shows

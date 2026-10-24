@@ -21,8 +21,8 @@ use Symfony\Component\Console\Input\InputOption;
  * Two mandatory fields, both in the `default` palette and no subpalette at all:
  * `title` and `sender`. `sender` carries `rgxp => 'email'`, which `DC_Table`
  * would validate through the widget and this write path would not — so it is
- * checked here explicitly. See the `rgxp` requirement in the project file: the
- * write layer validates no `rgxp` at all yet, and until it does, every command
+ * checked here explicitly. The write layer validates no `rgxp` at all yet,
+ * and until it does, every command
  * that writes an address field carries its own check.
  *
  *   newsletter channel-create --title "Kundeninfo"

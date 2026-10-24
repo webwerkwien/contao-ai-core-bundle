@@ -23,7 +23,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
  * so it needs no database. That a foreign field *reaches the column check* is
  * not asserted here: getting past the deny list lands on
  * `MemberModel::findByUsername()`, which needs a booted framework. It is
- * covered generically in UnknownFieldRefusalTest, and live on c5 in Issue #71.
+ * covered generically in UnknownFieldRefusalTest, and live in Issue #71.
  * Below, a foreign field is only shown to be absent from the deny list.
  */
 class MemberUpdateCommandTest extends TestCase
@@ -135,8 +135,8 @@ class MemberUpdateCommandTest extends TestCase
     /**
      * Lower case throughout, because deniedAmong() lower-cases the caller's key
      * before comparing. An entry spelled `useTwoFactor` would never match and
-     * the guard would be silently open — which is exactly what happened between
-     * the first draft of this change and the review.
+     * the guard would be silently open — which is exactly what happened in
+     * the first draft of this change.
      */
     public function testTheDenyListsAreLowerCase(): void
     {

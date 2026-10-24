@@ -9,7 +9,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Language\LinkTargetDiagnosis;
 
 /**
  * Field and valid targets of a translation link, as changelanguage defines them
- * (v1.4.0). The page tree check needs Contao's database and is covered on c5.
+ * (v1.4.0). The page tree check needs Contao's database and is covered on a real installation.
  */
 class ChangeLanguageLinksTest extends TestCase
 {
@@ -72,7 +72,7 @@ class ChangeLanguageLinksTest extends TestCase
 
     /**
      * v1.11.1: with the diagnosis the refusal names the page that is the reason — over the
-     * real class on SQLite, the showcase case — instead of "link the page first".
+     * real class on SQLite, a case seen on a real site — instead of "link the page first".
      */
     public function testAnArticleRefusalNamesTheUnpublishedCounterpart(): void
     {

@@ -1,6 +1,6 @@
 # PHPStan configuration.
 #
-# Added 2026-09-05. Until then this bundle had no static analysis at all and no
+# Added in v0.6.0. Until then this bundle had no static analysis at all and no
 # `composer ci` — the sibling backend bundle had both. The asymmetry had grown,
 # it was not designed.
 #
