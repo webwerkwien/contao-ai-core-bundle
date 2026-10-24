@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.12.1 - 2026-10-24
+
+Works with the same backend-bundle and contao-ai-cli.
+
+### Fixed
+
+- **An empty unit of an `inputUnit` field (a headline's level) no longer changes or skips
+  a write silently.**
+  - `--set headline_unit=` on its own, without `headline`, was answered `ok` with
+    `updated: []` and wrote nothing. It is now refused, naming the allowed units
+    (for a headline `h1` to `h6`); nothing is written. The same holds for `null` or a
+    number passed by a caller in code.
+  - An empty unit in the JSON form, `{"value": "…", "unit": ""}`, reset the level to the
+    field's default. It now counts as no unit, like an empty `headline_unit` next to a
+    value already did: an update keeps the stored level, a create takes the default.
+
 ## v1.12.0 - 2026-10-22
 
 Works with the same backend-bundle and contao-ai-cli; backend-bundle v0.22.0 and

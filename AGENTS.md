@@ -367,6 +367,12 @@ the **keys** of an associative array (v0.17.0; before, `['h1' => 'Heading 1']` r
 --set headline_unit=h1` rewrites the stored pair with `h1`. Up to v0.16.0 the companion key
 was consumed, nothing was written and the answer was `ok` with `updated: []`.
 
+**An empty unit is no unit** (v1.12.1). `headline_unit=` on its own names nothing to write
+and is refused with the allowed units (as are `null` and numbers from a caller in code);
+up to v1.12.0 it still slipped through as `ok` with `updated: []`. Next to a value, as companion or as `"unit":""` in the JSON, it counts as
+absent: an update keeps the stored unit, a create takes the default. Up to v1.12.0 the
+empty JSON unit skipped the stored one and reset the level to the default.
+
 > 🔴 **v0.2.28 to v0.10.0 could not write these fields at all.** The conversion
 > into the pair ran before the checks, so `refuseInvalidValues()` held the whole
 > serialized string against `rgxp` (since v0.2.28: `width=90 --set width_unit=vw`

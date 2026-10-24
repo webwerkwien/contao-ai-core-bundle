@@ -2864,12 +2864,27 @@ abstract class AbstractWriteCommand extends Command
         // The stored value is carried over as the JSON form, so the steps below
         // treat it like any caller-given value — the unit check included.
         foreach ($fields as $key => $value) {
-            if (!\is_string($key) || !str_ends_with($key, '_unit') || !\is_string($value) || '' === $value) {
+            if (!\is_string($key) || !str_ends_with($key, '_unit')) {
                 continue;
             }
             $base = substr($key, 0, -5);
             if (($dca[$base]['inputType'] ?? null) !== 'inputUnit' || \array_key_exists($base, $fields)) {
                 continue;
+            }
+
+            // An empty unit on its own names nothing to write. It was consumed
+            // below and answered "ok" with `updated: []`. The console passes
+            // strings only; null or a number from a caller in code is no unit
+            // either.
+            if (!\is_string($value) || '' === $value) {
+                $allowed = $this->optionValues($dca[$base]) ?? [];
+                throw new \InvalidArgumentException(\sprintf(
+                    'For %s, %s %s: name a unit%s. Nothing was written.',
+                    $table,
+                    $key,
+                    null === $value || '' === $value ? 'is empty' : 'is not a unit name',
+                    [] === $allowed ? '' : ' (allowed: ' . implode(', ', array_map('strval', $allowed)) . ')',
+                ));
             }
 
             $stored = null === $record ? null : ($record->$base ?? null);
@@ -2910,7 +2925,9 @@ abstract class AbstractWriteCommand extends Command
             $decoded = json_decode($value, true);
             if (\is_array($decoded) && \array_key_exists('value', $decoded)) {
                 $val  = (string) $decoded['value'];
-                $unit = isset($decoded['unit']) ? (string) $decoded['unit'] : null;
+                // An empty unit is no unit: the record's unit stays (3). Until
+                // v1.12.0 '' skipped (3) and reset the level to the default.
+                $unit = isset($decoded['unit']) && '' !== (string) $decoded['unit'] ? (string) $decoded['unit'] : null;
             }
 
             // (1) explicit companion "<field>_unit" wins
