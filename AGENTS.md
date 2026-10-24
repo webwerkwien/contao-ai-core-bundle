@@ -83,6 +83,9 @@ touching the implementation. Do not edit test files while making the fix.
 - **No internals in the CHANGELOG** — nor in the GitHub release notes, which copy it: no names, no review or
   acceptance tags, no servers or hosts, no test data, no keys or key IDs. Only what changes for the people using
   the bundle.
+  Removing internals is not announced either: nothing like "no longer refers to" or "removed internal
+  references" — that says there were some, and the diff between the tags shows them. Done with a regular
+  release, it goes unmentioned; on its own, the entry reads "Overhaul of code comments and the agent guide."
 - PHP 8.2+, `declare(strict_types=1)` in every file, `Command::SUCCESS` rather
   than `return 0`.
 - A write goes through Contao's record writer, never through raw SQL — that is
