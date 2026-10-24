@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.12.2 - 2026-10-24
+
+Works with the same backend-bundle and contao-ai-cli.
+
+### Changed
+
+- Overhaul of code comments. No change in behaviour.
+
 ## v1.12.1 - 2026-10-24
 
 Works with the same backend-bundle and contao-ai-cli.
