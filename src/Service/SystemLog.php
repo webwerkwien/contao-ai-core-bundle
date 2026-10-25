@@ -14,7 +14,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
  * Everything this bundle changed used to be invisible in the back end. The
  * commands did log, but through the plain app-channel `LoggerInterface`, and in
  * a Managed Edition that channel reaches neither `tl_log` nor `var/logs` — a
- * `grep` over a production log directory after weeks of CLI edits returned
+ * `grep` over the log directory returned
  * nothing at all.
  *
  * Two things are needed to reach `tl_log`. First the `contao.*` channel, which

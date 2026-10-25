@@ -101,8 +101,8 @@ trait SiblingPositions
     {
         // The position is computed before any write path has loaded the DCA. Unloaded,
         // tl_content read as a table without a per-record parent table: --ptable was
-        // dropped and the parent checked against the stored one — on a production site 25
-        // elements moved "to article 35" ended up below content elements 35–38, with
+        // dropped and the parent checked against the stored one — elements moved to an
+        // article ended up below the content element with the article's ID, with
         // status ok (v1.11.2). The unit tests had set the DCA by hand.
         if (!isset($GLOBALS['TL_DCA'][$table]['config'])) {
             $this->loadDca($table);

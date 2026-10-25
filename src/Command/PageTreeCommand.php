@@ -17,12 +17,11 @@ use Webwerkwien\ContaoAiCoreBundle\Service\SensitiveFields;
  *
  * The CLI used to build the tree itself: `SELECT … FROM tl_page ORDER BY
  * sorting` over every page, then nest the rows in Python. That could not move
- * to `contao:record:list`, whose 100-row cap a real site passes easily —
- * one production site has **283 pages**.
+ * to `contao:record:list`, whose 100-row cap a real site passes easily.
  *
  * 🎯 **But the cap was never the real problem.** Paginating around it with
  * `--offset` would work and still put **80 KB** of JSON in front of the caller,
- * for a question that is almost never "show me all 283 pages" but "what hangs
+ * for a question that is almost never "show me all pages" but "what hangs
  * under this node". The size is the constraint, not the row count.
  *
  * ## How Contao answers it

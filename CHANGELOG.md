@@ -2170,9 +2170,9 @@ installation that has it. The minor stays where it is until both can move togeth
 
 ### Added
 
-- **`contao:page:tree` — the page tree, built on the server.** The CLI used to select every page and nest the rows itself, which could not move to `contao:record:list`: its 100-row cap is passed by any real site, and one production site has 283 pages.
+- **`contao:page:tree` — the page tree, built on the server.** The CLI used to select every page and nest the rows itself, which could not move to `contao:record:list`: its 100-row cap is passed by any real site.
 
-  🎯 **The cap was never the real problem.** Paginating around it would work and still put **80 KB** of JSON in front of the caller, for a question that is almost never "all 283 pages" but "what hangs under this node".
+  🎯 **The cap was never the real problem.** Paginating around it would work and still put **80 KB** of JSON in front of the caller, for a question that is almost never "all pages" but "what hangs under this node".
 
   Contao answers it the same way: the back end tree renders one level and keeps the expanded state per node, and `Database::getChildRecords()` descends level by level where a whole subtree is genuinely needed. Both are server-side.
 
@@ -2641,7 +2641,7 @@ Suite: `vendor/bin/phpunit` → 158 tests, 18 skipped, 0 errors. `CONTAO_ROOT=�
 
 ### Added
 
-- **Every write now appears in Contao's system log (`tl_log`).** Until this release nothing this bundle did was visible in the back end, and the log line it *did* write went nowhere: `outputSuccess()` logged through the plain app-channel `LoggerInterface`, and in a Managed Edition that channel reaches neither `tl_log` nor `var/logs`. Measured on a production site after weeks of CLI edits - `grep -r "contao-ai-core-bundle audit" var/logs/` returned zero hits, and `tl_log` held nothing but cron and back-end entries. Two graphics had been swapped through the CLI; the only trace left was a `tstamp` on `tl_files`.
+- **Every write now appears in Contao's system log (`tl_log`).** Until this release nothing this bundle did was visible in the back end, and the log line it *did* write went nowhere: `outputSuccess()` logged through the plain app-channel `LoggerInterface`, and in a Managed Edition that channel reaches neither `tl_log` nor `var/logs`. `grep -r "contao-ai-core-bundle audit" var/logs/` returned zero hits, and `tl_log` held nothing but cron and back-end entries. Two graphics had been swapped through the CLI; the only trace left was a `tstamp` on `tl_files`.
 
   Reaching `tl_log` takes two things, and the bundle had neither. The entry must go through a `contao.*` Monolog channel, which Contao's `LoggerChannelPass` decorates with its `SystemLogger`; and the log context must carry a `ContaoContext`, because `ContaoTableHandler::handle()` returns early without one. The new `Service\SystemLog` does both. It passes its own context rather than letting the decorator build one, because `ContaoTableProcessor` only fills what is still null - and on the console there is no request and no security token, so an auto-built context would land as `username = N/A`, `source = FE`.
 
