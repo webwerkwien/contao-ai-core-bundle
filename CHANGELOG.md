@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.13.0 - 2026-10-25
+
+Works with the same backend-bundle and contao-ai-cli; contao-ai-cli v1.16.0 uses the new
+command.
+
+### Added
+
+- **`contao:ai:apply`** — page, article and content writes from one JSON plan on stdin,
+  all or nothing: one transaction around every step, a failing step rolls back the whole
+  plan and the answer names it. Each step runs the existing command (`page create`,
+  `content update`, `language link`, …) with its own checks, versions and log entries.
+  - `@name` hands the ID of an earlier step to a later one, as a whole value or inside an
+    insert tag (`{{link_url::@name}}`); `@name.article` is the article a page create made.
+    Any other `@` in a text stays as it is.
+  - The whole plan is checked before the first write, and every problem is listed. Also
+    refused before the first write: a step whose command is not installed (`language link`
+    needs terminal42/contao-changelanguage) and a database where one of the tables involved
+    cannot roll back (Contao recommends InnoDB). At most 500 steps per plan.
+  - `--dry-run` runs every step and rolls back; its IDs are provisional.
+  - `--operator` reaches every step. The cache tags of all steps are invalidated once more
+    after the commit.
+
 ## v1.12.2 - 2026-10-24
 
 Works with the same backend-bundle and contao-ai-cli.

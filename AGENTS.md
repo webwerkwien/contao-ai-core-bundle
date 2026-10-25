@@ -1182,6 +1182,26 @@ there are several (see "Language versions" above). Keep it read-only and
 voter-free like the other commands; the backend bundle filters by Contao's voters. When a
 table or column joins the search, add a test with a known non-match.
 
+## One plan, all or nothing: `contao:ai:apply` (v1.13.0)
+
+`ApplyCommand` writes nothing itself: it runs the bundle's own commands through
+`Application::doRun()`, as `contao:ai:run` does, inside one transaction. Keep it that way: a
+step gets exactly what the single command gets, or the guarantees of that command stop
+holding inside a plan.
+
+- **What a step may be is a fixed list** (`ApplyPlan::STEPS`: command, how it takes the ID,
+  its options, whether it takes `set`). A new step type needs its options checked against the
+  command's `configure()`, and every table it writes in `ApplyCommand::TABLES`, so the engine
+  check covers it. A table family joins only with a test that it rolls back with the rest.
+- **`@name` is resolved in two places only** (`ApplyReferences`): a whole value and an insert
+  tag argument. Do not widen it to free text; e-mail addresses and mentions must pass
+  unchanged.
+- **The cache is invalidated a second time after the commit.** Each step invalidates inside
+  the open transaction, and a page request in that moment would cache the old state again.
+- **Only `\InvalidArgumentException` from resolving a reference fails a step quietly.** Around
+  `doRun()` the same class out of a command's own code is a defect and goes to
+  JsonErrorBoundary; the `catch (\Throwable)` rolls back first either way.
+
 ## Layout modules (v0.16.0)
 
 `contao:layout:module --layout --module --col [--remove]` validates module, theme and

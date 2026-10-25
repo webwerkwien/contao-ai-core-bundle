@@ -58,6 +58,7 @@ All commands output JSON and follow a consistent `{"status":"ok", ...}` / `{"sta
 | Search | `contao:search:query` (the site's search index: pages, and never one with `noindex`) `contao:content:find` (content elements by their text, since v1.10.0) |
 | Schema / Config | `contao:dca:schema` `contao:listing:config` `contao:listing:data` |
 | Macros (since v0.2.0) | `contao:record:list` `contao:record:clone` |
+| Plans (since v1.13.0) | `contao:ai:apply` (page, article and content writes from one JSON plan, all or nothing) |
 
 ### Macro commands
 
@@ -69,6 +70,42 @@ All commands output JSON and follow a consistent `{"status":"ok", ...}` / `{"sta
 - `contao:example-website:import <file> --mode=full|data|data_no_truncate [--admins=both|existing] [--confirm]` — an example website as the theme manager imports it, after an automatic database backup; administrators kept by choice (since v1.9.0).
 - `contao:listing:data <id> [--limit] [--offset]` — the rows a listing module shows, as JSON: the module's own table, fields, condition and sort, run server-side; sensitive fields masked (since v1.9.0).
 - `contao:record:clone <table> <id> [--recursive] [--with-recipients]` — clone a container record (news archive, calendar, FAQ category, page; since v1.8.0 also form, newsletter channel, module, layout) including all cascading children in one DB transaction. Forms come with their fields, newsletter channels with their newsletters (unsent) and their recipients only with `--with-recipients`; modules and layouts stay in their theme; since v1.9.0 also a whole theme, with its modules, layouts, image sizes and theme elements, whose references to each other then point at the copies (references out of the theme stay) — a step Contao's back end does not offer: themes are not copyable there, only exported and imported. What Contao's copy does not take along (`doNotCopy`, `unique`) is reset, references stay and are listed in `references`. With `--recursive` PageCloner walks subpage trees (depth-cap 10, total-cap 50); its answer counts pages in `page_count` (root included, since v1.9.1) and articles in `count` and `article_count`. Tagged-iterator EntityCloner registry — only registers cloners for plugins actually installed on the target site. Cloned pages and articles come out unpublished and a cloned root is never the main language (`fallback`) by itself, as in Contao's own copy (v1.7.4); pass `{"published":"1"}` or `{"fallback":"1"}` in `--modifications` to change that on the root.
+
+### One plan, all or nothing: `contao:ai:apply` (since v1.13.0)
+
+`contao:ai:apply` reads a JSON plan from stdin and runs its steps in order, inside one
+database transaction. Each step is one of the commands above, run in the same process with
+its own checks, callbacks, versions and log entries; `apply` adds no write path of its own.
+If a step fails, every step before it is rolled back and the answer names the failed step.
+
+```json
+{"steps": [
+  {"ref": "shipping", "do": "page create", "title": "Shipping", "pid": 59,
+   "set": {"published": "1"}},
+  {"do": "language link", "table": "tl_page", "id": "@shipping", "main": 92},
+  {"ref": "intro", "do": "content create", "type": "text", "pid": "@shipping.article", "ptable": "tl_article",
+   "set": {"text": "<p>Orders ship within two days.</p>"}},
+  {"do": "content update", "id": 771,
+   "set": {"text": "<a href=\"{{link_url::@shipping}}\">Shipping</a>"}}
+]}
+```
+
+- **Steps:** `page`, `article` and `content` with `create`, `update`, `delete`, `move`, and
+  `language link` (with changelanguage). The other keys are the command's options under their
+  own names (`title`, `pid`, `ptable`, `type`, `alias`, `language`, `after`, `to`, `table`,
+  `main`, `id`); `set` is an object of fields, structured values as JSON objects.
+- **`@name`** is the ID of the earlier step with `"ref": "name"` (for an update, move or link
+  the record it touched); `@name.article` is the article a page create made. It is recognised
+  as a whole value and as the argument of an insert tag (`{{link_url::@name}}`, up to `}}` or
+  `|`), nowhere else: an e-mail address or a mention in a text stays as it is.
+- **Checked before the first write:** unknown steps or keys, a reference to a later or unknown
+  step, a duplicate `ref`, more than 500 steps — every problem is listed. Refused as well: a
+  step whose command is not installed, and a database where one of the tables involved cannot
+  roll back (Contao recommends InnoDB; the single commands still work there).
+- **`--dry-run`** runs every step and rolls back. Its IDs are provisional: the database counter
+  keeps counting after a rollback, so a real run gets higher IDs.
+- `--operator` is handed to every step. After the commit the cache tags of all steps are
+  invalidated once more.
 
 > **`record_rewrite` lives in [contao-ai-backend-bundle](https://github.com/webwerkwien/contao-ai-backend-bundle), not here.** That command needs an LLM API key per call. Keeping core agnostic of LLM dependencies and key handling was a deliberate architecture decision.
 
