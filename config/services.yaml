@@ -51,7 +51,7 @@ services:
             # Schon von News*.php erfasst, eigene Zeile aus demselben Grund wie bei
             # den Newsletter-Commands oben.
             - ../src/Service/Cloner/Newsletter*.php
-            # Wertklassen von contao:ai:apply, keine Dienste.
+            # Value classes of contao:ai:apply, not services.
             - ../src/Service/Apply
 
     Webwerkwien\ContaoAiCoreBundle\Command\FolderCreateCommand:
