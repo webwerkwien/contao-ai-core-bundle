@@ -61,7 +61,7 @@ class NonNumericValueRefusalTest extends TestCase
             'big'       => '-3',
             'start'     => '1790805600',
             'startTime' => '',
-            'title'     => 'Kahlenberg 17:30',
+            'title'     => 'Harbour 17:30',
             'published' => 'true',   // the boolean refusal's business, not this one's
             'sizes'     => 'a:0:{}',
         ]));

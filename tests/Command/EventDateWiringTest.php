@@ -87,7 +87,7 @@ class EventDateWiringTest extends TestCase
 
     public function testFieldsWithoutADateAreLeftAlone(): void
     {
-        $this->assertSame(['location' => 'Kahlenberg'], $this->preProcess(['location' => 'Kahlenberg'], ['startDate' => 1]));
+        $this->assertSame(['location' => 'Harbour'], $this->preProcess(['location' => 'Harbour'], ['startDate' => 1]));
     }
 
     public function testTextIsLeftForTheRefusal(): void
