@@ -837,10 +837,9 @@ back end refuses too counts as a fix, not a break.
 - **Where contao-ai-backend-bundle is installed, update it to v0.9.2 first** — up to v0.9.1
   it requires core `<1.0`, and Composer refuses core 1.0 next to it.
 
-Before 1.0: regression runs on Contao 5.3.51, 5.7.13 and
-6.0.0, three agent tests with agents that knew only the guide, and a practical test of the
-core modules (FAQ, news, events, newsletter, forms, comments, listing) including front end
-submissions — its fixes are v0.28.0.
+Tested before 1.0 on Contao 5.3.51, 5.7.13 and 6.0.0, including the core modules (FAQ,
+news, events, newsletter, forms, comments, listing) with front end submissions — the fixes
+from that are in v0.28.0.
 
 ## v0.28.0 - 2026-09-19
 
