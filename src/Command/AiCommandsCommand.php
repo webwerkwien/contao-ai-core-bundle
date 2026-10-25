@@ -130,8 +130,8 @@ class AiCommandsCommand extends AbstractReadCommand
                     : ContractPresenter::present($contract, self::tableHasDca(...)),
                 // Cast so an empty set encodes as {} and not []. PHP's empty
                 // array is both, json_encode picks the array, and a caller then
-                // has to handle two shapes for the same field — found by a
-                // reader that did `.items()` on `contao:record:clone`, which
+                // has to handle two shapes for the same field — a reader that
+                // calls `.items()` breaks on `contao:record:clone`, which
                 // takes no arguments.
                 'arguments'   => (object) $arguments,
                 'options'     => (object) $options,
@@ -185,9 +185,8 @@ class AiCommandsCommand extends AbstractReadCommand
      *
      * 🎯 Worth naming, because the failure wore the usual disguise: `null` is a
      * valid answer here, and it reads as "this command declares nothing"
-     * rather than "we looked in the wrong place". Found within minutes of
-     * the first live run, by checking the attribute directly instead of
-     * trusting the empty result.
+     * rather than "we looked in the wrong place". Checking the attribute
+     * directly, instead of trusting the empty result, shows the difference.
      */
     private static function declaringClass(Command $command): string
     {
@@ -210,10 +209,9 @@ class AiCommandsCommand extends AbstractReadCommand
         }
 
         // The framework has to be up before this runs — `loadDataContainer`
-        // reaches for the container and throws otherwise. The first live run
-        // died exactly there, and the JSON error it produced was read as
-        // "the plugin declares nothing" because the reading script asked for a
-        // key that an error payload does not have.
+        // reaches for the container and throws otherwise. The JSON error that
+        // produces is easily read as "the plugin declares nothing" by a script
+        // that asks for a key an error payload does not have.
         Controller::loadDataContainer($table);
 
         return isset($GLOBALS['TL_DCA'][$table]);

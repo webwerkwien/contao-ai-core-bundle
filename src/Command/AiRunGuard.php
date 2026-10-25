@@ -22,7 +22,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
  *
  * ## Why the namespace alone was the wrong measure
  *
- * A live site was measured with 22 namespaces. `cookiebar:` is a
+ * An installation with a few extensions easily has 22 namespaces. `cookiebar:` is a
  * published Contao extension using its own product name; Symfony's own docs
  * recommend `app:` for application commands. **A prefix of one's own is the
  * convention, and `contao:` would be the one wrong choice** — it claims someone

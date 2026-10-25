@@ -7,7 +7,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Creating and restoring a version ask the same question about a table.
  *
- * 🟡 **Measured on a test installation:** `version restore --table tl_image_size` answered
+ * 🟡 **Measured before the fix:** `version restore --table tl_image_size` answered
  * *"Table not allowed"*, although `image-size create` and `update` write versions for
  * that table. The original allow-list for restores never grew with what
  * the bundle versioned; this test used to keep the two in step.

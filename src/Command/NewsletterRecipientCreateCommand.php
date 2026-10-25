@@ -147,7 +147,7 @@ class NewsletterRecipientCreateCommand extends AbstractWriteCommand implements C
             // 0/1, not '1'/''. `active` is declared `['type' => 'boolean']` — a
             // real tinyint column, not the char(1) that older DCAs use for flags
             // — and MySQL in strict mode rejects '' for it with "Incorrect
-            // integer value". Found in testing: the --active path passed
+            // integer value". Before, the --active path passed
             // and the default path died, because only the empty string is
             // invalid. Mocked tests cannot see this; only a live write can.
             'active' => $this->input->getOption('active') ? 1 : 0,

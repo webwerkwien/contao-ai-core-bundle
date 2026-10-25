@@ -14,7 +14,7 @@ use Symfony\Component\Console\Output\OutputInterface;
  * exit 255. The caller is a script or an agent parsing JSON, so that is not a
  * worse message — it is *no* message, in a shape nothing here expects.
  *
- * Found through issue #24, where `--set addFile=` reached a boolean column and
+ * In issue #24, `--set addFile=` reached a boolean column and
  * DBAL threw. That input is fixed at the source; this is the floor underneath
  * it, because the next unexpected exception should not be discovered the same
  * way.

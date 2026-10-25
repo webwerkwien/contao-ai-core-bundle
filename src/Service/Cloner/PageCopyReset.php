@@ -21,7 +21,7 @@ use Contao\Widget;
  * | `disableLanguageRedirect` | the clone took the language redirect setting of the source root |
  * | `robotsTxt` | the clone served the robots.txt of the source root |
  *
- * Found on a real installation: a recursive clone of the English tree came
+ * Before, a recursive clone of an English tree came
  * out published. Which language is the main one is the operator's decision, so a clone
  * becomes it only with `fallback` in `--modifications` — those are applied after this.
  */

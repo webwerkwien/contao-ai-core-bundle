@@ -39,7 +39,7 @@ trait InvalidatesCacheTags
     /**
      * At the start of a command: forget what an earlier command reported. Both services
      * outlive one command — in the back-end chat several run in one request, and a
-     * refused one never drained its report (found before v1.4.0 and v1.4.1).
+     * refused one never drained its report (fixed in v1.4.0 and v1.4.1).
      */
     protected function forgetEarlierReports(): void
     {

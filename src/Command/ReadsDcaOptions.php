@@ -65,7 +65,7 @@ trait ReadsDcaOptions
      * `$declaredAssociative` is `eval.isAssociative`, which makes a list read as
      * index => label. Contao's `tl_page.useSSL` declares `array('http://',
      * 'https://')` and stores 0/1; without the flag `--set useSSL=1` was refused
-     * against the labels (live on a production installation). As in
+     * against the labels. As in
      * `Widget::getAttributesFromDca()` it applies to the top level only — an
      * optgroup decides by its own keys, so the recursion does not pass it on.
      *

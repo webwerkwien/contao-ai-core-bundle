@@ -8,11 +8,10 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageLanguage;
 /**
  * `tl_page.language` belongs to a root and nowhere else.
  *
- * 🟡 **Measured live on a production installation:**
- * pages 2 and 3, created in the back end, store no language — the field is only in the
- * root palette. Pages 11–13, created through `contao:page:create`, stored `de` (the
+ * 🟡 Pages created in the back end store no language — the field is only in the
+ * root palette. Pages created through `contao:page:create` stored `de` (the
  * option's default applied to every type), and `record:clone` carried it along: the
- * English subpages 15–17 read `de`. The front end was right, because Contao takes the
+ * subpages of an English tree read `de`. The front end was right, because Contao takes the
  * language from the root at runtime; a caller reading or filtering `tl_page.language`
  * was not.
  *

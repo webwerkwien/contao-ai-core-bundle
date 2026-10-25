@@ -10,7 +10,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\PageReadCommand;
 /**
  * fileTree fields must come back out as UUID strings.
  *
- * Found while chasing a CLI crash. `contao:page:read <id>` returned
+ * Before, `contao:page:read <id>` returned
  *
  *     "navigationImage": "GW\u{FFFD}V+8\x11\u{FFFD}\u{FFFD}\0\0(\u{FFFD}T"
  *

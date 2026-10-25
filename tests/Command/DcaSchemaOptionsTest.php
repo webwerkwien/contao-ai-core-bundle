@@ -31,8 +31,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\DcaSchemaCommand;
  * That is the same shape as the rest of this project's silent failures, with a
  * turn of the screw: this one does not stay quiet, it *answers*.
  *
- * Reported from a production site's booking module, which
- * hit it on a table of its own and checked `tl_page` to rule out its own DCA.
+ * An extension's own table is affected the same way as `tl_page`.
  */
 class DcaSchemaOptionsTest extends TestCase
 {

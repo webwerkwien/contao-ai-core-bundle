@@ -10,7 +10,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\PageCopyReset;
  *
  * Until v1.7.3 the cloner copied every `tl_page` field but the alias. Both guides
  * promised "pages and articles come out unpublished, as Contao's copy with subpages
- * does"; only the articles were. On a real installation a recursive clone
+ * does"; only the articles were. A recursive clone
  * of a whole language tree came out public, and a root cloned without an explicit
  * `"fallback": ""` became a second main language on its domain.
  */

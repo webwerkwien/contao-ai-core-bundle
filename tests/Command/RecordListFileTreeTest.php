@@ -23,8 +23,7 @@ use Webwerkwien\ContaoAiCoreBundle\Tests\NeedsContaoContainerTrait;
  * unfamiliar fileTree field. RecordListTool in the backend bundle passed it on
  * to the browser chat unchanged.
  *
- * Found while checking whether the CLI could reach the generic
- * table commands at all. Fixed by moving the conversion up one class, where
+ * Fixed by moving the conversion up one class, where
  * it belongs: it is driven by the DCA and takes (table, row), not a Model.
  */
 class RecordListFileTreeTest extends TestCase

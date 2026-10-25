@@ -10,7 +10,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
  * A created record gets the DCA `default` of every column it does not set,
  * as `DC_Table::create()` gives it (v0.28.0).
  *
- * Found in a practical test: a subscribe module created through the CLI had no
+ * Before, a subscribe module created through the CLI had no
  * `nl_subscribe` mail text — the DCA default the back end fills in — and the
  * first subscription in the front end ended in a TypeError, HTTP 500.
  */

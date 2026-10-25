@@ -236,7 +236,7 @@ class MoveCommandTest extends TestCase
     }
 
     /**
-     * v1.11.2, the case from a production installation: an element in an element group (ptable
+     * v1.11.2: an element in an element group (ptable
      * tl_content) taken into an article — with the DCA not loaded yet, as on a real
      * run. Before the fix --ptable was dropped and the element went below the content
      * element with the article's ID. The other tests set the DCA by hand and could not

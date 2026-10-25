@@ -8,9 +8,9 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Calendar\EventTimes;
 /**
  * `EventTimes::adjust()` against what `tl_calendar_events::adjustTime()` stores.
  *
- * The cases are the ones of a practical test on a real installation: an all-day
- * event, one over two days, one with a time — plus the branches of the callback
- * that test did not reach (end before start, end time missing, recurrences).
+ * The cases: an all-day event, one over two days, one with a time — plus the
+ * remaining branches of the callback (end before start, end time missing,
+ * recurrences).
  */
 class EventTimesTest extends TestCase
 {

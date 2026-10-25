@@ -24,7 +24,7 @@ use Symfony\Component\Console\Input\StringInput;
  * quote kinds, glued parts — character by character: what the command reads as
  * `password=…` is what is blanked here. A first version used a regular expression and
  * gave the line back unchanged when a quoted value passed 8 KB (PCRE's JIT stack), a
- * secret after it included (caught before v1.5.0 was released).
+ * secret after it included.
  *
  * ⚠️ This keeps the secret out of the log, nothing more. The line still travels to
  * the server as a process argument, and from the back-end chat to the model provider.
@@ -164,7 +164,7 @@ final class CommandLineRedactor
 
         // Blanked whole, but read as a line as well, for the values alone: the pair's
         // value runs to the end (`S3CRET --set name=a --pin P1N`), and a message quoting
-        // only `P1N` would not be struck (caught before v1.6.0 was released).
+        // only `P1N` would not be struck otherwise.
         // Only where the "key" itself has whitespace, i.e. is the start of a line;
         // `"password=S3 CRET"` is one value with a space in it.
         // Its own withheld flag: the pair is blanked already, and an inner line that

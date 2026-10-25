@@ -125,7 +125,7 @@ class RecordListCommand extends AbstractReadCommand
         // calls above, but was the one of the three left unguarded — so an
         // unknown --fields column came back as an uncaught PHP exception with a
         // stack trace on stderr, while an unknown --order or --filter column
-        // got the structured message it was supposed to. Found live.
+        // got the structured message it was supposed to.
         // RecordListTool passes the same failure to the browser
         // chat, where a model naming a column that does not exist learned
         // nothing it could act on.

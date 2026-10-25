@@ -19,7 +19,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageTreeRules;
  *
  * Until v1.1.0 `page update --set pid=0` put a regular page at the top level,
  * `--set type=root` made a subpage a root, and `page create` without `--pid`
- * created a regular page at the top level. Found while checking
+ * created a regular page at the top level. Compare
  * the move operations of Contao's 6.1 API (contao/contao#10400).
  */
 class PageTreeRulesTest extends TestCase

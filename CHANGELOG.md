@@ -887,7 +887,7 @@ refused. Checked on Contao 5.3.51, 5.7.13 and 6.0.0.
   (`{value, unit}`), and the options check held the whole pair against the unit list
   (`days, weeks, months, years`), so `--set repeatEach={"unit":"weeks","value":1}` was
   refused in every form. Now only the unit goes against the options, as for `inputUnit`;
-  the value is checked by `rgxp` as before. Found on 5.3.51.
+  the value is checked by `rgxp` as before. Seen on Contao 5.3.51.
 - **FAQ questions had no alias.** The reader linked to `/faq/21.html`. `faq create`
   generates Contao's alias like the other creates.
 - **Create answers carry the alias** for articles, news, events, FAQ and newsletters, as
@@ -976,8 +976,8 @@ as the back end does.
 - **Contao's callbacks saw a record unlike any back-end row.** `RecordDataContainer` — the
   DataContainer this bundle hands to palette, options and alias callbacks on the console —
   held only the given values, and answered `getCurrentRecord()` with that record whatever
-  ID and table were asked for. Found in the log of a production installation: six warnings
-  `Undefined array key "ptable"` from Contao's `AccordionListener`, one per
+  ID and table were asked for. Contao's `AccordionListener` logged
+  `Undefined array key "ptable"`, once per
   `contao:dca:palette tl_content --set type=…`. And an element was its own parent: inside
   an accordion (`--set ptable=tl_content --set pid=<accordion>`) the palette lacked
   `sectionHeadline`, which the back end shows. Now the given values lie over every
@@ -1255,8 +1255,8 @@ All verified live on Contao 5.7.13.
   under which lay version 1 of an image size deleted earlier.
 - **`version restore` refused 12 of the 22 tables the bundle writes versions for** —
   modules, forms, form fields, themes, image sizes, archives, calendars, member and user
-  groups, newsletters. The allow-list still held the ten tables of the security audit of
-  2026-04-23. `VersionAllowListTest` keeps it in step with the code now.
+  groups, newsletters. The allow-list still held its original ten tables.
+  `VersionAllowListTest` keeps it in step with the code now.
 - **Option lists with numeric keys answered labels instead of values.** `[6 =>
   'Hero']` was read as a list and returned `Hero`. A list is recognised by
   `array_is_list()` now.
@@ -1361,9 +1361,6 @@ All verified live on Contao 5.7.13.
   direct children re-attached, child folders repaired the same way. Deleting and
   re-adding would make `addResource()` duplicate every child, and a child's UUID may be
   referenced already. The answer lists the changed paths in `repaired`.
-
-  Measured before the release: two production installations have no folder without
-  a UUID and no orphaned file.
 
 - **`contao:file:write` checked none of the installation's upload rules.** Any
   extension was written, the size limit was a hard-coded 10 MB instead of `maxFileSize`,
@@ -1752,8 +1749,8 @@ command.
   `RecordCloneCommand`. Symfony 8 removed the former; the latter has existed
   since Symfony 6.4 and does the same thing, so this is a rename, not a switch.
 
-  Found by installing Contao 6.0.0 next to the 5.7 reference: it pulls **Symfony
-  8.1.6**, and the container failed to compile. Verified afterwards on both — the
+  Contao 6.0.0 pulls **Symfony 8.1.6**, where the container failed to
+  compile. Verified afterwards on both — the
   container builds under Symfony 7.4 and 8.1 with identical code.
 
   No behaviour changes. Constraints are untouched: this package still declares
@@ -1840,8 +1837,7 @@ Removing either guard would be the dangerous repair, not the tidy one.
   nothing and spreads one fact over a column of single-item rows. A map earns its
   sub-keys (`versionen.core` is informative); a list does not.
 
-  🔴 Found on a live installation, not by a test, and the reason is worth
-  keeping: every assertion in `ErrorReportBuilderTest` looked at `summary()`, the
+  🔴 The tests did not show it: every assertion in `ErrorReportBuilderTest` looked at `summary()`, the
   array — which was correct all along. The defect existed only in the rendering,
   and nothing was reading the rendering. Two tests now do.
 
@@ -1912,8 +1908,7 @@ Removing either guard would be the dangerous repair, not the tidy one.
 
 ## v0.4.0 - 2026-09-02
 
-Second security audit. Everything below was found in one pass over the write path
-and the cloners; the version jumps to 0.4.0 to stay in step with
+Security hardening of the write path and the cloners; the version jumps to 0.4.0 to stay in step with
 contao-ai-backend-bundle, which is released alongside it.
 
 ### Fixed
@@ -1983,7 +1978,7 @@ contao-ai-backend-bundle, which is released alongside it.
   tl_news registered"* while the test suite stayed green, because `--dry-run`
   writes nothing and never reaches the writer.
 
-  Found on a live install, not in the tests. A rehearsal that skips the one step
+  A rehearsal that skips the one step
   that fails is not a rehearsal, so `WritePathTest` now pins the pairing: a
   command that takes the writer takes `framework->initialize()` with it.
 
@@ -2000,10 +1995,9 @@ contao-ai-backend-bundle, which is released alongside it.
   class, so both shapes work from one entry point. Existing class-level declarations are
   unaffected; the attribute target was widened, not moved.
 
-  Found while declaring the backend bundle's 22 tools: the first attempt stacked five
-  contracts at class level because `#[AsTool]` sits above the class there and names its
-  method by argument. It looked applied, and every method would have answered with the
-  contract belonging to `create` — a read claiming to write.
+  Stacking the contracts at class level, next to an `#[AsTool]` that names its method
+  by argument, looks applied — and every method would answer with the contract
+  belonging to `create`, a read claiming to write.
 
 ## v0.2.37 - 2026-09-01
 
@@ -2027,7 +2021,7 @@ contao-ai-backend-bundle, which is released alongside it.
   `contao:ai:run` still refuses everything else; the default stays closed and nothing is
   granted that shell access did not already grant.
 
-  One live site has 22 command namespaces. `cookiebar:` is a **published
+  An installation with a few extensions easily has 22 command namespaces. `cookiebar:` is a **published
   Contao extension** using its own product name, and Symfony's own docs recommend `app:`
   for application commands. **A prefix of one's own is the convention, and `contao:` would
   be the one wrong choice** — it claims someone else's property. So the previous advice,
@@ -2129,8 +2123,8 @@ installation that has it. The minor stays where it is until both can move togeth
 ### Fixed
 
 - **"DCA not found" now says when the cause is a bundle that is not installed.**
-  On a production installation, `record:list tl_news` answered *DCA not found or empty for
-  table: tl_news*. True — and `contao/news-bundle` is simply not installed there,
+  Without `contao/news-bundle`, `record:list tl_news` answered *DCA not found or empty for
+  table: tl_news*. True — the bundle is simply not installed,
   so nothing was broken and a reader following the message had nothing to find.
 
   The same shape as a CLI defect fixed the same morning: an answer that is
@@ -2312,7 +2306,7 @@ installation that has it. The minor stays where it is until both can move togeth
 
 ### Fixed
 
-- **`active` was written as an empty string.** `tl_newsletter_recipients.active` is declared `['type' => 'boolean']` — a real tinyint, not the `char(1)` older DCAs use for flags — and MySQL in strict mode rejects `''` for it with *Incorrect integer value*. Only the default path died; passing `--active` wrote `'1'` and worked, which is what hid it. Found on the first live write, not by the suite: mocked tests cannot see a column type.
+- **`active` was written as an empty string.** `tl_newsletter_recipients.active` is declared `['type' => 'boolean']` — a real tinyint, not the `char(1)` older DCAs use for flags — and MySQL in strict mode rejects `''` for it with *Incorrect integer value*. Only the default path died; passing `--active` wrote `'1'` and worked, which is what hid it. Mocked tests cannot see a column type.
 
 ## v0.2.23 - 2026-08-31
 
@@ -2361,7 +2355,7 @@ installation that has it. The minor stays where it is until both can move togeth
 
 - **Commands for optional Contao bundles are excluded by filename, and `Calendar*` did not match `Event*`.** `services.yaml` auto-discovers `../src` and excludes the commands that depend on `news-bundle`, `calendar-bundle`, `faq-bundle` or `comments-bundle`, which `ContaoAiCoreBundle::loadExtension()` then registers only when that bundle is installed. The calendar exclusion reads `Event*.php`, because that is what its existing commands are called — so four new `Calendar*Command` classes went straight through it and would have been registered on **every** installation, including ones with no calendar bundle.
 
-  Caught before release by the live check: of twelve new commands, exactly four were registered, and those four were the wrong ones. The other eight were correctly excluded and then registered nowhere — the harmless direction to fail in, but neither half is visible from reading the YAML.
+  Of twelve new commands, exactly four were registered, and those four were the wrong ones. The other eight were correctly excluded and then registered nowhere — the harmless direction to fail in, but neither half is visible from reading the YAML.
 
   `PluginCommandRegistrationTest` now asserts both directions: a command referencing a plugin-only model must be excluded from auto-discovery **and** listed in the matching `services_*.yaml`. Verified by mutation — removing the exclusion turns the test red and names the file.
 
@@ -2475,7 +2469,7 @@ installation that has it. The minor stays where it is until both can move togeth
 
 - **Themes and layouts too.** `contao:theme:create|read|update|delete` and `contao:layout:create|update|delete` — `contao:layout:read` already existed and was, until today, the theme layer's only command of any kind.
 
-  Three findings from checking rather than assuming, each of which would have been a quiet defect:
+  Three details, each of which would have been a quiet defect:
 
   - **`tl_theme.author` is free text, not a user reference.** It is a `text` field in the DCA and Contao's own demo theme carries "Joe Ray Gregory, Sascha Müller, Felix Pfeiffer, …" in it — a credit line. Every other create command here fills its `author` column with `resolveAuthorId()`; doing that would have put a number where a name belongs.
 
@@ -2579,9 +2573,9 @@ Verified live: clone → update → delete on a test install. Update wrote versi
 
   The allow-list now follows a stated rule rather than accreting field by field: **an override is accepted when it controls whether and where the clone becomes visible.** `protected` and `groups` are deliberately excluded — those are access control, and a `protected: ""` on the clone of a protected page would expose its content, which is what the allow-list exists to prevent. A test pins the policy in both directions, including the invariant that every normalised flag is also whitelisted.
 
-- **Read commands returned binary file references, destroying them on the way out.** A `fileTree` column holds Contao's 16-byte binary UUID. The read path handed it straight to `json_encode()`, and `JSON_INVALID_UTF8_SUBSTITUTE` replaced every byte that is not valid UTF-8 with U+FFFD, so `contao:page:read 98` answered with `"navigationImage": "GW<FFFD>V+8<0x11><FFFD><FFFD><NUL><NUL>(<FFFD>T"`. The reference was gone before anything left the server; the database and the transport both had it intact.
+- **Read commands returned binary file references, destroying them on the way out.** A `fileTree` column holds Contao's 16-byte binary UUID. The read path handed it straight to `json_encode()`, and `JSON_INVALID_UTF8_SUBSTITUTE` replaced every byte that is not valid UTF-8 with U+FFFD, so `contao:page:read <id>` answered with `"navigationImage": "GW<FFFD>V+8<0x11><FFFD><FFFD><NUL><NUL>(<FFFD>T"`. The reference was gone before anything left the server; the database and the transport both had it intact.
 
-  A caller could therefore not tell which file a record points at. It also crashed contao-ai-cli on a cp1252 console, which is how it was found.
+  A caller could therefore not tell which file a record points at. It also crashed contao-ai-cli on a cp1252 console.
 
   `AbstractModelReadCommand::convertFileTreeFieldsToUuid()` is the missing inverse of `AbstractWriteCommand::convertFileTreeFields()`, which has converted UUID strings to binary on write since v0.2.1. DCA-driven, handles `multiple` fields, and leaves anything that is not a binary UUID alone.
 

@@ -50,8 +50,7 @@ class NewsRepairHeadlinesCommand extends AbstractWriteCommand
     {
         $dryRun = (bool) $this->input->getOption('dry-run');
 
-        // 🔴 Noticed only on a real installation, not in 603 green
-        // tests: since the write goes through `writer()->update()`, this command needs the
+        // 🔴 Mocked tests do not show this: since the write goes through `writer()->update()`, this command needs the
         // model registry. Before, it wrote raw SQL and did without.
         // Without this line: `There is no class for table "tl_news" registered
         // in $GLOBALS['TL_MODELS']` — and **only** in a real run, because

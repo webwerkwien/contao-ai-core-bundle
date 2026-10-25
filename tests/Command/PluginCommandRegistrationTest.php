@@ -18,7 +18,7 @@ use PHPUnit\Framework\TestCase;
  * — the exclusion for the calendar bundle reads `Event*.php`, because that is
  * what its existing commands are called. The four slipped through the filter
  * and were registered on every installation, including ones with no calendar
- * bundle at all. The live check found it: of twelve new commands, exactly four
+ * bundle at all. Of twelve new commands, exactly four
  * were registered, and those four were the wrong ones.
  *
  * The eight that were correctly excluded were then registered nowhere, which is

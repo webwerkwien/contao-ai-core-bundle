@@ -193,7 +193,7 @@ class WritePathTest extends TestCase
 
     public function testEveryCommandThatUsesTheWriterInitialisesTheFramework(): void
     {
-        // 🎯 Found live, not here. A fix routed
+        // 🎯 The unit tests did not show this. A fix routed
         // `contao:news:repair-headlines` through the writer, and the writer
         // needs `$GLOBALS['TL_MODELS']`. The command had only ever taken a
         // `Connection` — raw SQL needs no framework — so the real run died with

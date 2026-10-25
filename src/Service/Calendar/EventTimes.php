@@ -13,7 +13,7 @@ use Contao\StringUtil;
  * from the first in `tl_calendar_events::adjustTime()`, an `onsubmit_callback`
  * that this write path never runs.
  *
- * Found in a practical test: `event create` stored
+ * Before, `event create` stored
  * `endTime = endDate`, and `endDate` defaulted to the day of the call. A single
  * day event on 4 October ended on 19 September at midnight and was missing from
  * "upcoming events" the moment it was created; a two-day event would have left

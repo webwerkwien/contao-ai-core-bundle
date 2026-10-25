@@ -194,7 +194,7 @@ class ErrorReportBuilderTest extends TestCase
     }
 
     /**
-     * 🔴 Found on the live installation, not here — because every assertion in
+     * 🔴 Not visible here before — because every assertion in
      * this class looked at `summary()`, which was correct all along. The defect
      * was in the rendering, and nothing was reading the rendering.
      *

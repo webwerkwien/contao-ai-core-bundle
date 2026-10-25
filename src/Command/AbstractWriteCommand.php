@@ -611,7 +611,7 @@ abstract class AbstractWriteCommand extends Command
      * case-sensitive, so `--set ID=9012` addresses the same column, and only the
      * spelling would have differed.
      *
-     * Found before the release of v1.1.0 and fixed there, but the hole is
+     * Fixed in v1.1.0, but the hole is
      * older: it was open on every table whose update command had no allow list
      * of its own, which was all of them but `tl_member` and `tl_user`.
      *
@@ -832,7 +832,7 @@ abstract class AbstractWriteCommand extends Command
      * `DC_Table::create()` does this before its INSERT (5.3, 5.7, 6.0): for each
      * field with a `default` that is a real column, the value — a closure is
      * called, an array serialized. None of the create commands did, and some of
-     * those defaults are not cosmetic (found in a practical test):
+     * those defaults are not cosmetic:
      *
      *  - `tl_module.nl_subscribe`/`nl_unsubscribe`/`reg_text`/`reg_password`, the
      *    mail texts: a subscribe module created here had none, and the first
@@ -932,8 +932,8 @@ abstract class AbstractWriteCommand extends Command
                 // A callback that cannot run here (a missing parent, a service it
                 // needs) leaves the alias to the fallback below rather than failing
                 // the create — the fallback is what every create did until v0.16.0.
-                // Not silently: in the first live test a missing import landed here
-                // and looked exactly like success.
+                // Not silently: a missing import lands here too and looks exactly
+                // like success.
                 $alias = null;
                 $this->aliasWarning = \sprintf("Contao's alias callback for %s failed (%s: %s); the alias was generated without it.", $table, $e::class, $e->getMessage());
 
@@ -1190,7 +1190,7 @@ abstract class AbstractWriteCommand extends Command
      * Refuse what `Widget::validator()` refuses besides `rgxp`: `maxlength`,
      * `minlength`, `minval`, `maxval` and `nospace`.
      *
-     * Found before v0.26.0: `member create --username "anna muster"`
+     * Before v0.26.0, `member create --username "anna muster"`
      * was stored, where the back end says "no spaces allowed"; a username over 64
      * characters ended in a database error on a strict server and was cut off
      * silently on a lax one. The rules are the widget's, checked the widget's way:
@@ -1296,7 +1296,7 @@ abstract class AbstractWriteCommand extends Command
     /**
      * Refuse a `pid` that points at no record of the parent table.
      *
-     * Found while probing the widget limits: `content create
+     * Before this check, `content create
      * --pid 99999` stored an element below an article that does not exist, and
      * `article`, `news` and `faq create` did the same. The back end cannot get
      * there — `DC_Table` creates a child from its parent's list — so this is
@@ -1897,7 +1897,7 @@ abstract class AbstractWriteCommand extends Command
             // A timePeriod field (`repeatEach` of an event): the same split — the
             // options list the units, the value half is a number for `rgxp`. Until
             // v0.28.0 the whole serialized pair was held against the units, so no
-            // recurring event could be created (found on 5.3.51). A
+            // recurring event could be created (Contao 5.3.51). A
             // value that is not a pair is left to refuseUnstructuredValues().
             if ('timePeriod' === ($def['inputType'] ?? null)) {
                 $pair = \is_string($value) ? @unserialize($value, ['allowed_classes' => false]) : $value;
@@ -2594,8 +2594,8 @@ abstract class AbstractWriteCommand extends Command
             // `eval.multiple` covers the checkbox-style fields. It does not cover
             // the permission widgets: `tl_user_group.cud` and `tl_page.chmod`
             // store a flat serialized list exactly like a multiple field, but
-            // carry no `multiple` flag — the widget itself is the list. Verified
-            // against live data: cud is a:60:{i:0;s:21:"tl_form_field::create";…},
+            // carry no `multiple` flag — the widget itself is the list. As Contao
+            // stores them: cud is a:60:{i:0;s:21:"tl_form_field::create";…},
             // chmod is a:9:{i:0;s:2:"u1";…}.
             $storesArray = ($def['eval']['multiple'] ?? false)
                 || \in_array($def['inputType'] ?? null, self::ARRAY_INPUT_TYPES, true);
@@ -2728,7 +2728,7 @@ abstract class AbstractWriteCommand extends Command
     /**
      * Refuse a fileTree value that would not resolve to a file.
      *
-     * 🔴 **Measured on a production installation (Contao 5.7.13, v0.23.0):**
+     * 🔴 **Measured on Contao 5.7.13 with v0.23.0:**
      * `layout update 2 --set 'external=["7cb2d18f-…"]'` answered
      * `{"status":"ok"}` and stored the JSON text. The layout never linked its
      * stylesheet. The JSON list was what `layout read` answered for the field,
@@ -2801,9 +2801,8 @@ abstract class AbstractWriteCommand extends Command
      *
      * Contao stores these as a serialized {value, unit} pair. This writes value
      * first, as the column's SQL default does (a:2:{s:5:"value";...;s:4:"unit";...}).
-     * Records saved in the back end may hold unit first — 139 of 144 headlines on
-     * a production installation — and Contao reads both by key, so the
-     * order carries no meaning. The unit is resolved in
+     * Records saved in the back end usually hold unit first, and Contao reads
+     * both by key, so the order carries no meaning. The unit is resolved in
      * this order:
      *   1. a companion "<field>_unit" key in the --set payload
      *   2. a JSON object value {"unit":"h1","value":"..."} given as the field

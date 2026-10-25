@@ -124,8 +124,8 @@ class CreateCommandConversionTest extends TestCase
 
             // `\r?$` and not `$`: a working copy with CRLF endings puts a
             // carriage return between the semicolon and the newline, and the
-            // pattern silently matched nothing. Caught by mutating a command
-            // and watching this test stay green — the same CRLF trap that made
+            // pattern silently matched nothing: a mutated command left this
+            // test green — the same CRLF trap that made
             // an md5 comparison disagree once.
             // `$this->…` is excluded: an assignment to the command itself — a setter
             // for an injected service — is not a write onto the record. It matched

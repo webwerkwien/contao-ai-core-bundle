@@ -140,7 +140,7 @@ class EventDateWiringTest extends TestCase
     {
         // tl_calendar_events.startTime/endTime default to time(); filled in by
         // preparedFields() they made every all-day create a "time without addTime"
-        // refusal. Found live before the v0.28.0 release.
+        // refusal.
         $source = (string) file_get_contents(__DIR__ . '/../../src/Command/EventCreateCommand.php');
 
         $this->assertStringContainsString("\$own       = ['startTime' => null, 'endTime' => null];", $source);

@@ -11,7 +11,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\FileMoveCommand;
 /**
  * A file or folder is moved into another folder the way the back end moves it.
  *
- * 🟡 **The gap, found on a production installation:**
+ * 🟡 **The gap:**
  * a site's files were to go from one folder into another. There
  * was no command for it — deleting and writing anew changes the UUID, and every image
  * element pointing at the file renders nothing.

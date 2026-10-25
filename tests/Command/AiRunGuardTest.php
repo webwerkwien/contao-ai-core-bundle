@@ -42,7 +42,7 @@ class AiRunGuardTest extends TestCase
     /**
      * A declared contract opens the door as well.
      *
-     * 22 namespaces were counted on a live site: `cookiebar:`
+     * An installation with a few extensions easily has 22 namespaces: `cookiebar:`
      * is a published Contao extension using its own product name, and
      * Symfony's docs recommend `app:` for application commands. A prefix of
      * one's own is the convention, and `contao:` would be the one wrong

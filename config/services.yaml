@@ -27,9 +27,8 @@ services:
             # The calendar commands (tl_calendar) depend on the calendar-bundle
             # just like the event commands, but are not named Event*.
             # Without this line auto-discovery registers them on every
-            # installation — including one without a calendar. Noticed in a live
-            # check: 4 of 12 new commands were registered, and precisely the
-            # wrong four. PluginCommandRegistrationTest now turns this into a
+            # installation — including one without a calendar. Before, 4 of 12
+            # new commands were registered, and precisely the wrong four. PluginCommandRegistrationTest now turns this into a
             # red test instead of a rule to remember.
             - ../src/Command/Calendar*.php
             - ../src/Command/Faq*.php

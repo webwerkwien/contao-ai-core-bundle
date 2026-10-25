@@ -36,8 +36,8 @@ final class ContaoAlias
     {
         // The create commands call this inside the array they hand to preparedFields(),
         // before anything has loaded the DCA. Without this line the callback was never
-        // found and every create fell back to the old slug — caught on a real installation, not by
-        // the tests, which seed the DCA themselves.
+        // found and every create fell back to the old slug — invisible to the tests,
+        // which seed the DCA themselves.
         if (!isset($GLOBALS['TL_DCA'][$table]['fields'])) {
             Controller::loadDataContainer($table);
         }

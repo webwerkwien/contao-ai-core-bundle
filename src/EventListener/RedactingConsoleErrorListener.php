@@ -30,7 +30,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\CommandLineRedactor;
  * The error message is struck as well, and the exception in the log context replaced
  * by a {@see RedactedConsoleError} where one of its messages quotes a blanked value:
  * Symfony's own *No arguments expected, got "password=…"* does — a `--set` forgotten
- * (found while checking this listener). Only values found on the line are
+ * is enough. Only values found on the line are
  * struck: a command that puts some other secret into its exception text puts it
  * into the log.
  *

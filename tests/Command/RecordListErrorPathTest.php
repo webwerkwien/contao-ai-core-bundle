@@ -20,7 +20,7 @@ use Webwerkwien\ContaoAiCoreBundle\Tests\NeedsContaoContainerTrait;
  * exception: a stack trace on stderr, nothing on stdout, while the identical
  * mistake in --order or --filter answered properly.
  *
- * Found live, not by a test — the two guarded paths
+ * No test showed it — the two guarded paths
  * read as if all three were covered.
  *
  * It matters beyond the CLI: RecordListTool hands the same failure to the

@@ -41,7 +41,7 @@ class FaqCreateCommand extends AbstractWriteCommand implements CreatesRecord
             'question'  => $question,
             // Generated like the back end's `generateAlias` (v0.28.0). Until then a
             // question had none, and the reader linked to /faq/21.html instead of a
-            // speaking URL (found in a practical test).
+            // speaking URL.
             'alias'     => $this->resolveAlias('tl_faq', '', (string) $question, record: ['question' => (string) $question, 'pid' => (int) $pid]),
             'answer'    => $this->input->getOption('answer'),
             'published' => '0',

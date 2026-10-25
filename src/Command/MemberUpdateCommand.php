@@ -15,8 +15,8 @@ class MemberUpdateCommand extends AbstractWriteCommand
      *
      * 🔴 Until v1.0.0 this was an ALLOW list of twenty field names, and it had a
      * consequence nobody intended: **a bundle that adds columns to `tl_member`
-     * could not be served through the CLI at all.** Found when Consho added
-     * its shipping address — `--set
+     * could not be served through the CLI at all.** A shop bundle's
+     * shipping address, for example — `--set
      * consho_shippingStreet=…` answered *"Field(s) not allowed"*, although
      * `contao:dca:schema tl_member` lists the very same field as writable.
      * Two commands of this bundle contradicted each other about one table.

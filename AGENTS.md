@@ -62,7 +62,7 @@ runtime does not keep.
 **Test doubles return what the real thing returns.** A `Connection::quoteIdentifier()`
 double returns `` `name` ``, not the name: the first undo fix of v1.8.1 handed onundo the
 insert's quoted keys, `$row['id']` was empty, and the test passed because its double did
-not quote (found only on a real installation). Rows from DBAL are strings, not ints.
+not quote. Rows from DBAL are strings, not ints.
 
 **A command that needs a booted framework is skipped here — prove it on a real Contao
 installation.** A mutation
@@ -148,7 +148,7 @@ All of them answer with `{"status":"error"}` and exit 1, and nothing is written.
 refuse in the same place and are described elsewhere: `refuseInvalidFileTreeValues()` and
 `refuseUnknownTemplates()`.)
 
-> 🔴 **Why the newest exists.** In a practical test `--set startTime=17:30`
+> 🔴 **Why the newest exists.** Without it, `--set startTime=17:30`
 > on an event ended in `DriverException: Data truncated for column 'startTime'` — the
 > database the only thing to object. On a text column nothing objects at all:
 > `--set start=2026-10-01` on a news entry would have been stored as that string.
@@ -171,7 +171,7 @@ touches a date, time or recurrence field:
 what the back end's form cannot produce: an emptied `startDate`, a `startTime`/`endTime`
 on an event without `addTime`, and `addTime` turned on without a start time. `event create` has no end-date
 default any more: until v0.27.0 it was the day of the call, so an event created without
-one ended that day and dropped out of "upcoming events" at once (found in a practical test).
+one ended that day and dropped out of "upcoming events" at once.
 
 ## Created records get the DCA defaults (v0.28.0)
 
@@ -183,7 +183,7 @@ console — the `author` defaults read the logged-in back end user — is skippe
 commands set those fields themselves. Two more deliberate differences from `DC_Table`:
 a `null` default is skipped (the column default applies), and virtual fields (5.7+) get
 none — only real columns (written since v1.6.0, see `Service\Dca\VirtualFields`, but not
-defaulted). Found in a practical test: a
+defaulted). Without them a
 subscribe module had no `nl_subscribe` mail text and the first front end subscription
 answered HTTP 500; a created layout had no modules.
 
@@ -305,8 +305,8 @@ record belongs to, unique as Contao checks it. `Über uns` on a German root is `
   that answers `activeRecord` with the fields to be created and `id` with 0. Pass the fields
   the callback reads — `title`/`headline`/`subject` and `pid`.
 - A callback that throws leaves the old slug (`StringUtil::generateAlias()`) and says so:
-  `aliasWarning` in the answer, a warning in the log. **Never catch it silently** — in the
-  first live test a missing import landed there and looked exactly like success.
+  `aliasWarning` in the answer, a warning in the log. **Never catch it silently** — a
+  missing import lands there too and looks exactly like success.
 
 > 🔴 Up to v0.16.0 every create used `StringUtil::generateAlias()`: `über-uns` where Contao
 > makes `ueber-uns`, and on a root set to `0-9a-z` aliases the installation forbids. A clone
@@ -404,8 +404,7 @@ Three fields, and they answer different questions:
 **`options` are values, not labels — also for `eval.isAssociative`** (v0.21.1). A
 list declared `isAssociative` stores its index: Contao's `tl_page.useSSL` declares
 `array('http://', 'https://')` and answers `["0", "1"]`, so `--set useSSL=1` is the way
-to set https. Up to v0.21.0 the labels came back and `useSSL=1` was refused (seen
-live on a production installation). As in Contao's widget, the flag applies to the top level only;
+to set https. Up to v0.21.0 the labels came back and `useSSL=1` was refused. As in Contao's widget, the flag applies to the top level only;
 an optgroup decides by its own keys. In 5.7.13 `useSSL` is the only such field.
 
 `optionsTarget` is `null` for everything else, **including a `foreignKey` whose
@@ -736,7 +735,7 @@ before the write when `pid` or `ptable` changes, and invalidates them after. Con
 `cut()` invalidates nothing, so this goes beyond the back end on purpose.
 
 > 🔴 **Collect before `findById()`.** The first version collected after loading the record,
-> and on a real installation every page move answered *"The model instance has been detached and cannot be
+> and every page move answered *"The model instance has been detached and cannot be
 > saved"*: tl_page's sitemap callback (`addSitemapCacheInvalidationTag`) calls
 > `PageModel::findWithDetails()`, and `loadDetails()` takes the registry's instance out —
 > the one just loaded. Articles and content moved fine, so a test on those alone passes.
@@ -781,7 +780,7 @@ before the write when `pid` or `ptable` changes, and invalidates them after. Con
   (`relation`/`foreignKey` to tl_module) or by the name `…readerModule` — the news bundle's
   reader field declares neither —, fields relating to tl_content (`cteAlias`), and
   `imageSize` fields. `rootPageDependentModules` and `cteAlias` were missing in the first
-  version and found before the release: a DCA-marker rule does not see what a field
+  version: a DCA-marker rule does not see what a field
   stores. Versions and oncopy callbacks run after the bending, so the first version shows
   the final row. A new kind of reference inside a theme needs a branch in
   `bendReferences()`; otherwise the copy keeps pointing at the original. Known limit, on
@@ -895,8 +894,8 @@ A callback that needs more (a request, a user) throws and is reported as unresol
 image size list returns `[]` on the console — "not known", not "none".
 
 **The record looks like a back-end row (v0.25.0).** Two differences from Contao's
-`DataContainer::getCurrentRecord()` went unnoticed until the log of a production installation showed
-`Undefined array key "ptable"` from Contao's `AccordionListener`, once per
+`DataContainer::getCurrentRecord()` made Contao's `AccordionListener` log
+`Undefined array key "ptable"`, once per
 `contao:dca:palette tl_content` call:
 
 - The given values are laid over **every column's default** (`listTableColumns()`, cached
@@ -1214,7 +1213,7 @@ holding inside a plan.
 `contao:layout:module --layout --module --col [--remove]` validates module, theme and
 column. Columns of a classic layout come from `LayoutModuleCommand::legacyColumns()`,
 copied from Contao's `ModuleWizard`. **Quote column names in SQL here: `rows` is a reserved
-word in MySQL 8** — the first live run failed with a syntax error no unit test could see.
+word in MySQL 8** — unquoted, the query fails with a syntax error no unit test can see.
 
 Since v0.24.0 `--module content-<id>` puts a **theme's content element** into a column —
 Contao 5.7 stores it in `modules` as `mod: "content-<id>"` (`ModuleWizard`, `PageRegular`).

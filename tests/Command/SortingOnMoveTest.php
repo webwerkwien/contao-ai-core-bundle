@@ -16,7 +16,7 @@ use Webwerkwien\ContaoAiCoreBundle\Command\ImageSizeUpdateCommand;
  * the record a position (`getNewPosition()`). Without one, "at the end" is the same
  * rule a create follows (SortingOnCreateTest).
  *
- * Found while checking the move operations Contao's own API gained
+ * Compare the move operations Contao's own API gained
  * for 6.1 (contao/contao#10400). A `--set sorting=` of the caller still wins, and a
  * write that keeps the parent leaves the position alone.
  */
