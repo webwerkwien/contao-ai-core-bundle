@@ -45,8 +45,12 @@ class ApplyCommand extends AbstractReadCommand
 {
     use OperatorOptionTrait;
 
-    /** Every table a step writes to, including the audit trail; all must roll back. */
-    public const TABLES = ['tl_page', 'tl_article', 'tl_content', 'tl_version', 'tl_log', 'tl_undo'];
+    /**
+     * Every table a step writes to, including the audit trail; all must roll back.
+     * The search tables are written by Contao's page callbacks (a deleted page or a
+     * changed `robots` removes its index entries).
+     */
+    public const TABLES = ['tl_page', 'tl_article', 'tl_content', 'tl_version', 'tl_log', 'tl_undo', 'tl_search', 'tl_search_index', 'tl_search_term'];
 
     /** @var resource|null */
     private $stdin = null;
@@ -203,11 +207,13 @@ class ApplyCommand extends AbstractReadCommand
             $input['--operator'] = $operator;
         }
 
-        $input['--no-interaction'] = true;
-        $output                    = new BufferedOutput();
+        // doRun() skips configureIO(), so `--no-interaction` would bind and do nothing.
+        $stepInput = new ArrayInput($input);
+        $stepInput->setInteractive(false);
+        $output = new BufferedOutput();
 
         try {
-            $code = $application->doRun(new ArrayInput($input), $output);
+            $code = $application->doRun($stepInput, $output);
         } catch (ConsoleRuntimeException $e) {
             // A value that does not bind is the plan's mistake, answered like a refusal.
             return [Command::FAILURE, ['status' => 'error', 'message' => $e->getMessage()]];

@@ -38,6 +38,9 @@ class ApplyReferencesTest extends TestCase
         yield 'plain href' => ['<a href="@versand">x</a>'];
         yield 'number' => ['1290'];
         yield 'no at' => ['{{link_url::12}}'];
+        // The argument ends at `}}` or `|`; anything else after the name is not a reference.
+        yield 'name with a suffix' => ['{{link_url::@versand.html}}'];
+        yield 'name with a space' => ['{{link_url::@versand x}}'];
     }
 
     /**

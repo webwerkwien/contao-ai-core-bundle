@@ -155,6 +155,41 @@ class ApplyCommandTest extends TestCase
         $this->assertStringContainsString('"@versand.article" has no ID', $answer['failedStep']['message']);
     }
 
+    public function testAnErrorAnswerWithExitCodeZeroStillFailsTheStep(): void
+    {
+        [$code, $answer] = $this->apply(self::PLAN, failOn: 'quiet:contao:content:create');
+
+        $this->assertSame(Command::FAILURE, $code);
+        $this->assertSame(['begin', 'rollback'], $this->log);
+        $this->assertSame(2, $answer['failedStep']['index']);
+        $this->assertStringContainsString('an error with exit code 0', $answer['failedStep']['message']);
+    }
+
+    public function testALinePrintedBeforeTheAnswerDoesNotHideIt(): void
+    {
+        [$code, $answer] = $this->apply(self::PLAN, failOn: 'chatty');
+
+        $this->assertSame(Command::SUCCESS, $code, json_encode($answer));
+        $this->assertSame(['versand' => 100, 'versand.article' => 1000, 'intro' => 102], $answer['refs']);
+    }
+
+    public function testASearchTableThatCannotRollBackIsRefused(): void
+    {
+        // Contao's page callbacks remove search entries when a page is deleted.
+        [$code, $answer] = $this->apply(self::PLAN, engines: ['tl_search_index' => 'MyISAM']);
+
+        $this->assertSame(Command::FAILURE, $code);
+        $this->assertSame([], $this->log);
+        $this->assertStringContainsString('tl_search_index (MyISAM)', $answer['message']);
+    }
+
+    public function testStepsRunWithoutInteraction(): void
+    {
+        $this->apply(self::PLAN);
+
+        $this->assertSame([false], array_values(array_unique(array_column($this->received, 'interactive'))));
+    }
+
     public function testARefOnAStepThatCreatesNothingIsTheRecordItTouched(): void
     {
         $plan = '{"steps": [{"ref": "a", "do": "language link", "table": "tl_page", "id": 5, "main": 6},'
@@ -209,8 +244,9 @@ class ApplyCommandTest extends TestCase
     }
 
     /**
-     * $failOn: `name` answers with an error, `throw:name` throws, `no-article` makes
-     * the page create answer without an article.
+     * $failOn: `name` answers with an error, `quiet:name` answers with an error but
+     * exit code 0, `throw:name` throws, `no-article` makes the page create answer
+     * without an article, `chatty` prints a line before every answer.
      */
     private function standIn(string $name, ?string $failOn): Command
     {
@@ -235,12 +271,22 @@ class ApplyCommandTest extends TestCase
 
             protected function execute(InputInterface $input, OutputInterface $output): int
             {
-                ($this->record)(['name' => $this->getName(), 'id' => $input->getArgument('id') ?? $input->getOption('id'), 'options' => $input->getOptions()]);
+                ($this->record)(['name' => $this->getName(), 'id' => $input->getArgument('id') ?? $input->getOption('id'), 'options' => $input->getOptions(), 'interactive' => $input->isInteractive()]);
 
                 if ($this->getName() === $this->failOn) {
                     $output->writeln('{"status":"error","message":"refused by the stand-in","code":1}');
 
                     return Command::FAILURE;
+                }
+
+                if ('quiet:' . $this->getName() === $this->failOn) {
+                    $output->writeln('{"status":"error","message":"an error with exit code 0","code":1}');
+
+                    return Command::SUCCESS;
+                }
+
+                if ('chatty' === $this->failOn) {
+                    $output->writeln('A notice printed before the answer');
                 }
 
                 if ('throw:' . $this->getName() === $this->failOn) {
