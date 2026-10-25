@@ -244,19 +244,19 @@ class UndoCommandTest extends TestCase
         $this->assertSame([3], $out['tables']['tl_news']['idsTaken']);
     }
 
-    // --- Alles oder nichts ---
+    // --- All or nothing ---
 
     /**
-     * 🔴 Früher lief der Restore ohne Transaktion:
-     * Zeile für Zeile einfügen, bei einem Fehler abbrechen, den Undo-Eintrag
-     * behalten — und die bereits geschriebenen Zeilen stehen lassen. Beim
-     * nächsten Versuch kollidierten genau die, und der Eintrag war damit auch
-     * für die Zeilen verloren, die nie ankamen.
+     * 🔴 The restore used to run without a transaction:
+     * insert row by row, abort on an error, keep the undo entry
+     * — and leave the rows already written in place. On the
+     * next attempt exactly those collided, and the entry was thereby lost
+     * even for the rows that never arrived.
      *
-     * ⚠️ Contao selbst macht es bis heute so (`DC_Table::undo()`, 5.7): keine
-     * Transaktion, `$error = true` und weiter. Für die Backend-Oberfläche mag
-     * das reichen, weil ein Mensch das Ergebnis sieht. Dieser Befehl wird von
-     * Skripten gerufen, die auf `status: error` erneut versuchen.
+     * ⚠️ Contao itself still does it that way (`DC_Table::undo()`, 5.7): no
+     * transaction, `$error = true` and carry on. For the back-end UI that may
+     * be enough, because a human sees the result. This command is called by
+     * scripts that retry on `status: error`.
      */
     public function testAFailedInsertRollsEverythingBackAndKeepsTheEntry(): void
     {
@@ -270,7 +270,7 @@ class UndoCommandTest extends TestCase
         $connection->method('quoteIdentifier')->willReturnArgument(0);
         $this->givenColumns($connection, ['id', 'headline']);
 
-        // Der Callback wird ausgeführt wie im Ernstfall; der Insert wirft.
+        // The callback runs as it would for real; the insert throws.
         $connection->method('transactional')->willReturnCallback(
             static function (callable $fn) {
                 return $fn();
@@ -280,7 +280,7 @@ class UndoCommandTest extends TestCase
             new \RuntimeException('Duplicate entry 7 for key PRIMARY (1062)')
         );
 
-        // Das ist die Zusicherung: der Eintrag wird NICHT gelöscht.
+        // This is the assertion: the entry is NOT deleted.
         $connection->expects($this->never())->method('delete');
 
         $out = $this->runCommand($this->restorer($connection), ['id' => '5']);
@@ -290,9 +290,9 @@ class UndoCommandTest extends TestCase
     }
 
     /**
-     * Die Gegenprobe zur vorigen: ohne sie wäre der Test auch grün, wenn der
-     * Befehl gar nichts täte. Diese Sitzung hat drei Scans produziert, die
-     * nichts fanden und trotzdem bestanden.
+     * The counter-check to the previous one: without it the test would also be green
+     * if the command did nothing at all. One session produced three scans that
+     * found nothing and passed anyway.
      */
     public function testTheRestoreRunsInsideATransaction(): void
     {
@@ -314,14 +314,14 @@ class UndoCommandTest extends TestCase
     }
 
     /**
-     * Die Zusicherung, die auch ohne Contao-Container greift.
+     * The assertion that holds even without a Contao container.
      *
-     * Die beiden Verhaltenstests darüber brauchen `loadDataContainer()` und
-     * damit einen gebooteten Container — im normalen `vendor/bin/phpunit` sind
-     * sie übersprungen. Ein übersprungener Test schützt nichts, und der
-     * Rückfall bestünde genau darin, die Transaktion wieder herauszunehmen.
+     * The two behaviour tests above need `loadDataContainer()` and
+     * thus a booted container — in a plain `vendor/bin/phpunit` they are
+     * skipped. A skipped test protects nothing, and the
+     * regression would consist precisely in taking the transaction out again.
      *
-     * Dieselbe Begründung wie bei CreateCommandConversionTest: *"What actually
+     * The same reasoning as in CreateCommandConversionTest: *"What actually
      * goes wrong is a missing line, and a missing line is what this looks for."*
      */
     public function testTheRestoreSourceStillWrapsTheInsertsInATransaction(): void

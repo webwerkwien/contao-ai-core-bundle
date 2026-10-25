@@ -1,24 +1,24 @@
-# Geladen von ContaoAiCoreBundle::loadExtension() nur wenn
-# \Contao\NewsletterChannelModel (contao/newsletter-bundle) installiert ist.
+# Loaded by ContaoAiCoreBundle::loadExtension() only when
+# \Contao\NewsletterChannelModel (contao/newsletter-bundle) is installed.
 #
-# Es gibt bewusst KEIN Send-Command: der Versand bleibt bei einem Menschen im
-# Backend. NewsletterSendGuard
-# erzwingt das auf dem Schreibpfad, ist aber eine reine Static-Klasse ohne
-# Service — sie wird vom exclude-Muster mit erfasst und braucht hier keinen
-# Eintrag.
+# There is deliberately NO send command: sending stays with a human in the
+# back end. NewsletterSendGuard
+# enforces that on the write path, but is a purely static class without a
+# service — the exclude pattern covers it too, so it needs no entry
+# here.
 services:
     _defaults:
         autowire: true
         autoconfigure: true
 
-    # _instanceof greift nur per-File-Scope, daher hier wiederholt (wie services_news.yaml).
+    # _instanceof only applies per file scope, hence repeated here (like services_news.yaml).
     _instanceof:
         Webwerkwien\ContaoAiCoreBundle\Service\Cloner\EntityClonerInterface:
             tags: ['contao_ai.entity_cloner']
 
     Webwerkwien\ContaoAiCoreBundle\Service\Cloner\NewsletterChannelCloner: ~
 
-    # tl_newsletter_channel — der Wurzelknoten, an dem Newsletter UND Empfänger hängen.
+    # tl_newsletter_channel — the root node that newsletters AND recipients hang off.
     Webwerkwien\ContaoAiCoreBundle\Command\NewsletterChannelCreateCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\NewsletterChannelUpdateCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\NewsletterChannelDeleteCommand: ~

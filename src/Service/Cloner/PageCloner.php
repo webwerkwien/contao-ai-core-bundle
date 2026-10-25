@@ -175,8 +175,8 @@ class PageCloner implements EntityClonerInterface
                 'article_count'  => $stats['articles'],
                 'content_count'  => $stats['contents'],
                 'subpage_count'  => $stats['subpages'],
-                // Getrennt ausgewiesen. `capped: true` sagte bisher nur
-                // DASS etwas übersprungen wurde, nicht wie viel.
+                // Reported separately. `capped: true` used to say only
+                // THAT something was skipped, not how much.
                 'subpages_skipped' => $stats['subpages_skipped'],
                 'capped'         => $stats['capped'],
                 // Overrides this cloner refused. Empty on a clean call; never omitted,
@@ -202,25 +202,25 @@ class PageCloner implements EntityClonerInterface
         array &$stats,
         ?int $parentNewId,
     ): int {
-        // Subpage-Tree-Caps: depth + total-nodes. Wenn überschritten, nicht klonen
-        // und das `capped`-Flag setzen — der Aufrufer kann das in den Result-Payload
-        // hochreichen damit der Operator es erfährt.
+        // Subpage tree caps: depth + total nodes. When exceeded, do not clone
+        // and set the `capped` flag — the caller can pass it up into the result payload
+        // so the operator finds out.
         if ($depth > self::MAX_RECURSIVE_DEPTH) {
             $stats['capped'] = true;
             ++$stats['subpages_skipped'];
             return 0;
         }
-        // 🔴 `$stats['subpages']` zählte früher
-        // VERSUCHE, nicht Erzeugungen — der Aufrufer erhöhte vor dem Aufruf,
-        // und ein durch die Grenze abgewiesener Aufruf lieferte 0, ohne den
-        // Zähler zurückzunehmen. Die Antwort meldete damit mehr geklonte
-        // Unterseiten, als es gab.
+        // 🔴 `$stats['subpages']` used to count
+        // ATTEMPTS, not creations — the caller incremented before the call,
+        // and a call refused by the cap returned 0 without taking the
+        // counter back. The answer thus reported more cloned
+        // subpages than there were.
         //
-        // Die Grenze rechnete mit demselben Zähler, deshalb ändert sich hier
-        // `>` zu `>=`: vorher enthielt `subpages` die gerade versuchte Seite
-        // bereits, jetzt nicht mehr. Die Obergrenze bleibt dieselbe — nach 49
-        // Unterseiten plus Root sind 50 erreicht und die nächste wird
-        // abgewiesen.
+        // The cap computed with the same counter, which is why
+        // `>` becomes `>=` here: before, `subpages` already included the page
+        // being attempted, now it no longer does. The upper limit stays the same — after 49
+        // subpages plus the root, 50 is reached and the next one is
+        // refused.
         $totalSoFar = 1 /*root*/ + $stats['subpages'];
         if ($totalSoFar >= self::MAX_TOTAL_PAGES) {
             $stats['capped'] = true;
@@ -239,7 +239,7 @@ class PageCloner implements EntityClonerInterface
                 $this->versionManager->createInitialVersion('tl_article', $newArticleId, $operator);
                 ++$stats['articles'];
 
-                // Direkte Children unter Article (ptable=tl_article)
+                // Direct children under the article (ptable=tl_article)
                 $directContents = ContentModel::findBy(
                     ['pid=?', 'ptable=?'],
                     [(int) $sourceArticle->id, 'tl_article']
@@ -249,9 +249,9 @@ class PageCloner implements EntityClonerInterface
                         $newContentId = $this->cloneContentRow($sourceContent, $newArticleId);
                         $this->versionManager->createInitialVersion('tl_content', $newContentId, $operator);
                         ++$stats['contents'];
-                        // Verschachtelte Content-Children (ptable=tl_content) —
-                        // inzwischen in ClonesContentSubtree, geteilt mit den
-                        // Archiv- und Kalender-Klonern.
+                        // Nested content children (ptable=tl_content) —
+                        // now in ClonesContentSubtree, shared with the
+                        // archive and calendar cloners.
                         $stats['contents'] += $this->cloneContentSubtree(
                             (int) $sourceContent->id,
                             $newContentId,
@@ -271,11 +271,11 @@ class PageCloner implements EntityClonerInterface
             $subpages = PageModel::findBy('pid', (int) $source->id);
             if (null !== $subpages) {
                 foreach ($subpages as $subpage) {
-                    // Erst zählen, wenn wirklich eine Seite entstanden ist.
-                    // doClone() liefert 0, wenn Tiefe oder Gesamtzahl greifen.
+                    // Count only once a page has actually been created.
+                    // doClone() returns 0 when depth or total count kick in.
                     $clonedId = $this->doClone(
                         $subpage,
-                        [], // Modifications nur für Root anwenden
+                        [], // apply modifications to the root only
                         $operator,
                         $authorId,
                         true,

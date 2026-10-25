@@ -64,9 +64,9 @@ class ClonerCascadeTest extends TestCase
             $code .= $token;
         }
 
-        // Eine Untergrenze, die "gar nichts gelesen" fängt, ohne kleine
-        // Schnittstellen-Dateien zu bestrafen — EntityClonerInterface.php hat
-        // nach dem Kommentar-Strippen 294 Zeichen und ist völlig in Ordnung.
+        // A lower bound that catches "read nothing at all" without penalising small
+        // interface files — EntityClonerInterface.php has 294 characters
+        // after stripping comments and is perfectly fine.
         self::assertGreaterThan(50, \strlen($code), "$file read as almost nothing");
 
         return $code;

@@ -5,31 +5,31 @@ namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Der DBAFS-Hash gehört Contao, nicht uns.
+ * The DBAFS hash belongs to Contao, not to us.
  *
- * `Contao\File::getHash()` ist bis Contao 5.7 `md5_file()` und ab Contao 6.0
- * `hash_file('xxh128', …)`. Wer den Hash selbst rechnet, schreibt auf einer der
- * beiden Versionen einen falschen Wert nach `tl_files`. Genau das ist bis
- * v0.6.1 passiert: `FileWriteCommand` setzte beim Überschreiben
- * `$filesModel->hash = md5($content)` — auf Contao 6.0 jedes Mal daneben, bis
- * der nächste `contao:filesync` es korrigierte.
+ * `Contao\File::getHash()` is `md5_file()` up to Contao 5.7 and from Contao 6.0 on
+ * `hash_file('xxh128', …)`. Whoever computes the hash themselves writes a wrong
+ * value to `tl_files` on one of the two versions. That is exactly what happened up to
+ * v0.6.1: on overwrite `FileWriteCommand` set
+ * `$filesModel->hash = md5($content)` — off every time on Contao 6.0, until
+ * the next `contao:filesync` corrected it.
  *
- * ⚠️ **Was dieser Test kann und was nicht.** Er liest Quelltext und prüft, dass
- * niemand den Hash wieder selbst ausrechnet. Er belegt **nicht**, dass der
- * geschriebene Wert stimmt — dafür braucht es eine echte Contao-Installation,
- * und die gibt es hier nicht. Der Beweis kam aus dem Live-Test
- * gegen 5.7.13 und 6.0.0. Dieser Test hält nur fest, dass es nicht unbemerkt
- * zurückgedreht wird.
+ * ⚠️ **What this test can do and what it cannot.** It reads source code and checks that
+ * nobody computes the hash themselves again. It does **not** prove that the
+ * written value is right — that takes a real Contao installation,
+ * and there is none here. The proof came from the live test
+ * against 5.7.13 and 6.0.0. This test only makes sure it is not reverted
+ * unnoticed.
  */
 class DbafsHashIsNotComputedLocallyTest extends TestCase
 {
     /**
-     * Jede Zuweisung an eine `hash`-Eigenschaft im gesamten `src/`.
+     * Every assignment to a `hash` property in all of `src/`.
      *
-     * Bewusst über eine Suche statt über eine gepflegte Dateiliste: ein neuer
-     * Befehl, der einen Hash setzt, ist damit ab der ersten Zeile abgedeckt.
+     * Deliberately via a search instead of a maintained file list: a new
+     * command that sets a hash is covered from its first line.
      *
-     * @return array<string, string> Datei:Zeile => Quelltextzeile
+     * @return array<string, string> file:line => source line
      */
     private function hashAssignments(): array
     {
@@ -46,7 +46,7 @@ class DbafsHashIsNotComputedLocallyTest extends TestCase
             }
 
             foreach (file($file->getPathname(), FILE_IGNORE_NEW_LINES) as $no => $line) {
-                // Kommentarzeilen zählen nicht — dort steht die Begründung.
+                // Comment lines do not count — that is where the reasoning lives.
                 if (preg_match('/^\s*(\/\/|\*|\/\*)/', $line)) {
                     continue;
                 }
@@ -63,8 +63,8 @@ class DbafsHashIsNotComputedLocallyTest extends TestCase
 
     public function testTheSearchActuallyFindsSomething(): void
     {
-        // Ohne diese Zusicherung wäre der Test unten still grün, sobald sich
-        // die Schreibweise ändert — eine Prüfung, die nichts mehr prüft.
+        // Without this assertion the test below would be silently green as soon as
+        // the notation changes — a check that no longer checks anything.
         $this->assertNotEmpty(
             $this->hashAssignments(),
             'Keine einzige Hash-Zuweisung gefunden. Entweder hat sich die '
@@ -92,14 +92,14 @@ class DbafsHashIsNotComputedLocallyTest extends TestCase
     }
 
     /**
-     * Wer den Hash einer Datei setzt, muss auch die Ordner darüber nachziehen.
+     * Whoever sets a file's hash must also update the folders above it.
      *
-     * Ein Ordner-Hash wird aus denen seiner Kinder gebildet. Bis v0.26.0 setzte
-     * `FileWriteCommand` beim Überschreiben nur den Datei-Hash; jeder Ordner darüber
-     * behielt den alten, bis `contao:filesync` lief — gemessen auf
-     * 5.3.51, 5.7.13 und 6.0.0 im Regressionslauf vor 1.0. Gleiche Grenze wie oben:
-     * Das prüft den Quelltext, der Beweis kam aus dem Live-Lauf (`file sync` meldet
-     * danach „No changes“).
+     * A folder hash is built from those of its children. Up to v0.26.0
+     * `FileWriteCommand` set only the file hash on overwrite; every folder above it
+     * kept the old one until `contao:filesync` ran — measured on
+     * 5.3.51, 5.7.13 and 6.0.0 in the regression run before 1.0. Same limit as above:
+     * this checks the source, the proof came from the live run (`file sync` reports
+     * "No changes" afterwards).
      */
     public function testEveryFileThatSetsAHashAlsoUpdatesTheFolderHashes(): void
     {

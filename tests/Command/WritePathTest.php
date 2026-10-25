@@ -36,8 +36,8 @@ use PHPUnit\Framework\TestCase;
  *
  * ## Why it strips comments first
  *
- * The fixes for those seven quote the old line in a comment — *"hier stand
- * `$user->delete()`"* — because a fix without its reason is a line nobody dares
+ * The fixes for those seven quote the old line in a comment — *"This used to
+ * say `$user->delete()`"* — because a fix without its reason is a line nobody dares
  * touch later. A source scan that reads comments would find those quotes and
  * fail on the very files that were repaired. So the source is tokenised and
  * comments are dropped before anything is matched.

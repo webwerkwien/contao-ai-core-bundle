@@ -49,8 +49,8 @@ class NewsArchiveCloner implements EntityClonerInterface
 
     public function clone(int $sourceId, array $modifications, string $operator, array $options = []): array
     {
-        // News-Archive haben keine container-of-container-Hierarchie — `recursive`
-        // wird ignoriert. Signature-Kompat zur Interface-Erweiterung.
+        // News archives have no container-of-container hierarchy — `recursive`
+        // is ignored. Signature compatibility with the interface extension.
         $this->framework->initialize();
 
         $source = NewsArchiveModel::findById($sourceId);
@@ -79,10 +79,10 @@ class NewsArchiveCloner implements EntityClonerInterface
                     $this->versionManager->createInitialVersion('tl_news', $newChildId, $operator);
                     ++$count;
 
-                    // 🔴 Inhaltselemente unter dem Kind wurden früher nie mitkopiert.
-                    // Der Löschpfad kaskadiert sie (RecordCascadeCollector: "tl_content
-                    // hangs under articles, news and events"), der Klon ließ sie stehen
-                    // und meldete trotzdem Erfolg.
+                    // 🔴 Content elements under the child used to never be copied along.
+                    // The delete path cascades them (RecordCascadeCollector: "tl_content
+                    // hangs under articles, news and events"), the clone left them behind
+                    // and still reported success.
                     $contents += $this->cloneContentSubtree((int) $child->id, $newChildId, 'tl_news', $operator);
                     $this->dcaCallbacks?->copy('tl_news', $newChildId, (int) $child->id);
                 }
@@ -95,7 +95,7 @@ class NewsArchiveCloner implements EntityClonerInterface
                 'id'    => $newArchiveId,
                 'table' => 'tl_news_archive',
                 'count' => $count,
-                // Getrennt ausgewiesen, damit eine leere Zahl auffaellt
+                // Reported separately, so that an empty count stands out
                 'contents' => $contents,
                 // Overrides this cloner refused. Empty on a clean call; never omitted.
                 'ignored_modifications' => $ignoredMods,
@@ -133,11 +133,11 @@ class NewsArchiveCloner implements EntityClonerInterface
         // Cloned children land as drafts — operator should review/translate
         // before publishing. Matches NewsCreateCommand's default.
         $clone->published = '0';
-        // 🔴 Früher ohne Eindeutigkeitsprüfung. Model::save()
-        // führt den DCA-save_callback nicht aus, also lief Contaos eigener
-        // Alias-Check nie — und `tl_news.alias` trägt `unique=>true` samt
-        // `doNotCopy=>true`. Zwei Datensätze mit `sommerfest`, und welchen eine
-        // Alias-Auflösung erwischt, entscheidet die Zeilenreihenfolge.
+        // 🔴 Used to have no uniqueness check. Model::save()
+        // does not run the DCA save_callback, so Contao's own
+        // alias check never ran — and `tl_news.alias` carries `unique=>true` along with
+        // `doNotCopy=>true`. Two records with `sommerfest`, and which one an
+        // alias lookup hits is decided by row order.
         $clone->alias     = $this->uniqueAlias(
             'tl_news',
             $this->extractHeadlineValue((string) ($source->headline ?? '')),

@@ -1,5 +1,5 @@
-# Geladen von ContaoAiCoreBundle::loadExtension() nur wenn
-# \Contao\CalendarEventsModel (contao/calendar-bundle) installiert ist.
+# Loaded by ContaoAiCoreBundle::loadExtension() only when
+# \Contao\CalendarEventsModel (contao/calendar-bundle) is installed.
 services:
     _defaults:
         autowire: true
@@ -14,7 +14,7 @@ services:
     Webwerkwien\ContaoAiCoreBundle\Command\EventUpdateCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\EventDeleteCommand: ~
 
-    # tl_calendar — der Elternknoten der Events.
+    # tl_calendar — the parent node of the events.
     Webwerkwien\ContaoAiCoreBundle\Command\CalendarCreateCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\CalendarReadCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\CalendarUpdateCommand: ~

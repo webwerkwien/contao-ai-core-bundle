@@ -83,46 +83,46 @@ class UndoRestoreCommand extends AbstractWriteCommand
             ));
         }
 
-        // 🔴 Früher lief der Restore ohne Transaktion.
-        // Schlug eine Zeile fehl, blieben die bereits eingefügten stehen UND der
-        // Undo-Eintrag blieb vollständig erhalten. Beim nächsten Versuch
-        // kollidierten genau diese IDs — der Eintrag war damit für immer
-        // unbrauchbar, auch für die Zeilen, die nie ankamen.
+        // 🔴 The restore used to run without a transaction.
+        // If a row failed, the ones already inserted stayed AND the
+        // undo entry stayed fully intact. On the next attempt exactly
+        // these IDs collided — which made the entry unusable for good,
+        // even for the rows that never arrived.
         //
-        // Der alte Code hat den Teilzustand sogar ehrlich gemeldet ("Rows
-        // already written stay"). Gefehlt hat nicht die Offenheit, sondern die
-        // Folgerung: eine Wiederherstellung, die man nicht wiederholen kann, ist
-        // beim zweiten Anlauf wertlos.
+        // The old code even reported the partial state honestly ("Rows
+        // already written stay"). What was missing was not candour but the
+        // conclusion: a restore that cannot be repeated is
+        // worthless on the second attempt.
         //
-        // 🎯 Alles oder nichts. Bei einem Fehler rollt die Transaktion zurück,
-        // der Eintrag bleibt unangetastet und ein zweiter Versuch — nach dem
-        // Beheben der Ursache — hat dieselben Ausgangsbedingungen wie der erste.
+        // 🎯 All or nothing. On an error the transaction rolls back,
+        // the entry stays untouched, and a second attempt — after
+        // fixing the cause — starts from the same conditions as the first.
         //
-        // ⚠️ HIER WEICHEN WIR VON CONTAO AB, und das ist Absicht.
-        // `DC_Table::undo()` (Contao 5.7) fügt Zeile für Zeile ein, setzt bei
-        // einem Fehlschlag nur `$error = true`, macht weiter und löscht den
-        // tl_undo-Eintrag am Ende nur, wenn nichts schiefging. Keine
-        // Transaktion, kein Rollback — dieselbe Teilzustands-Lage, die wir hier
-        // gerade beheben.
+        // ⚠️ HERE WE DEVIATE FROM CONTAO, and on purpose.
+        // `DC_Table::undo()` (Contao 5.7) inserts row by row, on a
+        // failure only sets `$error = true`, carries on, and deletes the
+        // tl_undo entry at the end only if nothing went wrong. No
+        // transaction, no rollback — the same partial-state situation we are
+        // fixing here.
         //
-        // Warum die Abweichung trotzdem richtig ist: Contaos Undo läuft in der
-        // Backend-Oberfläche, wo ein Mensch das Ergebnis sieht und von Hand
-        // nachbessern kann. Dieser Befehl wird von Skripten und Agenten
-        // gerufen, die auf `status: error` einen zweiten Versuch starten — und
-        // der ist nach einem Teil-Restore garantiert zum Scheitern verurteilt,
-        // ohne dass jemand den Grund sieht.
+        // Why the deviation is still right: Contao's undo runs in the
+        // back-end UI, where a human sees the result and can fix it up
+        // by hand. This command is called by scripts and agents
+        // that start a second attempt on `status: error` — and
+        // after a partial restore that attempt is guaranteed to fail,
+        // without anyone seeing why.
         //
-        // Die Regel gilt in beide Richtungen: erst nachsehen,
-        // wie Contao es macht — und dann entscheiden, ob dessen Antwort für
-        // unseren Aufrufer taugt. Hier tut sie es nicht.
+        // The rule cuts both ways: first check
+        // how Contao does it — and then decide whether its answer suits
+        // our caller. Here it does not.
         //
-        // Die `onundo_callback`s laufen seit v1.8.1 IN der Transaktion, je Zeile
-        // direkt nach ihrem Insert, wie DC_Table::undo(). Bis v1.8.0 liefen sie
-        // nach dem Commit, mit dem Befehl als
-        // `$dc`, und ihr Scheitern blieb eine Warnung unter einem `ok`. Was ein
-        // Callback außerhalb der Datenbank tut, holt ein Rollback nicht zurück —
-        // aber eine halbe Wiederherstellung, die als ganze gemeldet wird, wiegt
-        // schwerer; der Undo-Eintrag bleibt dann erhalten.
+        // Since v1.8.1 the `onundo_callback`s run INSIDE the transaction, each row's
+        // right after its insert, like DC_Table::undo(). Up to v1.8.0 they ran
+        // after the commit, with the command as
+        // `$dc`, and their failure stayed a warning under an `ok`. What a
+        // callback does outside the database a rollback does not bring back —
+        // but half a restore reported as a whole one weighs
+        // more; the undo entry is kept in that case.
         $restored  = [];
         $failed    = [];
         $pending   = [];
@@ -249,16 +249,16 @@ class UndoRestoreCommand extends AbstractWriteCommand
             return $this->outputError($message);
         }
 
-        // 🔴 HIER MACHEN WIR ES BESSER ALS DAS BACKEND, mit Absicht.
-        // `DC_Table::undo()` ruft `invalidateCacheTags()` auf sich
-        // selbst — und dessen Tabelle ist in dem Moment tl_undo. Die
-        // wiederhergestellten Datensätze werden nie entwertet, ihre
-        // `oninvalidate_cache_tags_callback`s laufen nie (Contao 5.3, 5.7, 6.0).
-        // Gesehen an einem wiederhergestellten Consho-Preis: die
-        // gecachte Sitemap blieb ohne sein Produkt.
+        // 🔴 HERE WE DO BETTER THAN THE BACK END, on purpose.
+        // `DC_Table::undo()` calls `invalidateCacheTags()` on
+        // itself — and its table at that moment is tl_undo. The
+        // restored records are never invalidated, their
+        // `oninvalidate_cache_tags_callback`s never run (Contao 5.3, 5.7, 6.0).
+        // Seen with a restored Consho price: the
+        // cached sitemap stayed without its product.
         //
-        // Jede wiederhergestellte Zeile, nach dem Commit und nach onundo — damit
-        // die Callbacks sehen, was die Erweiterungen dort wieder aufgebaut haben.
+        // Every restored row, after the commit and after onundo — so that
+        // the callbacks see what the extensions rebuilt there.
         if (null !== $this->cacheTags) {
             $tags = [];
 

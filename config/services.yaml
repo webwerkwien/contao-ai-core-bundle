@@ -3,19 +3,19 @@ services:
         autowire: true
         autoconfigure: true
 
-    # Auto-Tag aller EntityCloner aus diesem File (PageCloner, da page/article/content
-    # zum contao/core-bundle gehören und immer geladen sind). Plugin-bedingte Cloner
-    # in services_<plugin>.yaml haben jeweils eigenes _instanceof (per-File-Scope).
+    # Auto-tag every EntityCloner from this file (PageCloner, since page/article/content
+    # belong to contao/core-bundle and are always loaded). Plugin-dependent cloners
+    # in services_<plugin>.yaml each have their own _instanceof (per-file scope).
     _instanceof:
         Webwerkwien\ContaoAiCoreBundle\Service\Cloner\EntityClonerInterface:
             tags: ['contao_ai.entity_cloner']
 
     Webwerkwien\ContaoAiCoreBundle\:
         resource: ../src
-        # Plugin-bedingte Commands sind aus dem Auto-Discover ausgeschlossen
-        # und werden in services_{news,calendar,faq,comments}.yaml geladen,
-        # nur wenn das jeweilige Contao-Bundle (news, calendar, faq, comments)
-        # tatsächlich installiert ist (siehe ContaoAiCoreBundle::loadExtension).
+        # Plugin-dependent commands are excluded from auto-discovery
+        # and loaded in services_{news,calendar,faq,comments}.yaml,
+        # only when the respective Contao bundle (news, calendar, faq, comments)
+        # is actually installed (see ContaoAiCoreBundle::loadExtension).
         exclude:
             - ../src/{ContaoManager,ContaoAiCoreBundle.php,DependencyInjection}
             # Not a service of its own: RedactingConsoleErrorListenerPass puts the class
@@ -24,32 +24,32 @@ services:
             - ../src/EventListener/{RedactingConsoleErrorListener.php,RedactedConsoleError.php}
             - ../src/Command/News*.php
             - ../src/Command/Event*.php
-            # Die Kalender-Commands (tl_calendar) hängen genauso am
-            # calendar-bundle wie die Event-Commands, heißen aber nicht Event*.
-            # Ohne diese Zeile registriert das Auto-Discover sie auf jeder
-            # Installation — auch auf einer ohne Kalender. Bei einem Live-Check
-            # aufgefallen: 4 von 12 neuen Commands waren registriert,
-            # und zwar genau die falschen vier. PluginCommandRegistrationTest
-            # macht daraus jetzt einen roten Test statt einer Merkregel.
+            # The calendar commands (tl_calendar) depend on the calendar-bundle
+            # just like the event commands, but are not named Event*.
+            # Without this line auto-discovery registers them on every
+            # installation — including one without a calendar. Noticed in a live
+            # check: 4 of 12 new commands were registered, and precisely the
+            # wrong four. PluginCommandRegistrationTest now turns this into a
+            # red test instead of a rule to remember.
             - ../src/Command/Calendar*.php
             - ../src/Command/Faq*.php
             - ../src/Command/Comment*.php
-            # Newsletter*.php wird von News*.php oben bereits mit erfasst —
-            # fnmatch("News*.php", "NewsletterCreateCommand.php") trifft zu.
-            # Trotzdem eigene Zeile: die Newsletter-Commands hängen am
-            # newsletter-bundle, nicht am news-bundle, und würden sonst still
-            # durchfallen, sobald das News-Muster je enger gefasst wird.
+            # Newsletter*.php is already covered by News*.php above —
+            # fnmatch("News*.php", "NewsletterCreateCommand.php") matches.
+            # Still a line of its own: the newsletter commands depend on the
+            # newsletter-bundle, not the news-bundle, and would otherwise silently
+            # slip through as soon as the News pattern is ever narrowed.
             - ../src/Command/Newsletter*.php
-            # Am Paket terminal42/contao-changelanguage, siehe services_changelanguage.yaml.
+            # Depend on the package terminal42/contao-changelanguage, see services_changelanguage.yaml.
             - ../src/Command/Language*.php
             - ../src/Service/Language
-            # Cloner sind plugin-bedingt und werden in services_<plugin>.yaml registriert.
+            # Cloners are plugin-dependent and registered in services_<plugin>.yaml.
             - ../src/Service/Cloner/EntityClonerInterface.php
             - ../src/Service/Cloner/News*.php
             - ../src/Service/Cloner/Calendar*.php
             - ../src/Service/Cloner/FaqCategory*.php
-            # Schon von News*.php erfasst, eigene Zeile aus demselben Grund wie bei
-            # den Newsletter-Commands oben.
+            # Already covered by News*.php, a line of its own for the same reason as
+            # the newsletter commands above.
             - ../src/Service/Cloner/Newsletter*.php
             # Value classes of contao:ai:apply, not services.
             - ../src/Service/Apply

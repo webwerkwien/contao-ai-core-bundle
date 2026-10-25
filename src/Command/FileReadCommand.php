@@ -27,20 +27,20 @@ class FileReadCommand extends AbstractReadCommand
 
     protected function doExecute(): int
     {
-        // 🔴 Aufgefallen durch PHPStan: `$framework` war injiziert
-        // und wurde nie gelesen. Der Befehl liest weiter unten `FilesModel`,
-        // und ein Model braucht `$GLOBALS['TL_MODELS']` — gefüllt erst hier.
+        // 🔴 Caught by PHPStan: `$framework` was injected
+        // and never read. Further down the command reads `FilesModel`,
+        // and a model needs `$GLOBALS['TL_MODELS']` — filled only here.
         //
-        // 🎯 Das ist derselbe Bau wie bei `news:repair-headlines`, das mit 603
-        // grünen Tests und sauberem Dry-Run starb: Die Schwester-Basisklasse
-        // `AbstractModelReadCommand` ruft `initialize()`, dieser Befehl erbt
-        // aber von `AbstractReadCommand` und tat es nicht. Ob es im Betrieb
-        // knallte, hing allein daran, ob die Konsole das Framework schon
-        // gebootet hatte — eine Abhängigkeit, auf die sich niemand verlassen
-        // wollte, als sie bekannt war.
+        // 🎯 This is the same construction as `news:repair-headlines`, which died
+        // with 603 green tests and a clean dry run: the sister base class
+        // `AbstractModelReadCommand` calls `initialize()`, but this command
+        // extends `AbstractReadCommand` and did not. Whether it blew up in
+        // production depended solely on whether the console had already
+        // booted the framework — a dependency nobody wanted to rely on
+        // once it was known.
         //
-        // `initialize()` ist idempotent; der Aufruf kostet nichts und macht die
-        // vorhandene Injektion zu dem, wofür sie gedacht war.
+        // `initialize()` is idempotent; the call costs nothing and makes the
+        // existing injection what it was meant to be.
         $this->framework->initialize();
 
         $path = $this->input->getOption('path');

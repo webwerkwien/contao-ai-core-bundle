@@ -111,7 +111,7 @@ class RecordCascadeCollectorTest extends TestCase
             'tl_article' => [['id' => 10, 'pid' => 1]],
             'tl_content' => [
                 ['id' => 100, 'pid' => 10, 'ptable' => 'tl_article'],
-                // Gleiche pid, anderes ptable — gehoert zu einer News, nicht hierher.
+                // Same pid, different ptable — belongs to a news item, not here.
                 ['id' => 200, 'pid' => 10, 'ptable' => 'tl_news'],
             ],
         ]);

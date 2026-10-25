@@ -34,20 +34,20 @@ class MemberDeleteCommand extends AbstractWriteCommand
 
         $id = (int) $member->id;
 
-        // 🔴 Hier stand früher `$member->delete()` — ein nacktes
-        // Contao\Model::delete(). Kein tl_undo-Snapshot, keine Kaskade, kein
-        // Systemlog: der Befehl meldete `deleted` und `contao:undo:restore`
-        // konnte den Datensatz nicht zurückholen.
+        // 🔴 This used to say `$member->delete()` — a bare
+        // Contao\Model::delete(). No tl_undo snapshot, no cascade, no
+        // system log: the command reported `deleted` and `contao:undo:restore`
+        // could not bring the record back.
         //
-        // 🎯 Der Writer existiert seit v0.2.16 genau dafür — "the one place a
+        // 🎯 The writer has existed since v0.2.16 for exactly this — "the one place a
         // record is persisted, together with everything a write owes the audit
-        // trail". Diese beiden Befehle sind daran vorbeigelaufen, weil sie den
-        // Datensatz über den Benutzernamen suchen und deshalb nie von
-        // AbstractModelDeleteCommand erben konnten. Die Abkürzung kostete die
-        // Wiederherstellbarkeit.
+        // trail". These two commands went past it because they look up the
+        // record by username and therefore could never extend
+        // AbstractModelDeleteCommand. The shortcut cost the
+        // recoverability.
         //
-        // `undoable` steht erst NACH dem Snapshot in der Antwort: eine Zusage,
-        // die vor ihrem Beleg geschrieben wird, ist wieder nur eine Behauptung.
+        // `undoable` goes into the answer only AFTER the snapshot: a promise
+        // written before its proof is once again just a claim.
         $result = $this->writer()->delete(
             MemberModel::getTable(),
             $id,

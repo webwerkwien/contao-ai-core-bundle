@@ -1,5 +1,5 @@
-# Geladen von ContaoAiCoreBundle::loadExtension() nur wenn \Contao\FaqModel
-# (contao/faq-bundle) installiert ist.
+# Loaded by ContaoAiCoreBundle::loadExtension() only when \Contao\FaqModel
+# (contao/faq-bundle) is installed.
 services:
     _defaults:
         autowire: true
@@ -14,7 +14,7 @@ services:
     Webwerkwien\ContaoAiCoreBundle\Command\FaqUpdateCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\FaqDeleteCommand: ~
 
-    # tl_faq_category — der Elternknoten der Fragen.
+    # tl_faq_category — the parent node of the questions.
     Webwerkwien\ContaoAiCoreBundle\Command\FaqCategoryCreateCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\FaqCategoryReadCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\FaqCategoryUpdateCommand: ~

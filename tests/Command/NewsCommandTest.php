@@ -133,13 +133,13 @@ class NewsCommandTest extends TestCase
             ['id' => 1, 'headline' => serialize(['value' => 'Contao ist beliebt', 'unit' => 'h1'])],
             ['id' => 2, 'headline' => 'Schon sauberer Titel'],
         ]);
-        // 🔴 Dieser Test verlangte früher genau den rohen
-        // `$connection->update()` — also den Fehler: eine Reparatur ohne
-        // tl_version-Snapshot, die sich nicht zurücknehmen ließ. Er war grün und
-        // hat das Verhalten festgeschrieben.
+        // 🔴 This test used to demand exactly the raw
+        // `$connection->update()` — i.e. the defect: a repair without a
+        // tl_version snapshot that could not be taken back. It was green and
+        // locked the behaviour in.
         //
-        // 🎯 Jetzt die Umkehrung: die Datenbank darf NICHT direkt angefasst
-        // werden, der Writer muss es tun — der schreibt vorher den Snapshot.
+        // 🎯 Now the reverse: the database must NOT be touched directly,
+        // the writer has to do it — it writes the snapshot first.
         $connection->expects($this->never())->method('update');
 
         $writer = $this->createMock(RecordWriterInterface::class);

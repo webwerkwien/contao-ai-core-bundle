@@ -37,14 +37,14 @@ class CommentPublishCommand extends AbstractWriteCommand
             return $this->outputError("Invalid action '$action'. Use: publish or unpublish");
         }
 
-        // 🔴 Hier stand früher `$comment->published = …; $comment->save();` —
-        // am Writer vorbei. Folge: kein tl_version-Eintrag, also war ein
-        // versehentliches publish über die Versionshistorie nicht rückholbar.
+        // 🔴 This used to say `$comment->published = …; $comment->save();` —
+        // past the writer. Consequence: no tl_version entry, so an accidental
+        // publish could not be taken back through the version history.
         //
-        // 🎯 Der Writer nimmt fertige Werte und erledigt Snapshot, tstamp und
-        // save. Werte zu BAUEN bleibt Sache des Befehls — genau so steht es im
-        // Vertrag von RecordWriterInterface. Diese Befehle hatten nichts zu
-        // bauen und trotzdem selbst gespeichert.
+        // 🎯 The writer takes finished values and handles snapshot, tstamp and
+        // save. BUILDING values stays the command's job — exactly as the
+        // contract of RecordWriterInterface says. These commands had nothing to
+        // build and still saved on their own.
         $publish = 'publish' === $action;
 
         $this->writer()->update(

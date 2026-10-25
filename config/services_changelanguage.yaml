@@ -1,15 +1,15 @@
-# Geladen von ContaoAiCoreBundle::loadExtension() nur wenn
-# terminal42/contao-changelanguage installiert ist (v1.4.0).
+# Loaded by ContaoAiCoreBundle::loadExtension() only when
+# terminal42/contao-changelanguage is installed (v1.4.0).
 services:
     _defaults:
         autowire: true
         autoconfigure: true
 
     Webwerkwien\ContaoAiCoreBundle\Service\Language\ChangeLanguageLinks: ~
-    # v1.11.1: warum changelanguage keinen Artikel anbietet (link, check)
+    # v1.11.1: why changelanguage offers no article (link, check)
     Webwerkwien\ContaoAiCoreBundle\Service\Language\LinkTargetDiagnosis: ~
     Webwerkwien\ContaoAiCoreBundle\Command\LanguageLinkCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\LanguageCheckCommand: ~
-    # v1.11.0; content:find nimmt den Dienst optional (null ohne changelanguage)
+    # v1.11.0; content:find takes the service optionally (null without changelanguage)
     Webwerkwien\ContaoAiCoreBundle\Service\Language\LanguageVersions: ~
     Webwerkwien\ContaoAiCoreBundle\Command\LanguageVersionsCommand: ~

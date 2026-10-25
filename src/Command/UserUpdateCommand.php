@@ -111,19 +111,19 @@ class UserUpdateCommand extends AbstractWriteCommand
 
         $id = (int) $user->id;
 
-        // 🔴 Früher wurden hier die Werte ROH aufs Model
-        // geschrieben und gespeichert. Zwei Fehler in einem:
+        // 🔴 This used to write the values RAW onto the model
+        // and save it. Two defects in one:
         //
-        //  1. kein tl_version-Snapshot — die Änderung war nicht rückholbar
-        //  2. keine DCA-Konvertierung — `--set groups=1,2` schrieb den String in
-        //     eine serialisierte Spalte und meldete `ok`
+        //  1. no tl_version snapshot — the change could not be taken back
+        //  2. no DCA conversion — `--set groups=1,2` wrote the string into
+        //     a serialized column and reported `ok`
         //
-        // 🎯 Punkt 2 ist derselbe Fehler, den AbstractWriteCommand in seinem
-        // eigenen Docblock beschreibt: *"of eleven create commands that accept
+        // 🎯 Point 2 is the same defect AbstractWriteCommand describes in its
+        // own docblock: *"of eleven create commands that accept
         // --set … the rest wrote a raw string into a serialized column and
-        // reported success"*. Er wurde zuerst für den generischen Pfad
-        // behoben und mit einem Test abgesichert — dieser Befehl lief daran
-        // vorbei, weil er den Datensatz über den Benutzernamen sucht.
+        // reported success"*. It was fixed for the generic path first
+        // and secured with a test — this command went past that
+        // because it looks up the record by username.
         $fields = $this->convertFields(UserModel::getTable(), $fields, $id);
 
         $updated = $this->writer()->update(

@@ -51,11 +51,11 @@ trait GeneratesUniqueAlias
     {
         $base = StringUtil::generateAlias('' !== trim($from) ? $from : ($prefix . '-' . time()));
 
-        // Kein eigener Schutz gegen rein numerische Aliases: `generateAlias()`
-        // macht daraus bereits `id-2026`. Eine Abfrage hier hätte nie gefeuert
-        // — und eine Prüfung, die nie greift, behauptet einen Schutz, den es
-        // nicht gibt. (Aufgefallen, weil der Test sie erwartet hat und Contao
-        // ihm zuvorkam.)
+        // No guard of our own against purely numeric aliases: `generateAlias()`
+        // already turns them into `id-2026`. A check here would never have fired
+        // — and a check that never triggers claims a protection that does
+        // not exist. (Noticed because the test expected it and Contao
+        // got there first.)
 
         $alias    = $base;
         $attempt  = 2;

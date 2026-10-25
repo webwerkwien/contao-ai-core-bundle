@@ -84,16 +84,16 @@ class FileMetaUpdateCommand extends AbstractWriteCommand
             $updated[] = $key;
         }
 
-        // 🔴 Früher wurde hier direkt gespeichert, also ohne
-        // tl_version-Snapshot.
+        // 🔴 This used to save directly, i.e. without a
+        // tl_version snapshot.
         //
-        // 🎯 Dieser Befehl hat als einziger der fünf einen echten Grund für
-        // seinen Sonderweg — `tl_files.meta` ist ein serialisiertes Array je
-        // Sprache und muss gelesen, zusammengeführt und neu serialisiert
-        // werden. Aber das rechtfertigt das BAUEN der Werte, nicht das
-        // SPEICHERN: *"What deliberately stays outside: building a record's
-        // field values … The writer persists what it is handed."* Die
-        // Zusammenführung oben bleibt, die Persistenz geht an den Writer.
+        // 🎯 Of the five, this command alone has a real reason for its
+        // special path — `tl_files.meta` is a serialized array per language
+        // and has to be read, merged and serialized again. But that
+        // justifies BUILDING the values, not
+        // SAVING them: *"What deliberately stays outside: building a record's
+        // field values … The writer persists what it is handed."* The
+        // merge above stays, the persisting goes to the writer.
         $write = ['meta' => serialize($meta)];
 
         foreach ($fields as $key => $value) {

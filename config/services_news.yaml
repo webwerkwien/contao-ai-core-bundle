@@ -1,12 +1,12 @@
-# Geladen von ContaoAiCoreBundle::loadExtension() nur wenn \Contao\NewsModel
-# (contao/news-bundle) installiert ist.
+# Loaded by ContaoAiCoreBundle::loadExtension() only when \Contao\NewsModel
+# (contao/news-bundle) is installed.
 services:
     _defaults:
         autowire: true
         autoconfigure: true
 
-    # Auto-Tag aller Cloner aus diesem File. _instanceof greift nur per-File-Scope,
-    # daher hier wiederholen (gleiches Muster für künftige services_calendar.yaml etc.).
+    # Auto-tag every cloner from this file. _instanceof only applies per file scope,
+    # hence repeated here (same pattern for future services_calendar.yaml etc.).
     _instanceof:
         Webwerkwien\ContaoAiCoreBundle\Service\Cloner\EntityClonerInterface:
             tags: ['contao_ai.entity_cloner']
@@ -17,8 +17,8 @@ services:
     Webwerkwien\ContaoAiCoreBundle\Command\NewsDeleteCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\NewsRepairHeadlinesCommand: ~
 
-    # tl_news_archive — der Elternknoten. Gehört zum selben Bundle wie tl_news
-    # und darf deshalb genauso wenig ohne news-bundle registriert werden.
+    # tl_news_archive — the parent node. Belongs to the same bundle as tl_news
+    # and therefore must not be registered without the news-bundle either.
     Webwerkwien\ContaoAiCoreBundle\Command\NewsArchiveCreateCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\NewsArchiveReadCommand: ~
     Webwerkwien\ContaoAiCoreBundle\Command\NewsArchiveUpdateCommand: ~

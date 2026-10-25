@@ -25,21 +25,21 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Template\TemplateCacheRefresher;
  *  variant:  templates/<base>/<name>.html.twig
  */
 /**
- * 🔴 Dieser Befehl überschreibt Dateiinhalte, ohne die
- * vorherigen Bytes zu sichern — und deklarierte das nirgends.
+ * 🔴 This command overwrites file contents without saving the
+ * previous bytes — and declared that nowhere.
  *
- * ⚠️ Nachgesehen, wie Contao es macht: `DC_Folder::source()` versioniert um den
- * Schreibvorgang herum (`Versions::initialize()` … `create()`), aber
- * `Versions::create()` ist ein `SELECT * FROM <table> WHERE id=?` — es sichert
- * die **Datenbankzeile**, nicht den Dateiinhalt. Contaos eigener Datei-Editor
- * überschreibt also genauso unwiederbringlich; der gespeicherte `hash` lässt
- * eine Änderung erkennen, nicht zurücknehmen.
+ * ⚠️ Checked how Contao does it: `DC_Folder::source()` versions around the
+ * write (`Versions::initialize()` … `create()`), but
+ * `Versions::create()` is a `SELECT * FROM <table> WHERE id=?` — it saves
+ * the **database row**, not the file content. Contao's own file editor
+ * overwrites just as irretrievably; the stored `hash` lets you
+ * detect a change, not undo it.
  *
- * 🎯 Deshalb kein eigenes Backup-Regime, das von Contao abwiche und Fragen nach
- * Ablageort und Aufbewahrung aufwürfe — sondern die Deklaration. `irreversible`
- * existiert in `AiContract` genau dafür, und ein aufrufender Agent liest sie,
- * bevor er zugreift. **Eine unumkehrbare Wirkung, die niemand ankündigt, ist
- * der eigentliche Mangel.**
+ * 🎯 Hence no backup regime of our own that would deviate from Contao and raise
+ * questions of storage location and retention — but the declaration. `irreversible`
+ * exists in `AiContract` for exactly this, and a calling agent reads it
+ * before it acts. **An irreversible effect that nobody announces is
+ * the actual defect.**
  */
 #[AiContract(
     writes: true,
@@ -230,9 +230,9 @@ class TemplateWriteCommand extends Command
             'override' => $base . '.html.twig',
             'partial'  => dirname($base) . '/_' . basename($base) . '.html.twig',
             'variant'  => $base . '/' . $name . '.html.twig',
-            // Unerreichbar: doExecute() prueft $mode oben mit in_array().
-            // Der Zweig haelt die Annahme fest, statt sie einem
-            // UnhandledMatchError zu ueberlassen, falls die Pruefung je faellt.
+            // Unreachable: doExecute() checks $mode above with in_array().
+            // The branch pins the assumption down instead of leaving it to an
+            // UnhandledMatchError, should the check ever be dropped.
             default    => throw new \LogicException(\sprintf('Unvalidated mode "%s" reached buildRelPath().', $mode)),
         };
     }

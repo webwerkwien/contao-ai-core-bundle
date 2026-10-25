@@ -50,12 +50,12 @@ class NewsRepairHeadlinesCommand extends AbstractWriteCommand
     {
         $dryRun = (bool) $this->input->getOption('dry-run');
 
-        // 🔴 Aufgefallen erst auf einer echten Installation, nicht in 603 grünen
-        // Tests: seit der Schreibvorgang über `writer()->update()` läuft, braucht dieser Befehl das
-        // Model-Register. Vorher schrieb er rohes SQL und kam ohne aus.
-        // Ohne diese Zeile: `There is no class for table "tl_news" registered
-        // in $GLOBALS['TL_MODELS']` — und zwar **nur** im echten Lauf, weil
-        // `--dry-run` gar nicht schreibt und deshalb sauber durchging.
+        // 🔴 Noticed only on a real installation, not in 603 green
+        // tests: since the write goes through `writer()->update()`, this command needs the
+        // model registry. Before, it wrote raw SQL and did without.
+        // Without this line: `There is no class for table "tl_news" registered
+        // in $GLOBALS['TL_MODELS']` — and **only** in a real run, because
+        // `--dry-run` does not write at all and therefore went through cleanly.
         $this->framework->initialize();
 
         try {
@@ -86,21 +86,21 @@ class NewsRepairHeadlinesCommand extends AbstractWriteCommand
             ];
 
             if (!$dryRun) {
-                // 🔴 Hier stand früher ein rohes
-                // `$this->connection->update('tl_news', …)`. Ohne Version.
+                // 🔴 This used to be a raw
+                // `$this->connection->update('tl_news', …)`. Without a version.
                 //
-                // `--dry-run` zeigt vorher, was passieren würde — aber eine
-                // ausgeführte Fehlreparatur war endgültig. Und der Erkenner ist
-                // eine Heuristik: `extractPlainHeadline()` hält alles für
-                // reparierbar, was mit `a:` beginnt und sich entserialisieren
-                // lässt. Ein Titel, der zufällig so aussieht, wurde
-                // stillschweigend ersetzt.
+                // `--dry-run` shows beforehand what would happen — but an
+                // executed wrong repair was final. And the detector is
+                // a heuristic: `extractPlainHeadline()` considers everything
+                // repairable that starts with `a:` and can be unserialized.
+                // A title that happened to look like that was
+                // silently replaced.
                 //
-                // 🎯 Eine Reparatur ist genau der Vorgang, bei dem man sich am
-                // ehesten irrt — sie läuft über Bestandsdaten, die niemand mehr
-                // im Kopf hat. Über den Writer entsteht je Datensatz ein
-                // tl_version-Snapshot, und `version:restore` holt einen
-                // Fehlgriff einzeln zurück.
+                // 🎯 A repair is exactly the operation where one is most
+                // likely to be wrong — it runs over existing data nobody
+                // remembers any more. Through the writer every record gets a
+                // tl_version snapshot, and `version:restore` brings back a
+                // mistake one at a time.
                 $this->writer()->update(
                     'tl_news',
                     $id,
@@ -114,8 +114,8 @@ class NewsRepairHeadlinesCommand extends AbstractWriteCommand
             'dry_run'  => $dryRun,
             'scanned'  => \count($rows),
             'repaired' => \count($repaired),
-            // Sagt dem Aufrufer, dass ein Rückweg existiert — und im
-            // Trockenlauf ausdrücklich, dass noch nichts entstanden ist.
+            // Tells the caller that a way back exists — and in a
+            // dry run explicitly that nothing has been created yet.
             'versioned' => !$dryRun,
             'records'  => $repaired,
         ]);
