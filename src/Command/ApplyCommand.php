@@ -188,6 +188,46 @@ class ApplyCommand extends AbstractReadCommand
      */
     private function runStep(Application $application, array $step, array $ids, string $operator): array
     {
+        try {
+            $input = $this->inputFor($step, $ids);
+        } catch (\InvalidArgumentException $e) {
+            // `@x.article` of a page create that answered without an article: the
+            // plan check cannot know that in advance. Only here, not around doRun(),
+            // where the same class out of a command's own code is a defect.
+            return [Command::FAILURE, ['status' => 'error', 'message' => $e->getMessage()]];
+        }
+
+        $command = ApplyPlan::STEPS[$step['do']]['command'];
+
+        if ('' !== $operator && $this->acceptsOperator($application->find($command))) {
+            $input['--operator'] = $operator;
+        }
+
+        $input['--no-interaction'] = true;
+        $output                    = new BufferedOutput();
+
+        try {
+            $code = $application->doRun(new ArrayInput($input), $output);
+        } catch (ConsoleRuntimeException $e) {
+            // A value that does not bind is the plan's mistake, answered like a refusal.
+            return [Command::FAILURE, ['status' => 'error', 'message' => $e->getMessage()]];
+        }
+
+        return [$code, self::decode($output->fetch())];
+    }
+
+    /**
+     * The command line of a step, with every `@name` replaced by its ID.
+     *
+     * @param array<string, mixed> $step
+     * @param array<string, int>   $ids
+     *
+     * @return array<string, mixed>
+     *
+     * @throws \InvalidArgumentException for a name without an ID
+     */
+    private function inputFor(array $step, array $ids): array
+    {
         $spec  = ApplyPlan::STEPS[$step['do']];
         $input = ['command' => $spec['command']];
 
@@ -208,21 +248,7 @@ class ApplyCommand extends AbstractReadCommand
             $input['--set'][] = $field . '=' . (\is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) : (string) $value);
         }
 
-        if ('' !== $operator && $this->acceptsOperator($application->find($spec['command']))) {
-            $input['--operator'] = $operator;
-        }
-
-        $input['--no-interaction'] = true;
-        $output                    = new BufferedOutput();
-
-        try {
-            $code = $application->doRun(new ArrayInput($input), $output);
-        } catch (ConsoleRuntimeException $e) {
-            // A value that does not bind is the plan's mistake, answered like a refusal.
-            return [Command::FAILURE, ['status' => 'error', 'message' => $e->getMessage()]];
-        }
-
-        return [$code, self::decode($output->fetch())];
+        return $input;
     }
 
     private function acceptsOperator(Command $target): bool

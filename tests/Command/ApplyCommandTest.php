@@ -144,6 +144,17 @@ class ApplyCommandTest extends TestCase
         $this->assertCount(3, $this->received);
     }
 
+    public function testAPageWithoutAnArticleFailsTheStepThatNeedsIt(): void
+    {
+        [$code, $answer] = $this->apply(self::PLAN, failOn: 'no-article');
+
+        $this->assertSame(Command::FAILURE, $code);
+        $this->assertSame(['begin', 'rollback'], $this->log);
+        $this->assertCount(2, $this->received, 'the content create never ran');
+        $this->assertSame(2, $answer['failedStep']['index']);
+        $this->assertStringContainsString('"@versand.article" has no ID', $answer['failedStep']['message']);
+    }
+
     public function testARefOnAStepThatCreatesNothingIsTheRecordItTouched(): void
     {
         $plan = '{"steps": [{"ref": "a", "do": "language link", "table": "tl_page", "id": 5, "main": 6},'
@@ -198,7 +209,8 @@ class ApplyCommandTest extends TestCase
     }
 
     /**
-     * $failOn: `name` answers with an error, `throw:name` throws.
+     * $failOn: `name` answers with an error, `throw:name` throws, `no-article` makes
+     * the page create answer without an article.
      */
     private function standIn(string $name, ?string $failOn): Command
     {
@@ -237,7 +249,7 @@ class ApplyCommandTest extends TestCase
 
                 $id     = ($this->nextId)();
                 $answer = ['status' => 'ok', 'id' => $id, 'cacheTags' => ['contao.db.x.' . $id]];
-                if ('contao:page:create' === $this->getName()) {
+                if ('contao:page:create' === $this->getName() && 'no-article' !== $this->failOn) {
                     $answer['articles'] = [['id' => 900 + $id]];
                 }
                 $output->writeln(json_encode($answer));
