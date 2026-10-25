@@ -151,8 +151,6 @@ class BooleanValueRefusalTest extends TestCase
      * separate cleanly: core flags are covered here, a project's
      * tinyint-as-number stays the caller's problem and is documented as such in
      * the CLI's guide.
-     *
-     * → `02 Webentwicklung/Contao/tinyint kommt als Boolean zurück.md`
      */
     public function testAProjectsStringFormTinyintIsOutsideThisRule(): void
     {
