@@ -110,7 +110,7 @@ class BeforeSubmitTest extends TestCase
         $callbacks->method('submit')->willReturnCallback(function (): void { $this->order[] = 'onsubmit'; });
 
         $updated = $this->writer($this->connection(['id', 'pid', 'tstamp', 'title', 'currency']), $callbacks)
-            ->update('tl_contao_ai_x', 3, ['title' => 'neu'], 'claude', true);
+            ->update('tl_contao_ai_x', 3, ['title' => 'neu'], 'editor', true);
 
         $this->assertSame(['save', 'beforesubmit', 'update `tstamp`,`title`,`currency`', 'onsubmit'], $this->order);
         $this->assertSame('EUR', $this->written['`currency`']);
@@ -125,7 +125,7 @@ class BeforeSubmitTest extends TestCase
         $callbacks->expects($this->never())->method('save');
         $callbacks->expects($this->once())->method('beforeSubmit')->willReturnArgument(2);
 
-        $this->writer($this->connection(['id', 'tstamp', 'title']), $callbacks)->update('tl_contao_ai_x', 3, ['title' => 'Neu'], 'claude');
+        $this->writer($this->connection(['id', 'tstamp', 'title']), $callbacks)->update('tl_contao_ai_x', 3, ['title' => 'Neu'], 'editor');
     }
 
     public function testAMoveIsNoSubmit(): void
@@ -133,7 +133,7 @@ class BeforeSubmitTest extends TestCase
         $callbacks = $this->createMock(DcaCallbacks::class);
         $callbacks->expects($this->never())->method('beforeSubmit');
 
-        $this->writer($this->connection(['id', 'pid', 'tstamp', 'title']), $callbacks)->update('tl_contao_ai_x', 3, ['pid' => 5], 'claude');
+        $this->writer($this->connection(['id', 'pid', 'tstamp', 'title']), $callbacks)->update('tl_contao_ai_x', 3, ['pid' => 5], 'editor');
     }
 
     public function testAVirtualFieldReachesTheCallbackWhichTakesItOver(): void
@@ -146,7 +146,7 @@ class BeforeSubmitTest extends TestCase
             ->willReturn(['tstamp' => 1, 'net' => '10.00']);
 
         $updated = $this->writer($this->connection(['id', 'tstamp', 'net']), $callbacks)
-            ->update('tl_contao_ai_price', 3, ['amount' => '12.00'], 'claude');
+            ->update('tl_contao_ai_price', 3, ['amount' => '12.00'], 'editor');
 
         $this->assertSame(['net'], $updated);
         $this->assertArrayNotHasKey('`amount`', $this->written);
@@ -165,7 +165,7 @@ class BeforeSubmitTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Not a column of tl_contao_ai_price: amount — no onbeforesubmit_callback took it over, so it would not be stored. Nothing was written.');
 
-        $this->writer($connection, $callbacks)->update('tl_contao_ai_price', 3, ['amount' => '12.00'], 'claude');
+        $this->writer($connection, $callbacks)->update('tl_contao_ai_price', 3, ['amount' => '12.00'], 'editor');
     }
 
     public function testWithoutOnbeforesubmitAFieldWithoutColumnIsRefusedBeforeAnythingRuns(): void
@@ -180,7 +180,7 @@ class BeforeSubmitTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Not a column of tl_contao_ai_price: amount. Nothing was written.');
 
-        $this->writer($this->connection(['id', 'tstamp', 'net']), $callbacks)->update('tl_contao_ai_price', 3, ['amount' => '12.00'], 'claude', true);
+        $this->writer($this->connection(['id', 'tstamp', 'net']), $callbacks)->update('tl_contao_ai_price', 3, ['amount' => '12.00'], 'editor', true);
     }
 
     public function testATypoIsRefusedBeforeAnythingRunsEvenWithOnbeforesubmit(): void
@@ -193,7 +193,7 @@ class BeforeSubmitTest extends TestCase
 
         $this->expectExceptionMessage('Not a column of tl_contao_ai_price: amonut. Nothing was written.');
 
-        $this->writer($this->connection(['id', 'tstamp', 'net']), $callbacks)->update('tl_contao_ai_price', 3, ['amonut' => '12.00'], 'claude');
+        $this->writer($this->connection(['id', 'tstamp', 'net']), $callbacks)->update('tl_contao_ai_price', 3, ['amonut' => '12.00'], 'editor');
     }
 
     /**
@@ -209,7 +209,7 @@ class BeforeSubmitTest extends TestCase
 
         $this->expectExceptionMessage('Not a column of tl_contao_ai_x: subtitle — the DCA defines a column for subtitle, the table does not have it; is a database migration pending (contao:migrate)? Nothing was written.');
 
-        $this->writer($this->connection(['id', 'tstamp', 'title']), $callbacks)->update('tl_contao_ai_x', 3, ['subtitle' => 'x'], 'claude');
+        $this->writer($this->connection(['id', 'tstamp', 'title']), $callbacks)->update('tl_contao_ai_x', 3, ['subtitle' => 'x'], 'editor');
     }
 
     public function testWithOnbeforesubmitTheSameFieldIsNamedAfterTheCallbacks(): void
@@ -222,7 +222,7 @@ class BeforeSubmitTest extends TestCase
 
         $this->expectExceptionMessage('the DCA defines a column for subtitle, the table does not have it');
 
-        $this->writer($this->connection(['id', 'tstamp', 'net']), $callbacks)->update('tl_contao_ai_price', 3, ['subtitle' => 'x'], 'claude');
+        $this->writer($this->connection(['id', 'tstamp', 'net']), $callbacks)->update('tl_contao_ai_price', 3, ['subtitle' => 'x'], 'editor');
     }
 
     public function testACreateInsertsNoVirtualFieldAndWritesWhatTheCallbackReturns(): void
@@ -241,7 +241,7 @@ class BeforeSubmitTest extends TestCase
         $callbacks->method('submit')->willReturnCallback(function (): void { $this->order[] = 'onsubmit'; });
 
         $id = $this->writer($this->connection(['id', 'tstamp', 'title', 'net'], ['id' => 42, 'title' => 'P', 'net' => '0.00']), $callbacks)
-            ->create('tl_contao_ai_price', ['title' => 'P', 'amount' => '12.00'], 'claude');
+            ->create('tl_contao_ai_price', ['title' => 'P', 'amount' => '12.00'], 'editor');
 
         $this->assertSame(42, $id);
         $this->assertSame(['insert `tstamp`,`title`', 'oncreate', 'beforesubmit', 'update `tstamp`,`net`', 'onsubmit'], $this->order);
@@ -273,7 +273,7 @@ class BeforeSubmitTest extends TestCase
             $callbacks->method('beforeSubmit')->willReturnArgument(2);
 
             $updated = $this->writer($this->connection(['id', 'tstamp', 'title', 'jsonData'], ['id' => 3, 'title' => 'Vorkasse', 'jsonData' => '{"accountHolder":"Alt","bic":"BICX"}']), $callbacks)
-                ->update('tl_contao_ai_payment', 3, ['accountHolder' => 'Neu'], 'claude');
+                ->update('tl_contao_ai_payment', 3, ['accountHolder' => 'Neu'], 'editor');
 
             $this->assertSame(['accountHolder'], $updated);
             $this->assertSame('{"accountHolder":"Neu","bic":"BICX"}', $this->written['`jsonData`']);
@@ -289,7 +289,7 @@ class BeforeSubmitTest extends TestCase
 
         try {
             $id = $this->writer($this->connection(['id', 'tstamp', 'title', 'jsonData'], ['id' => 42, 'title' => 'P', 'jsonData' => '{"bic":"BICX"}']), $this->createMock(DcaCallbacks::class))
-                ->create('tl_contao_ai_payment', ['title' => 'P', 'bic' => 'BICX'], 'claude');
+                ->create('tl_contao_ai_payment', ['title' => 'P', 'bic' => 'BICX'], 'editor');
 
             $this->assertSame(42, $id);
             $this->assertSame('insert `tstamp`,`title`,`jsonData`', $this->order[0]);

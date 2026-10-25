@@ -17,8 +17,8 @@ use PHPUnit\Framework\TestCase;
  * ⚠️ **What this test can do and what it cannot.** It reads source code and checks that
  * nobody computes the hash themselves again. It does **not** prove that the
  * written value is right — that takes a real Contao installation,
- * and there is none here. The proof came from the live test
- * against 5.7.13 and 6.0.0. This test only makes sure it is not reverted
+ * and there is none here. The proof came from real installations
+ * of 5.7.13 and 6.0.0. This test only makes sure it is not reverted
  * unnoticed.
  */
 class DbafsHashIsNotComputedLocallyTest extends TestCase
@@ -67,9 +67,9 @@ class DbafsHashIsNotComputedLocallyTest extends TestCase
         // the notation changes — a check that no longer checks anything.
         $this->assertNotEmpty(
             $this->hashAssignments(),
-            'Keine einzige Hash-Zuweisung gefunden. Entweder hat sich die '
-            . 'Schreibweise geändert, dann gehört die Suche angepasst — oder der '
-            . 'Test prüft ab jetzt nichts mehr.',
+            'Not a single hash assignment found. Either the notation has '
+            . 'changed, then the search needs adjusting — or this test '
+            . 'checks nothing from now on.',
         );
     }
 
@@ -80,10 +80,10 @@ class DbafsHashIsNotComputedLocallyTest extends TestCase
                 '/\b(md5|sha1|crc32c?|hash|md5_file|sha1_file|hash_file)\s*\(/',
                 $line,
                 \sprintf(
-                    "%s rechnet den DBAFS-Hash selbst aus:\n    %s\n"
-                    . 'Der Algorithmus hängt an der Contao-Version (5.7: md5, 6.0: xxh128). '
-                    . 'Stattdessen `(new File($path))->hash` oder `Dbafs::addResource($path)` — '
-                    . 'so macht es Contaos eigener Datei-Editor in DC_Folder::source().',
+                    "%s computes the DBAFS hash itself:\n    %s\n"
+                    . 'The algorithm depends on the Contao version (5.7: md5, 6.0: xxh128). '
+                    . 'Use `(new File($path))->hash` or `Dbafs::addResource($path)` instead — '
+                    . "that is what Contao's own file editor does in DC_Folder::source().",
                     $where,
                     $line,
                 ),
@@ -97,8 +97,8 @@ class DbafsHashIsNotComputedLocallyTest extends TestCase
      * A folder hash is built from those of its children. Up to v0.26.0
      * `FileWriteCommand` set only the file hash on overwrite; every folder above it
      * kept the old one until `contao:filesync` ran — measured on
-     * 5.3.51, 5.7.13 and 6.0.0 in the regression run before 1.0. Same limit as above:
-     * this checks the source, the proof came from the live run (`file sync` reports
+     * 5.3.51, 5.7.13 and 6.0.0. Same limit as above:
+     * this checks the source, the proof came from real installations (`file sync` reports
      * "No changes" afterwards).
      */
     public function testEveryFileThatSetsAHashAlsoUpdatesTheFolderHashes(): void
@@ -109,7 +109,7 @@ class DbafsHashIsNotComputedLocallyTest extends TestCase
             $this->assertStringContainsString(
                 'Dbafs::updateFolderHashes(',
                 (string) file_get_contents($src . $file),
-                $file . ' setzt einen Datei-Hash, zieht die Ordner-Hashes aber nicht nach.',
+                $file . ' sets a file hash but does not update the folder hashes.',
             );
         }
     }

@@ -295,7 +295,7 @@ class DcaClonerTest extends TestCase
     }
 
     /**
-     * Found by working from the guide alone: the news
+     * Before v1.9.1 the news
      * list's reader module was missing from `references`, the events list's was there,
      * and every module listed `reg_homeDir`. A reference left out is one the caller
      * never repoints, and noise on every module teaches the caller to ignore the list.

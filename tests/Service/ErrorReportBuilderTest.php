@@ -49,7 +49,7 @@ class ErrorReportBuilderTest extends TestCase
         self::assertSame(
             ['argument_schluessel', 'aufruf_id', 'ausnahme', 'komponente', 'plattform', 'umgebung', 'versionen', 'werkzeug', 'zeitpunkt'],
             $this->sortedKeys($report->summary()),
-            'Ein neues Feld im Kurzbericht muss hier auffallen — sonst genehmigt der Test jede Erweiterung.',
+            'A new field in the summary has to show up here — otherwise the test approves every addition.',
         );
     }
 

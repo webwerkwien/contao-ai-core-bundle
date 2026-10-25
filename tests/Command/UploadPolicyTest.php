@@ -50,12 +50,12 @@ class UploadPolicyTest extends TestCase
 
     public function testAnExtensionTheSystemAllowsPasses(): void
     {
-        $this->assertNull($this->subject()->uploadViolation('files/conpai/bot.png', 1000, self::SYSTEM, 20480000));
+        $this->assertNull($this->subject()->uploadViolation('files/media/logo.png', 1000, self::SYSTEM, 20480000));
     }
 
     public function testTheExtensionIsComparedCaseInsensitively(): void
     {
-        $this->assertNull($this->subject()->uploadViolation('files/conpai/LOGO.SVG', 1000, 'JPG,SVG', 20480000));
+        $this->assertNull($this->subject()->uploadViolation('files/media/LOGO.SVG', 1000, 'JPG,SVG', 20480000));
     }
 
     /**

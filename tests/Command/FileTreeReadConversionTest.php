@@ -147,9 +147,9 @@ class FileTreeReadConversionTest extends TestCase
     {
         $this->seedDca(['title' => ['inputType' => 'text']]);
 
-        $row = $this->command()->convertFileTreeFieldsToUuid('tl_page', ['title' => 'Balbersteine']);
+        $row = $this->command()->convertFileTreeFieldsToUuid('tl_page', ['title' => 'About us']);
 
-        $this->assertSame('Balbersteine', $row['title']);
+        $this->assertSame('About us', $row['title']);
     }
 
     /**

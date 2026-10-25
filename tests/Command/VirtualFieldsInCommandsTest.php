@@ -80,7 +80,7 @@ class VirtualFieldsInCommandsTest extends TestCase
     public function testVersionReadShowsVirtualFieldsInsteadOfTheirColumn(): void
     {
         $connection = $this->createMock(Connection::class);
-        $connection->method('fetchAssociative')->willReturn(['tstamp' => 1, 'version' => 2, 'username' => 'claude', 'active' => 1]);
+        $connection->method('fetchAssociative')->willReturn(['tstamp' => 1, 'version' => 2, 'username' => 'editor', 'active' => 1]);
         $versions = $this->createMock(VersionManager::class);
         $versions->method('loadVersionData')->willReturn(['id' => 3, 'title' => 'T', 'jsonData' => '{"bic":"BICX","holder":"Alt"}']);
 
@@ -104,7 +104,7 @@ class VirtualFieldsInCommandsTest extends TestCase
         ];
 
         $connection = $this->createMock(Connection::class);
-        $connection->method('fetchAssociative')->willReturn(['tstamp' => 1, 'version' => 2, 'username' => 'claude', 'active' => 1]);
+        $connection->method('fetchAssociative')->willReturn(['tstamp' => 1, 'version' => 2, 'username' => 'editor', 'active' => 1]);
         $versions = $this->createMock(VersionManager::class);
         $versions->method('loadVersionData')->willReturn(['id' => 3, 'jsonData' => '{"bic":"BICX"}', 'password' => '$2y$13$hash']);
 

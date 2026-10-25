@@ -44,16 +44,16 @@ class CustomTemplateRefusalTest extends TestCase
 
     public function testAnExistingVariantPasses(): void
     {
-        $this->refuse($this->subject(['content_element/text', 'content_element/text/conpai_hero']), ['customTpl' => 'content_element/text/conpai_hero']);
+        $this->refuse($this->subject(['content_element/text', 'content_element/text/hero']), ['customTpl' => 'content_element/text/hero']);
         $this->addToAssertionCount(1);
     }
 
     public function testAMissingTemplateIsRefusedAndTheOptionsNamed(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/customTpl=content_element\/text\/gibtesnicht.*conpai_hero/s');
+        $this->expectExceptionMessageMatches('/customTpl=content_element\/text\/gibtesnicht.*hero/s');
 
-        $this->refuse($this->subject(['content_element/text', 'content_element/text/conpai_hero']), ['customTpl' => 'content_element/text/gibtesnicht']);
+        $this->refuse($this->subject(['content_element/text', 'content_element/text/hero']), ['customTpl' => 'content_element/text/gibtesnicht']);
     }
 
     public function testClearingTheTemplatePasses(): void

@@ -104,7 +104,7 @@ class ModelWriterCacheTest extends TestCase
         });
 
         $this->writer($cacheTags, $this->loggingCallbacks(), $this->loggingVersions(), $this->recordingTransaction())
-            ->update('tl_page', 2, ['title' => 'Neu'], 'claude');
+            ->update('tl_page', 2, ['title' => 'Neu'], 'editor');
 
         $this->assertSame('begin', CacheTestRecord::$log[0]);
         $this->assertSame('commit', end(CacheTestRecord::$log));
@@ -130,7 +130,7 @@ class ModelWriterCacheTest extends TestCase
         $cacheTags->expects($this->never())->method('recordChanged');
 
         try {
-            $this->writer($cacheTags, $callbacks, $versions, $this->recordingTransaction())->update('tl_page', 2, ['title' => 'Neu'], 'claude');
+            $this->writer($cacheTags, $callbacks, $versions, $this->recordingTransaction())->update('tl_page', 2, ['title' => 'Neu'], 'editor');
             $this->fail('expected the refusal');
         } catch (\InvalidArgumentException $e) {
             $this->assertStringContainsString('Nothing was written', $e->getMessage());
@@ -155,7 +155,7 @@ class ModelWriterCacheTest extends TestCase
                 return ['title' => 'Neu (geprüft)', 'tstamp' => 1];
             });
 
-        $this->writer($this->createMock(CacheTagInvalidator::class), $callbacks)->update('tl_page', 2, ['title' => 'Neu'], 'claude');
+        $this->writer($this->createMock(CacheTagInvalidator::class), $callbacks)->update('tl_page', 2, ['title' => 'Neu'], 'editor');
 
         $this->assertSame(['beforesubmit', 'save tl_page:2 title=Neu (geprüft)'], CacheTestRecord::$log);
     }
@@ -166,7 +166,7 @@ class ModelWriterCacheTest extends TestCase
         $this->expectExceptionMessage('Not a column of tl_page: titel. Nothing was written.');
 
         try {
-            $this->writer($this->createMock(CacheTagInvalidator::class))->update('tl_page', 2, ['titel' => 'Neu'], 'claude');
+            $this->writer($this->createMock(CacheTagInvalidator::class))->update('tl_page', 2, ['titel' => 'Neu'], 'editor');
         } finally {
             $this->assertSame([], CacheTestRecord::$log, 'nothing saved');
         }
@@ -181,7 +181,7 @@ class ModelWriterCacheTest extends TestCase
             }
         );
 
-        $this->writer($cacheTags)->update('tl_page', 2, ['title' => 'Neu'], 'claude');
+        $this->writer($cacheTags)->update('tl_page', 2, ['title' => 'Neu'], 'editor');
 
         $this->assertSame(['save tl_page:2 title=Neu', 'invalidate tl_page:2'], CacheTestRecord::$log);
     }
@@ -212,7 +212,7 @@ class ModelWriterCacheTest extends TestCase
             }
         );
 
-        $this->writer($cacheTags)->update('tl_page', 2, ['pid' => 5], 'claude');
+        $this->writer($cacheTags)->update('tl_page', 2, ['pid' => 5], 'editor');
 
         $this->assertSame(
             ['collect tl_page:2', 'save tl_page:2 title=', 'invalidate tl_page:2', 'invalidate contao.db.tl_page.1'],
@@ -241,7 +241,7 @@ class ModelWriterCacheTest extends TestCase
         );
 
         try {
-            $this->writer($cacheTags)->update('tl_page', 2, ['pid' => 5], 'claude');
+            $this->writer($cacheTags)->update('tl_page', 2, ['pid' => 5], 'editor');
         } finally {
             CacheTestRecord::$logFind = false;
         }
@@ -255,7 +255,7 @@ class ModelWriterCacheTest extends TestCase
         $cacheTags->expects($this->never())->method('collect');
         $cacheTags->expects($this->never())->method('invalidate');
 
-        $this->writer($cacheTags)->update('tl_page', 2, ['title' => 'Neu'], 'claude');
+        $this->writer($cacheTags)->update('tl_page', 2, ['title' => 'Neu'], 'editor');
     }
 
     public function testARecordThatDoesNotExistInvalidatesNothing(): void
@@ -263,7 +263,7 @@ class ModelWriterCacheTest extends TestCase
         $cacheTags = $this->createMock(CacheTagInvalidator::class);
         $cacheTags->expects($this->never())->method('recordChanged');
 
-        $this->assertNull($this->writer($cacheTags)->update('tl_page', 404, ['title' => 'Neu'], 'claude'));
+        $this->assertNull($this->writer($cacheTags)->update('tl_page', 404, ['title' => 'Neu'], 'editor'));
     }
 
     private function loggingCallbacks(): DcaCallbacks
@@ -301,7 +301,7 @@ class ModelWriterCacheTest extends TestCase
     public function testASaveRunsOnsubmitBeforeTheNewVersion(): void
     {
         $this->writer($this->createMock(CacheTagInvalidator::class), $this->loggingCallbacks(), $this->loggingVersions())
-            ->update('tl_page', 2, ['title' => 'Neu'], 'claude');
+            ->update('tl_page', 2, ['title' => 'Neu'], 'editor');
 
         $this->assertSame(['initialize', 'save tl_page:2 title=Neu', 'onsubmit tl_page:2', 'version'], CacheTestRecord::$log);
     }
@@ -313,7 +313,7 @@ class ModelWriterCacheTest extends TestCase
     public function testAMoveRunsOncutAndNotOnsubmit(): void
     {
         $this->writer($this->createMock(CacheTagInvalidator::class), $this->loggingCallbacks(), $this->loggingVersions())
-            ->update('tl_page', 2, ['pid' => 5, 'sorting' => 128], 'claude');
+            ->update('tl_page', 2, ['pid' => 5, 'sorting' => 128], 'editor');
 
         $this->assertSame(['initialize', 'save tl_page:2 title=', 'oncut tl_page:2', 'version'], CacheTestRecord::$log);
     }
@@ -321,7 +321,7 @@ class ModelWriterCacheTest extends TestCase
     public function testAMoveTogetherWithAFieldRunsBoth(): void
     {
         $this->writer($this->createMock(CacheTagInvalidator::class), $this->loggingCallbacks())
-            ->update('tl_page', 2, ['ptable' => 'tl_news', 'title' => 'Neu'], 'claude');
+            ->update('tl_page', 2, ['ptable' => 'tl_news', 'title' => 'Neu'], 'editor');
 
         $this->assertSame(['save tl_page:2 title=Neu', 'oncut tl_page:2', 'onsubmit tl_page:2'], CacheTestRecord::$log);
     }
@@ -330,7 +330,7 @@ class ModelWriterCacheTest extends TestCase
     {
         // CacheTestRecord::row() has pid 1.
         $this->writer($this->createMock(CacheTagInvalidator::class), $this->loggingCallbacks())
-            ->update('tl_page', 2, ['pid' => '1', 'title' => 'Neu'], 'claude');
+            ->update('tl_page', 2, ['pid' => '1', 'title' => 'Neu'], 'editor');
 
         $this->assertSame(['save tl_page:2 title=Neu', 'onsubmit tl_page:2'], CacheTestRecord::$log);
     }

@@ -75,7 +75,7 @@ class ImageSizeCommandTest extends TestCase
      */
     public function testCreateRefusesAMissingTheme(): void
     {
-        $out = $this->runCreate(['--name' => 'Tourenbild']);
+        $out = $this->runCreate(['--name' => 'Teaser']);
 
         $this->assertSame('error', $out['status']);
         $this->assertStringContainsString('--pid', $out['message']);
@@ -86,7 +86,7 @@ class ImageSizeCommandTest extends TestCase
      */
     public function testCreateRefusesAThemeIdThatIsNotOne(string $pid): void
     {
-        $out = $this->runCreate(['--name' => 'Tourenbild', '--pid' => $pid]);
+        $out = $this->runCreate(['--name' => 'Teaser', '--pid' => $pid]);
 
         $this->assertSame('error', $out['status']);
         $this->assertStringContainsString('--pid', $out['message']);
@@ -149,13 +149,13 @@ class ImageSizeCommandTest extends TestCase
         $this->skipWithoutContaoContainer();
 
         $out = $this->runCreate([
-            '--name' => 'PHPUnit Tourenbild',
+            '--name' => 'PHPUnit Teaser',
             '--pid'  => '1',
             '--set'  => ['width=1600', 'sizes=(max-width: 1100px) 100vw, 1000px'],
         ]);
 
         $this->assertSame('ok', $out['status']);
-        $this->assertSame('PHPUnit Tourenbild', $out['name']);
+        $this->assertSame('PHPUnit Teaser', $out['name']);
         $this->assertGreaterThan(0, $out['id']);
     }
 }

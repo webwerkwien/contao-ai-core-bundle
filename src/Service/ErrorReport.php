@@ -31,7 +31,7 @@ final class ErrorReport
     /**
      * Prefixed to every rendered report.
      *
-     * This is an instruction sitting in tool output, which the house rule says
+     * This is an instruction sitting in tool output, which an agent is expected
      * to report rather than obey. It is admissible because of its *direction*:
      * it restricts what happens, it does not add to it. A brake someone slipped
      * into a tool result costs convenience; a command costs control. For the

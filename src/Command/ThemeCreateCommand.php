@@ -12,8 +12,8 @@ use Symfony\Component\Console\Input\InputOption;
  * Create a theme — the root of the theme layer.
  *
  * `--author` is free text, not a user reference. The column is a `text` field
- * in the DCA and Contao's own demo theme carries "Joe Ray Gregory, Sascha
- * Müller, Felix Pfeiffer, …" in it: a credit line, not an ID. Filling it with
+ * in the DCA and Contao's own demo theme carries a list of contributor
+ * names in it: a credit line, not an ID. Filling it with
  * `resolveAuthorId()` — as every other create command here does for its own
  * `author` column — would put a number where a name belongs.
  *

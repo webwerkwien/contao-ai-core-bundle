@@ -17,8 +17,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
  * before the database — the password never as an option, Contao's two checks, one
  * line from stdin with its spaces kept.
  *
- * Until v0.26.0 `contao:member:create` did not exist although the CLI offered it
- * (regression run before 1.0), and no command could set a member password.
+ * Until v0.26.0 `contao:member:create` did not exist although the CLI offered it,
+ * and no command could set a member password.
  * The write itself — hash, save callbacks, version — needs a real installation and was
  * verified live (5.3.51, 5.7.13, 6.0.0).
  */

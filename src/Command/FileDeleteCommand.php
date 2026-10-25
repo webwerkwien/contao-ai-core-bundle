@@ -54,7 +54,7 @@ class FileDeleteCommand extends AbstractWriteCommand
     {
         parent::configure();
         $this
-            ->addOption('path', null, InputOption::VALUE_REQUIRED, 'File or folder path relative to Contao root, e.g. files/conpai/bild.png')
+            ->addOption('path', null, InputOption::VALUE_REQUIRED, 'File or folder path relative to Contao root, e.g. files/media/image.png')
             ->addOption('force', null, InputOption::VALUE_NONE, 'Delete even when the file is still used; the usages are listed in the answer');
     }
 

@@ -35,7 +35,7 @@ class TemplateDeleteCommandTest extends TestCase
     public static function paths(): array
     {
         return [
-            'variant'            => ['templates/content_element/text/consho_hero.html.twig', 'templates/content_element/text/consho_hero.html.twig'],
+            'variant'            => ['templates/content_element/text/hero.html.twig', 'templates/content_element/text/hero.html.twig'],
             'double slash, ./'   => ['templates//content_element/./text/x.html.twig', 'templates/content_element/text/x.html.twig'],
             'backslashes'        => ['templates\\frontend_module\\navigation\\x.html.twig', 'templates/frontend_module/navigation/x.html.twig'],
             'override'           => ['templates/content_element/text.html.twig', 'templates/content_element/text.html.twig'],
@@ -60,7 +60,7 @@ class TemplateDeleteCommandTest extends TestCase
     public static function variants(): array
     {
         return [
-            'content element variant' => ['templates/content_element/text/consho_hero.html.twig', ['identifier' => 'content_element/text/consho_hero', 'table' => 'tl_content']],
+            'content element variant' => ['templates/content_element/text/hero.html.twig', ['identifier' => 'content_element/text/hero', 'table' => 'tl_content']],
             'front-end module variant' => ['templates/frontend_module/navigation/main.html.twig', ['identifier' => 'frontend_module/navigation/main', 'table' => 'tl_module']],
             'an override is no variant' => ['templates/content_element/text.html.twig', null],
             // AbstractDeleteVariantOperation::canExecute() takes `<prefix>/[^/]+/.+`, and the

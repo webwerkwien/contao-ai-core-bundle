@@ -68,11 +68,11 @@ class DcaOptionsCommandTest extends TestCase
         $resolver->expects($this->once())
             ->method('options')
             ->with('tl_content', 'customTpl', ['type' => 'text'])
-            ->willReturn(['content_element/text/conpai_hero' => 'text (conpai_hero)']);
+            ->willReturn(['content_element/text/hero' => 'text (hero)']);
 
         $out = $this->execute($resolver, ['table' => 'tl_content', 'field' => 'customTpl', '--set' => ['type=text']]);
 
-        $this->assertSame(['content_element/text/conpai_hero'], $out['values']);
+        $this->assertSame(['content_element/text/hero'], $out['values']);
     }
 
     public function testAnUnresolvableFieldSaysWhy(): void

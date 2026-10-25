@@ -10,9 +10,9 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Template\TemplateCacheRefresher;
 /**
  * A written template is usable at once — as after saving in the Template Studio.
  *
- * 🟡 **Found before ConpAI 1.0:** `template write --mode
- * variant --name consho_hero` wrote the file, `template list` showed it — and
- * `content create --set customTpl=content_element/text/consho_hero` refused it as
+ * 🟡 **Up to v1.0:** `template write --mode
+ * variant --name hero` wrote the file, `template list` showed it — and
+ * `content create --set customTpl=content_element/text/hero` refused it as
  * "not a template Contao offers" until `cache clear`. In production Contao keeps the
  * template hierarchy cached, and Twig does not auto-reload compiled templates.
  *
@@ -29,7 +29,7 @@ class TemplateCacheRefresherTest extends TestCase
         $loader->expects($this->once())->method('warmUp')->with(true);
         $loader->method('getInheritanceChains')->willReturn([
             'content_element/text' => [
-                '/app/templates/content_element/text/consho_hero.html.twig' => '@Contao_Global/content_element/text/consho_hero.html.twig',
+                '/app/templates/content_element/text/hero.html.twig' => '@Contao_Global/content_element/text/hero.html.twig',
                 '/app/vendor/contao/core-bundle/contao/templates/twig/content_element/text.html.twig' => '@Contao_ContaoCoreBundle/content_element/text.html.twig',
             ],
             'backend/be_main' => [
@@ -47,7 +47,7 @@ class TemplateCacheRefresherTest extends TestCase
 
         $this->assertSame([], $warnings);
         $this->assertSame([
-            '@Contao_Global/content_element/text/consho_hero.html.twig',
+            '@Contao_Global/content_element/text/hero.html.twig',
             '@Contao_ContaoCoreBundle/content_element/text.html.twig',
         ], $removed);
     }

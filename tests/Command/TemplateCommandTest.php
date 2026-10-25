@@ -228,13 +228,13 @@ class TemplateCommandTest extends TestCase
         $tester->execute([
             '--mode'   => 'variant',
             '--base'   => 'content_element/text',
-            '--name'   => 'consho_hero',
+            '--name'   => 'hero',
             '--source' => $source,
         ]);
 
         $out = json_decode($tester->getDisplay(), true);
         $this->assertSame('ok', $out['status'], $tester->getDisplay());
         $this->assertTrue($out['templateCacheRefreshed']);
-        $this->assertFileExists($this->tmpDir . '/templates/content_element/text/consho_hero.html.twig');
+        $this->assertFileExists($this->tmpDir . '/templates/content_element/text/hero.html.twig');
     }
 }

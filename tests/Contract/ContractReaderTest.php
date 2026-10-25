@@ -238,7 +238,7 @@ class ContractReaderTest extends TestCase
     {
         /* The problem message itself tells the author to write `trace: []` when
            the command leaves no trail. Until v1.4.2 that declaration was reported
-           exactly like a missing one (found at consho:stock:book). */
+           exactly like a missing one. */
         $contract = ContractReader::read(WritesWithAnExplicitlyEmptyTraceCommand::class);
 
         self::assertSame([], $contract['problems']);

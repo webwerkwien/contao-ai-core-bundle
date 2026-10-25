@@ -51,7 +51,7 @@ class FolderPublishCommand extends AbstractWriteCommand
     {
         parent::configure();
         $this
-            ->addOption('path', null, InputOption::VALUE_REQUIRED, 'Folder path relative to Contao root, e.g. files/conpai')
+            ->addOption('path', null, InputOption::VALUE_REQUIRED, 'Folder path relative to Contao root, e.g. files/media')
             ->addOption('unpublish', null, InputOption::VALUE_NONE, 'Protect the folder again instead of publishing it');
     }
 

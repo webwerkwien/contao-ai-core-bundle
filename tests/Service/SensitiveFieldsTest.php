@@ -48,14 +48,14 @@ class SensitiveFieldsTest extends TestCase
             'password'   => '$2y$13$abcdefghijklmnopqrstuv',
             'secret'     => null,
             'ai_api_key' => '',
-            'ai_model'   => 'claude',
+            'ai_model'   => 'some-model',
         ], $this->userFields());
 
         $this->assertSame('********', $row['password']);
         $this->assertNull($row['secret'], 'not set stays not set');
         $this->assertSame('', $row['ai_api_key'], 'an empty key says "none", which is worth knowing');
         $this->assertSame('h.lewis', $row['username']);
-        $this->assertSame('claude', $row['ai_model']);
+        $this->assertSame('some-model', $row['ai_model']);
     }
 
     public function testTheSpellingOfTheColumnDoesNotMatter(): void

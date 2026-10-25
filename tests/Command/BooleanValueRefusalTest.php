@@ -54,7 +54,7 @@ class BooleanValueRefusalTest extends TestCase
             // this is the shape a *project* uses when it declares a number as
             // tinyint, and it is deliberately outside this rule. See
             // testAProjectsStringFormTinyintIsOutsideThisRule().
-            'stunden'   => ['sql' => 'tinyint(4) NOT NULL default 0'],
+            'rating'    => ['sql' => 'tinyint(4) NOT NULL default 0'],
             'legacy'    => ['sql' => "char(1) NOT NULL default ''"],
         ];
     }
@@ -154,8 +154,8 @@ class BooleanValueRefusalTest extends TestCase
      */
     public function testAProjectsStringFormTinyintIsOutsideThisRule(): void
     {
-        $this->refuse(['stunden' => '2']);
-        $this->refuse(['stunden' => 'true']);
+        $this->refuse(['rating' => '2']);
+        $this->refuse(['rating' => 'true']);
         $this->addToAssertionCount(1);
     }
 

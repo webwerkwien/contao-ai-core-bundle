@@ -77,7 +77,7 @@ trait ReadsDcaOptions
     {
         $values = [];
         // List form only when the keys are exactly 0..n-1. An integer key alone
-        // is not enough: image sizes come as `[6 => 'ConpAI Hero']`, where 6 is
+        // is not enough: image sizes come as `[6 => 'Hero']`, where 6 is
         // the value and the text the label. Until v0.16.0 that answered the label
         // (measured, OptionsResolverTest).
         $isList = !$declaredAssociative && array_is_list($options);

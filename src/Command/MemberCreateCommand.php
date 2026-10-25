@@ -14,8 +14,8 @@ use Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface;
  *
  * 🔴 **Until v0.26.0 this command did not exist**, although the CLI offered `member
  * create` since the start and pointed at it: every call ended in "contao:member:create
- * not available. Update contao-ai-core-bundle to v1.x+". Found in the regression run
- * before 1.0 — no test had ever called it, so nothing turned red.
+ * not available. Update contao-ai-core-bundle to v1.x+". No test had
+ * ever called it, so nothing turned red.
  *
  * - **The password comes on standard input** (`--password-stdin`), never as an option,
  *   checked and hashed as Contao's password field does it — see MemberPassword.

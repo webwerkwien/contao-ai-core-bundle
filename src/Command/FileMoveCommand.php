@@ -54,8 +54,8 @@ class FileMoveCommand extends AbstractWriteCommand
     {
         parent::configure();
         $this
-            ->addOption('path', null, InputOption::VALUE_REQUIRED, 'File or folder to move, e.g. files/conpai/bot.svg')
-            ->addOption('to', null, InputOption::VALUE_REQUIRED, 'Folder to move it into, e.g. files/conpai-consho/layout — files for the root. The name stays');
+            ->addOption('path', null, InputOption::VALUE_REQUIRED, 'File or folder to move, e.g. files/media/logo.svg')
+            ->addOption('to', null, InputOption::VALUE_REQUIRED, 'Folder to move it into, e.g. files/theme/layout — files for the root. The name stays');
     }
 
     /**

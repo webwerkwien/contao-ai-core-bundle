@@ -14,7 +14,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Dca\OptionsResolver;
 /**
  * The options a field offers, asked from the field's own options callback.
  *
- * 🟡 **Measured on Contao 5.7.13** before ConpAI 1.0:
+ * 🟡 **Measured on Contao 5.7.13** before v1.0:
  *
  * - `schema resolve tl_page type` listed ten core page types. `consho_product` was
  *   missing, although the installation had two pages of that type. The CLI answered from a
@@ -58,12 +58,12 @@ class OptionsResolverTest extends TestCase
     {
         $GLOBALS['TL_DCA']['tl_test']['fields']['customTpl'] = [
             'options_callback' => static fn (DataContainer $dc): array => 'text' === ($dc->getActiveRecord()['type'] ?? null)
-                ? ['content_element/text' => 'text', 'content_element/text/conpai_hero' => 'text (conpai_hero)']
+                ? ['content_element/text' => 'text', 'content_element/text/hero' => 'text (hero)']
                 : [],
         ];
 
         $this->assertSame(
-            ['content_element/text', 'content_element/text/conpai_hero'],
+            ['content_element/text', 'content_element/text/hero'],
             $this->resolver()->values('tl_test', 'customTpl', ['type' => 'text']),
         );
     }
@@ -71,7 +71,7 @@ class OptionsResolverTest extends TestCase
     public function testGroupsAreFlattened(): void
     {
         $GLOBALS['TL_DCA']['tl_test']['fields']['size'] = [
-            'options_callback' => static fn (): array => ['Theme' => ['6' => 'ConpAI Hero'], 'Modes' => ['proportional' => 'Proportional']],
+            'options_callback' => static fn (): array => ['Theme' => ['6' => 'Hero'], 'Modes' => ['proportional' => 'Proportional']],
         ];
 
         $this->assertSame(['6', 'proportional'], $this->resolver()->values('tl_test', 'size'));

@@ -82,7 +82,7 @@ class ModelWriterTest extends TestCase
 
         $writer = new ModelWriter($connection, $versions, $this->createMock(RecordCascadeCollector::class), null, $callbacks);
 
-        $this->assertSame(42, $writer->create('tl_consho_shop', ['title' => 'Laden'], 'claude'));
+        $this->assertSame(42, $writer->create('tl_consho_shop', ['title' => 'Laden'], 'editor'));
         $this->assertSame(['insert tl_consho_shop `tstamp`,`title`', 'oncreate 42', 'onsubmit 42', 'version 42'], $order);
     }
 
@@ -120,7 +120,7 @@ class ModelWriterTest extends TestCase
 
         $writer = new ModelWriter($connection, $versions, $this->createMock(RecordCascadeCollector::class), null, $callbacks);
 
-        $this->assertSame(42, $writer->create('tl_consho_price', ['title' => 'Laden', 'net' => '9.90'], 'claude', true));
+        $this->assertSame(42, $writer->create('tl_consho_price', ['title' => 'Laden', 'net' => '9.90'], 'editor', true));
         $this->assertSame([
             'insert',
             'oncreate 42',
@@ -142,7 +142,7 @@ class ModelWriterTest extends TestCase
         $callbacks->expects($this->never())->method('save');
 
         (new ModelWriter($connection, $this->createMock(VersionManager::class), $this->createMock(RecordCascadeCollector::class), null, $callbacks))
-            ->create('tl_consho_shop', ['title' => 'Laden'], 'claude');
+            ->create('tl_consho_shop', ['title' => 'Laden'], 'editor');
     }
 
     public function testUpdateWithSaveCallbacksWritesWhatTheyReturn(): void
@@ -161,7 +161,7 @@ class ModelWriterTest extends TestCase
 
         $writer = new ModelWriter($connection, $this->createMock(VersionManager::class), $this->createMock(RecordCascadeCollector::class), null, $callbacks);
 
-        $this->assertSame(['title'], $writer->update('tl_contao_ai_no_model', 3, ['title' => 'neu'], 'claude', true));
+        $this->assertSame(['title'], $writer->update('tl_contao_ai_no_model', 3, ['title' => 'neu'], 'editor', true));
         $this->assertSame('Neu', $written['`title`']);
     }
 
@@ -175,7 +175,7 @@ class ModelWriterTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Not a column of tl_consho_shop: titel. Nothing was written.');
 
-        $writer->create('tl_consho_shop', ['titel' => 'Laden'], 'claude');
+        $writer->create('tl_consho_shop', ['titel' => 'Laden'], 'editor');
     }
 
     /**
@@ -199,7 +199,7 @@ class ModelWriterTest extends TestCase
 
         $writer = new ModelWriter($connection, $this->createMock(VersionManager::class), $this->createMock(RecordCascadeCollector::class), null, $callbacks);
 
-        $this->assertSame(['title'], $writer->update('tl_contao_ai_no_model', 3, ['title' => 'Neu'], 'claude'));
+        $this->assertSame(['title'], $writer->update('tl_contao_ai_no_model', 3, ['title' => 'Neu'], 'editor'));
         $this->assertSame(['update tl_contao_ai_no_model:3 `tstamp`,`title`', 'onsubmit 3'], $order);
     }
 
@@ -232,7 +232,7 @@ class ModelWriterTest extends TestCase
             }
         );
 
-        $this->writer(['tl_page' => [5], 'tl_article' => [9]], [], $connection, null, $callbacks)->delete('tl_page', 5, 'claude', 0);
+        $this->writer(['tl_page' => [5], 'tl_article' => [9]], [], $connection, null, $callbacks)->delete('tl_page', 5, 'editor', 0);
 
         $this->assertSame(['insert tl_undo', 'ondelete tl_page:5 undo 41 title Start', 'delete tl_article:9', 'delete tl_page:5'], $order);
     }
@@ -274,7 +274,7 @@ class ModelWriterTest extends TestCase
             ['tl_page' => [5], 'tl_article' => [9], 'tl_content' => [12, 13]],
             [],
             $connection,
-        )->delete('tl_page', 5, 'claude', 0);
+        )->delete('tl_page', 5, 'editor', 0);
 
         $this->assertSame(
             ['tl_content:12', 'tl_content:13', 'tl_article:9', 'tl_page:5'],
@@ -300,7 +300,7 @@ class ModelWriterTest extends TestCase
         $this->writer(['tl_page' => [5], 'tl_article' => [9]], [
             'tl_page:5'    => ['id' => 5, 'title' => 'Start'],
             'tl_article:9' => ['id' => 9, 'pid' => 5],
-        ], $connection)->delete('tl_page', 5, 'claude', 7);
+        ], $connection)->delete('tl_page', 5, 'editor', 7);
 
         $this->assertCount(1, $inserts, 'Restoring has to bring the children back with the parent.');
         [$table, $data] = $inserts[0];
@@ -344,7 +344,7 @@ class ModelWriterTest extends TestCase
             }
         );
 
-        $this->writer(['tl_page' => [5]], [], $connection)->delete('tl_page', 5, 'claude', 0);
+        $this->writer(['tl_page' => [5]], [], $connection)->delete('tl_page', 5, 'editor', 0);
 
         $this->assertSame(0, $inserts, 'An empty snapshot restores nothing and only clutters the undo list.');
     }
@@ -382,7 +382,7 @@ class ModelWriterTest extends TestCase
         );
 
         $this->writer(['tl_page' => [5], 'tl_article' => [9]], [], $connection, $cacheTags)
-            ->delete('tl_page', 5, 'claude', 0);
+            ->delete('tl_page', 5, 'editor', 0);
 
         $this->assertSame([
             'collect tl_page:5',
@@ -397,7 +397,7 @@ class ModelWriterTest extends TestCase
         $result = $this->writer(
             ['tl_page' => [5], 'tl_article' => [9], 'tl_content' => [12, 13]],
             ['tl_page:5' => ['id' => 5]],
-        )->delete('tl_page', 5, 'claude', 0);
+        )->delete('tl_page', 5, 'editor', 0);
 
         $this->assertSame(['tl_page' => 1, 'tl_article' => 1, 'tl_content' => 2], $result['cascade']);
         $this->assertSame(4, $result['rowsTotal']);

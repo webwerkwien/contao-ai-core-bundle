@@ -56,15 +56,15 @@ class CopiesSourceRowsTest extends TestCase
         );
         $connection->expects($this->once())
             ->method('fetchAssociative')
-            ->with('SELECT * FROM `tl_page` WHERE id = ?', [98])
-            ->willReturn(['id' => '98', 'stunden' => '2', 'kondition' => '2', 'einkehr' => '0']);
+            ->with('SELECT * FROM `tl_page` WHERE id = ?', [42])
+            ->willReturn(['id' => '42', 'duration' => '2', 'level' => '2', 'stops' => '0']);
 
-        $row = $this->subject($connection)->readRow('tl_page', 98);
+        $row = $this->subject($connection)->readRow('tl_page', 42);
 
         // The whole point: 2 stays 2. Through Model::row() this would be `true`.
-        $this->assertSame('2', $row['stunden']);
-        $this->assertSame('2', $row['kondition']);
-        $this->assertSame('0', $row['einkehr']);
+        $this->assertSame('2', $row['duration']);
+        $this->assertSame('2', $row['level']);
+        $this->assertSame('0', $row['stops']);
     }
 
     public function testThrowsWhenTheSourceRowIsGone(): void
@@ -87,19 +87,19 @@ class CopiesSourceRowsTest extends TestCase
         $target = new \stdClass();
 
         $this->subject($this->createMock(Connection::class))->copyRow($target, [
-            'id'       => '98',
-            'stunden'  => '2',
-            'schwere'  => '4',
-            'hunt'     => '350',
-            'title'    => 'Balbersteine',
+            'id'       => '42',
+            'duration' => '2',
+            'level'    => '4',
+            'capacity' => '350',
+            'title'    => 'About us',
             'nullable' => null,
         ]);
 
         $this->assertFalse(property_exists($target, 'id'), 'The id must never be carried over to a clone.');
-        $this->assertSame('2', $target->stunden);
-        $this->assertSame('4', $target->schwere);
-        $this->assertSame('350', $target->hunt);
-        $this->assertSame('Balbersteine', $target->title);
+        $this->assertSame('2', $target->duration);
+        $this->assertSame('4', $target->level);
+        $this->assertSame('350', $target->capacity);
+        $this->assertSame('About us', $target->title);
         $this->assertNull($target->nullable);
     }
 

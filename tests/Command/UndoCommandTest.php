@@ -213,7 +213,7 @@ class UndoCommandTest extends TestCase
             'pid'       => 1,
             'tstamp'    => 1756600000,
             'data'      => serialize([
-                'tl_image_size'      => [['id' => 6, 'name' => 'Tourenbild']],
+                'tl_image_size'      => [['id' => 6, 'name' => 'Teaser']],
                 'tl_image_size_item' => [['id' => 11], ['id' => 12]],
             ]),
         ]);

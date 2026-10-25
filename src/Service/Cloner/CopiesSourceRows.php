@@ -14,9 +14,9 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Cloner;
  * `ParameterType::BOOLEAN`. A stored `0` survives only because `false` casts
  * to `0`, which is why the damage looked like "every value >= 1 becomes 1".
  *
- * Found by cloning a tour page: walking time, difficulty,
- * severity, driving time and participant cap — the entire fact table — all
- * came out as 1, with the command reporting `status: ok`. `smallint` and
+ * Cloning a page with a project's numeric `tinyint` columns (a duration, a
+ * difficulty level, a participant cap) made every one of them
+ * come out as 1, with the command reporting `status: ok`. `smallint` and
  * `varchar` columns were untouched, which is what pointed at the type mapping.
  *
  * Stock Contao lives with the same constraint and sidesteps it the same way: the back

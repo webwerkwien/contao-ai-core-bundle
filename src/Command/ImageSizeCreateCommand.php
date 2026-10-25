@@ -38,7 +38,7 @@ class ImageSizeCreateCommand extends AbstractWriteCommand implements CreatesReco
     {
         parent::configure();
         $this->addOption('pid',  null, InputOption::VALUE_REQUIRED, 'Theme ID (tl_theme) the size belongs to');
-        $this->addOption('name', null, InputOption::VALUE_REQUIRED, 'Name shown in the back end, e.g. "Tourenbild"');
+        $this->addOption('name', null, InputOption::VALUE_REQUIRED, 'Name shown in the back end, e.g. "Teaser"');
     }
 
     protected function doExecute(array $fields): int

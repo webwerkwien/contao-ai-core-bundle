@@ -86,6 +86,13 @@ touching the implementation. Do not edit test files while making the fix.
   Removing internals is not announced either: nothing like "no longer refers to" or "removed internal
   references" — that says there were some, and the diff between the tags shows them. Done with a regular
   release, it goes unmentioned; on its own, the entry reads "Overhaul of code comments and the agent guide."
+- **Every tracked file is public, and English.** Code, comments, tests, test data, docs and commit messages
+  carry no internals either: no names of people or clients, no servers, hosts or paths on them, no data
+  from real sites (field names, page IDs, aliases, e-mail addresses — use neutral examples and
+  `example.com`), no review or acceptance tags, no references to private notes, plans or project files.
+  A reason belongs in the comment as a plain statement, not as a pointer elsewhere. Comments and docs are
+  English even where a file still has German ones; German stays only where the content is German by nature
+  (language files, Contao's German messages as test data, German sample text for editors).
 - PHP 8.2+, `declare(strict_types=1)` in every file, `Command::SUCCESS` rather
   than `return 0`.
 - A write goes through Contao's record writer, never through raw SQL — that is
@@ -303,9 +310,9 @@ record belongs to, unique as Contao checks it. `Über uns` on a German root is `
 
 > 🔴 Up to v0.16.0 every create used `StringUtil::generateAlias()`: `über-uns` where Contao
 > makes `ueber-uns`, and on a root set to `0-9a-z` aliases the installation forbids. A clone
-> of the same page got Contao's `uber-uns-kopie`. Found on the Contao 6.0 test installation.
+> of the same page got Contao's `uber-uns-kopie`. Measured on Contao 6.0.
 
-> 🔴 Up to v0.14.0: `page update --set urlPrefix=en` made a second root `conpai.eu/en`,
+> 🔴 Up to v0.14.0: `page update --set urlPrefix=en` made a second root `example.com/en`,
 > `--set alias=packages` a second page at `/en/packages`, and `record clone` of a root left
 > two roots on the same domain and prefix — all `ok`. See `PageUrlGuardTest`.
 
@@ -381,8 +388,8 @@ empty JSON unit skipped the stored one and reset the level to the default.
 > failed with *expected: digit*), and `refuseInvalidOptions()` held it against
 > the unit list (since v0.9.0: **no headline could be set on any content
 > element**). And up to v0.10.0 an unknown unit was silently swapped for the
-> default and answered `ok`. Found in the acceptance test before ConpAI 1.0;
-> see `InputUnitValidationTest`.
+> default and answered `ok`.
+> See `InputUnitValidationTest`.
 
 ## What `contao:dca:schema` answers about options
 
@@ -750,8 +757,8 @@ before the write when `pid` or `ptable` changes, and invalidates them after. Con
   (v1.9.1, `AbstractDcaCloner::references()`): `foreignKey`, `relation`, the tree and
   wizard input types (`rootPageDependentSelect` included), and `namesModule()` — the same
   rule `ThemeCloner` bends by, so the two cannot disagree about what names a module. The
-  news bundle declares `news_readerModule` with no relation; an agent working from the
-  guide alone found it missing on a cloned news list while the events list showed its
+  news bundle declares `news_readerModule` with no relation; it was
+  missing on a cloned news list while the events list showed its
   reader. Sixteen zero bytes in a `binary(16)` field are "no file" (`isEmpty()`), or every
   module of the Contao demo lists `reg_homeDir`. A reference left out is one the caller never repoints; one
   listed on every record teaches the caller to ignore the list.
@@ -920,7 +927,7 @@ when it cannot.
 ## Member passwords: `contao:member:create`, `contao:member:password` (v0.26.0)
 
 Until v0.26.0 neither existed. The CLI offered `member create` from the start and called
-`contao:member:create`, which this bundle never had — found in the regression run before 1.0,
+`contao:member:create`, which this bundle never had — unnoticed,
 because no test ever called it. `contao:member:update` refuses `password` on purpose.
 
 Both share `MemberPassword` (trait):
