@@ -4,6 +4,46 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.14.0 - 2026-10-30
+
+Works with the same backend-bundle; contao-ai-cli v1.17.0 passes the new `--allow-code`.
+
+### Added
+
+- **`contao:theme:import`: files the server runs need `--allow-code`.** The preview lists
+  them in `code_files` — PHP files, legacy `.html5` and Twig templates, `.htaccess`,
+  `.user.ini` — whether new or overwriting one. Before, a new one was only counted in
+  `new_files`. `--confirm` alone refuses such an archive and imports nothing.
+- **`contao:example-website:import`: the preview names what is no insert.** Mode `full`
+  runs every line of the file; `other_statements` (the first 20) and
+  `other_statement_count` now list statements other than inserts and table definitions,
+  and `user_statements` counts every statement on `tl_user`. Such a statement asks for
+  the `--admins` decision as well.
+- **`admins.promoted`** in the answer of an example website import: existing accounts the
+  file made administrators. With `--admins=existing` they are put back as they were;
+  before, they were deleted like imported administrators.
+
+### Changed
+
+- **Read answers mask `tl_version.data` and `tl_opt_in.token`**, and refuse them as filter
+  or sort, like fields the DCA marks as secret. A version's data holds the whole record,
+  password hashes included.
+- **`contao:listing:data` refuses a module whose condition or sort names a masked column
+  or holds a subquery.**
+- **`contao:ai:run` blanks the short form of a secret option** (`-p value`, `-pvalue`,
+  `-p=value`, also bundled as `-rp value`) and the password in a URL
+  (`scheme://user:password@host`) in the logged command line. The console error listener
+  blanks the same.
+- **File and template commands resolve links against `files/` and `templates/`**, no
+  longer against the project directory: `file read`, `file write`, `file process`,
+  `folder create`, `folder publish`, `template read` and `template write` refuse a path
+  that leads out of that root through a link. A linked root itself is still accepted.
+- **`contao:file:process` takes only paths below `files/`**, as the other file commands.
+- **`contao:file:write` never writes PHP files (`php`, `php3`–`php8`, `pht`, `phtml`,
+  `phar`, `phps`), `.htaccess` or `.user.ini`**, even when `uploadTypes` lists them.
+- **`contao:ai:apply` accepts `language link` steps only for `tl_page` and `tl_article`.**
+  Other tables are linked with `contao:language:link` on its own.
+
 ## v1.13.0 - 2026-10-25
 
 Works with the same backend-bundle and contao-ai-cli; contao-ai-cli v1.16.0 uses the new

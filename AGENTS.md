@@ -651,6 +651,17 @@ command, it works on `files/`; a custom `contao.upload_path` is not supported.
 after the write), `FileUpload::sanitizeSvg()`. The one difference: PHP's
 `upload_max_filesize` is not applied — it governs HTTP uploads, not a file that came over
 SCP. `--allowed-types` on file process narrows `uploadTypes` and may not widen it.
+Since v1.14.0 one rule of our own comes first: PHP files (`php`, `php3`–`php8`, `pht`,
+`phtml`, `phar`, `phps`), `.htaccess` and `.user.ini` are refused whatever `uploadTypes`
+lists (`SERVER_RUN_EXTENSIONS`).
+
+**Links are resolved against files/ and templates/, not the project** (v1.14.0,
+`Service\PathJail`). File read/write/process, folder create/publish and template
+read/write require the resolved path — for a new one its deepest existing ancestor — to
+stay below that root. Before, a link inside files/ to `../.env.local` resolved inside the
+project and passed. The root itself may be a link (a shared files/ in a deployment); a
+missing root is fine as long as nothing on the way leads elsewhere. `contao:file:process`
+takes only `files/…` paths since then.
 
 > 🔴 Up to v0.12.0 `contao:file:write` checked none of it — any extension, a hard-coded
 > 10 MB, no SVG sanitising — and `--allowed-types` replaced the system list. See
@@ -771,6 +782,18 @@ before the write when `pid` or `ptable` changes, and invalidates them after. Con
   version renames these, a round trip on a real installation of all three versions is
   what notices — the
   unit tests stand the Contao parts in.
+- **A theme import is a code import** (v1.14.0). Contao extracts every file under files/,
+  templates/ and var/backups/ without a type filter; a legacy `.html5` template is PHP and
+  replaces the core template of its name. `ThemeArchive::isCode()` lists such files —
+  PHP, `.html5`, `.twig`, `.htaccess`, `.user.ini` — in `code_files`, new or
+  overwritten, and `contao:theme:import --confirm` refuses them without `--allow-code`.
+- **The example website preview names what is no insert** (v1.14.0). `full` runs every
+  line, so `other_statements` lists statements other than inserts and table definitions
+  (`SET`, comments and key toggles aside) and `user_statements` counts every statement on
+  tl_user; one of those asks for the `--admins` decision too. After the run,
+  `settleAdmins()` tells a new administrator from an account of before the file promoted
+  (`admins.promoted`); `existing` puts the latter back as it was instead of deleting it.
+  In `data` tl_user is emptied first, so there is nothing to compare against.
 - **A theme clone bends references into the theme, never out of it** (v1.9.0,
   `ThemeCloner`). Contao has no theme copy (`tl_theme` is `notCopyable`; the first draft of
   this note claimed Contao's copy left the references behind — there is no such copy, only
@@ -950,6 +973,16 @@ Both share `MemberPassword` (trait):
 - Answers never carry the password or the hash. Verified on 5.3.51, 5.7.13 and 6.0.0: the
   stored hash verifies against the piped password (trailing space kept), the old one no
   longer does, three versions, `tl_log` with source CLI.
+
+## Masked values in read answers (v1.14.0)
+
+`Service\SensitiveFields` masks what the DCA marks as secret (`inputType` `password`,
+`doNotShow`, `hideInput`) in read answers and refuses those columns as filter or sort.
+`UNMARKED` adds columns that hold secrets without such a marker: `tl_version.data` (the
+serialised record, password hashes included) and `tl_opt_in.token`. A new one goes there,
+not into a command. `contao:listing:data` refuses a module condition or sort that names a
+masked column or holds a subquery (`select`): it would test a masked value row by row
+through what is listed.
 
 ## Member and user fields: a deny list, not an allow list (v1.1.0)
 
@@ -1148,7 +1181,10 @@ this is documented, don't sell it as more. Since v1.6.0 the redactor also reads 
 value that is itself a command line (how Symfony logs `contao:ai:run`) — but a value whose
 first key is a secret is blanked whole, never split (`"password=a b"` read as a line kept
 `b`) — and `redacted()` returns the blanked values, so the console error listener can
-strike them from the message.
+strike them from the message. Since v1.14.0 it also blanks the short form of a secret
+option (`-p x`, `-px`, `-p=x`, bundled as `-rp x`; `secretShortcuts()` reads the letters
+from the target's `InputDefinition`) and the password of a URL (`scheme://user:pw@host`)
+in any token.
 
 **`contao:ai:run` hands on `--operator`** (v1.7.1): when the target defines an `operator`
 option that takes a value, the run's `--operator` is inserted right after the command name
