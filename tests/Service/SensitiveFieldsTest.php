@@ -67,6 +67,40 @@ class SensitiveFieldsTest extends TestCase
     }
 
     /**
+     * Contao marks neither column; both carry secrets (v1.14.0).
+     */
+    public function testColumnsWithoutADcaMarkerAreMaskedAndRefusedAsFilter(): void
+    {
+        $GLOBALS['TL_DCA']['tl_version']['fields'] = [
+            'fromTable' => ['sql' => "varchar(255) NOT NULL default ''"],
+            'data'      => ['sql' => 'mediumblob NULL'],
+        ];
+        $GLOBALS['TL_DCA']['tl_opt_in']['fields'] = [
+            'token' => ['search' => true, 'sql' => "varchar(24) NOT NULL default ''"],
+            'email' => ['sql' => "varchar(255) NOT NULL default ''"],
+        ];
+
+        try {
+            $version = SensitiveFields::maskTable('tl_version', [
+                'fromTable' => 'tl_user',
+                'data'      => serialize(['password' => '$2y$13$abc', 'secret' => 'base32secret']),
+            ]);
+            $this->assertSame('********', $version['data']);
+            $this->assertSame('tl_user', $version['fromTable']);
+
+            $optIn = SensitiveFields::maskTable('tl_opt_in', ['token' => 'pw-0123456789abcdef', 'email' => 'jane@example.com']);
+            $this->assertSame('********', $optIn['token']);
+            $this->assertSame('jane@example.com', $optIn['email']);
+
+            // record list takes its filter and sort refusals from columns()
+            $this->assertContains('data', SensitiveFields::columns('tl_version'));
+            $this->assertContains('token', SensitiveFields::columns('tl_opt_in'));
+        } finally {
+            unset($GLOBALS['TL_DCA']['tl_version'], $GLOBALS['TL_DCA']['tl_opt_in']);
+        }
+    }
+
+    /**
      * @return iterable<string, array{string, list<mixed>}>
      */
     public static function guesses(): iterable

@@ -23,10 +23,25 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Dca\VirtualFields;
  *
  * The field stays in the answer with {@see MASK} in place of a set value, so a caller
  * still sees that a key is set; an empty value stays empty.
+ *
+ * The DCA rule misses columns whose secret Contao never shows anywhere, so it never
+ * needed a marker: {@see UNMARKED} lists them. `tl_version.data` is the serialized row
+ * of every stored version — of a user, the password hash, the two-factor secret and the
+ * API key; `version read` masks inside it by the DCA of `fromTable`, `record list` would
+ * hand it out whole. `tl_opt_in.token` holds the live links of double opt-in, among them
+ * a member's password reset (`pw-…`).
  */
 final class SensitiveFields
 {
     public const MASK = '********';
+
+    /**
+     * Sensitive columns without a DCA marker, by table.
+     */
+    public const UNMARKED = [
+        'tl_version' => ['data'],
+        'tl_opt_in'  => ['token'],
+    ];
 
     /**
      * @param array<string, mixed> $fields `$GLOBALS['TL_DCA'][$table]['fields']`
@@ -87,10 +102,10 @@ final class SensitiveFields
         $fields = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
 
         if (!\is_array($fields)) {
-            return [];
+            return self::UNMARKED[$table] ?? [];
         }
 
-        $names = self::of($fields);
+        $names = [...self::of($fields), ...self::UNMARKED[$table] ?? []];
 
         foreach (VirtualFields::map($table) as $virtual => $target) {
             if (\is_array($fields[$virtual] ?? null) && self::isSensitive($fields[$virtual])) {
@@ -118,10 +133,10 @@ final class SensitiveFields
         $fields = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
 
         if (!\is_array($fields)) {
-            return $row;
+            return self::maskColumns($row, self::UNMARKED[$table] ?? []);
         }
 
-        $row = self::maskColumns($row, self::of($fields));
+        $row = self::maskColumns($row, [...self::of($fields), ...self::UNMARKED[$table] ?? []]);
 
         $byTarget = [];
         foreach (VirtualFields::map($table) as $virtual => $target) {
