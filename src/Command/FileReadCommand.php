@@ -7,6 +7,7 @@ use Contao\FilesModel;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
+use Webwerkwien\ContaoAiCoreBundle\Service\PathJail;
 
 #[AsCommand(name: 'contao:file:read', description: 'Read a text file from files/ and return its content as JSON')]
 class FileReadCommand extends AbstractReadCommand
@@ -58,12 +59,11 @@ class FileReadCommand extends AbstractReadCommand
             return $this->outputError("File not found: {$path}");
         }
 
-        // Realpath jail: reject symlinks pointing outside projectDir
-        $real = realpath($absPath);
-        if ($real === false || !str_starts_with($real . DIRECTORY_SEPARATOR, realpath($this->projectDir) . DIRECTORY_SEPARATOR)) {
+        // Realpath jail: reject symlinks pointing outside files/
+        if (!PathJail::contains($this->projectDir, 'files', $absPath)) {
             return $this->outputError('Access denied: path resolves outside allowed directory');
         }
-        $absPath = $real;
+        $absPath = (string) realpath($absPath);
 
         $size = filesize($absPath);
         if ($size > self::MAX_BYTES) {

@@ -12,6 +12,7 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Webwerkwien\ContaoAiCoreBundle\Attribute\AiContract;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
+use Webwerkwien\ContaoAiCoreBundle\Service\PathJail;
 
 /**
  * 🔴 This command overwrites file contents without saving the
@@ -115,14 +116,8 @@ class FileWriteCommand extends AbstractWriteCommand
 
         $absPath = rtrim($this->projectDir, '/') . '/' . $path;
 
-        // Realpath jail: walk up to deepest existing ancestor to catch symlinks
-        $jailRoot   = realpath($this->projectDir) . DIRECTORY_SEPARATOR;
-        $jailCheck  = $absPath;
-        while (!file_exists($jailCheck) && $jailCheck !== dirname($jailCheck)) {
-            $jailCheck = dirname($jailCheck);
-        }
-        $realAncestor = realpath($jailCheck);
-        if ($realAncestor === false || !str_starts_with($realAncestor . DIRECTORY_SEPARATOR, $jailRoot)) {
+        // Realpath jail: the deepest existing ancestor must resolve inside files/
+        if (!PathJail::contains($this->projectDir, 'files', $absPath)) {
             return $this->outputError('Access denied: path resolves outside allowed directory');
         }
 

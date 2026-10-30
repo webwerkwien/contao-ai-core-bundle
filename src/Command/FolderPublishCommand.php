@@ -12,6 +12,7 @@ use Symfony\Component\Console\Input\ArgvInput;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\Filesystem\Path;
+use Webwerkwien\ContaoAiCoreBundle\Service\PathJail;
 
 /**
  * Make a folder public, or protect it again — the back end's five steps.
@@ -68,14 +69,13 @@ class FolderPublishCommand extends AbstractWriteCommand
         }
 
         $absPath  = rtrim($this->projectDir, '/') . '/' . $path;
-        $jailRoot = realpath($this->projectDir);
         $realPath = realpath($absPath);
 
         // `new Folder()` creates a missing directory — check before constructing it.
         if (false === $realPath || !is_dir($realPath)) {
             return $this->outputError("Folder not found: {$path}. Create it first with contao:folder:create.");
         }
-        if (false === $jailRoot || !str_starts_with($realPath . DIRECTORY_SEPARATOR, $jailRoot . DIRECTORY_SEPARATOR)) {
+        if (!PathJail::contains($this->projectDir, 'files', $absPath)) {
             return $this->outputError('Access denied: path resolves outside allowed directory');
         }
 

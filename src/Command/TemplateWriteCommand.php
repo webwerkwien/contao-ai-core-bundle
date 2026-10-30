@@ -11,6 +11,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Contracts\Service\Attribute\Required;
+use Webwerkwien\ContaoAiCoreBundle\Service\PathJail;
 use Webwerkwien\ContaoAiCoreBundle\Service\SystemLog;
 use Webwerkwien\ContaoAiCoreBundle\Service\Template\TemplateCacheRefresher;
 
@@ -136,14 +137,8 @@ class TemplateWriteCommand extends Command
         $relPath = $this->buildRelPath($mode, $base, $name);
         $absPath = rtrim($this->projectDir, '/') . '/templates/' . $relPath;
 
-        // Realpath jail: walk up to deepest existing ancestor to catch symlinks
-        $jailRoot  = realpath($this->projectDir) . DIRECTORY_SEPARATOR;
-        $jailCheck = $absPath;
-        while (!file_exists($jailCheck) && $jailCheck !== dirname($jailCheck)) {
-            $jailCheck = dirname($jailCheck);
-        }
-        $realAncestor = realpath($jailCheck);
-        if ($realAncestor === false || !str_starts_with($realAncestor . DIRECTORY_SEPARATOR, $jailRoot)) {
+        // Realpath jail: the deepest existing ancestor must resolve inside templates/
+        if (!PathJail::contains($this->projectDir, 'templates', $absPath)) {
             $output->writeln(json_encode(['status' => 'error', 'message' => 'Access denied: path resolves outside allowed directory']));
             return self::FAILURE;
         }

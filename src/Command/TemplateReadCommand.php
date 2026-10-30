@@ -4,6 +4,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Command;
 
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputOption;
+use Webwerkwien\ContaoAiCoreBundle\Service\PathJail;
 
 #[AsCommand(name: 'contao:template:read', description: 'Read a template file and return its content as JSON')]
 class TemplateReadCommand extends AbstractReadCommand
@@ -37,12 +38,11 @@ class TemplateReadCommand extends AbstractReadCommand
             return $this->outputError("Template not found: {$path}");
         }
 
-        // Realpath jail: reject symlinks pointing outside projectDir
-        $real = realpath($absPath);
-        if ($real === false || !str_starts_with($real . DIRECTORY_SEPARATOR, realpath($this->projectDir) . DIRECTORY_SEPARATOR)) {
+        // Realpath jail: reject symlinks pointing outside templates/
+        if (!PathJail::contains($this->projectDir, 'templates', $absPath)) {
             return $this->outputError('Access denied: path resolves outside allowed directory');
         }
-        $absPath = $real;
+        $absPath = (string) realpath($absPath);
 
         $size = filesize($absPath);
         if ($size === false) {

@@ -8,6 +8,7 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Webwerkwien\ContaoAiCoreBundle\Attribute\AiContract;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
+use Webwerkwien\ContaoAiCoreBundle\Service\PathJail;
 
 /**
  * 🔴 This command overwrites file contents without saving the
@@ -73,12 +74,17 @@ class FileProcessCommand extends AbstractWriteCommand
             return $this->outputError('--path is required');
         }
 
-        $path    = ltrim(str_replace('\\', '/', $path), '/');
+        $path = ltrim(str_replace('\\', '/', $path), '/');
+        // Only files/, as every other file command (v1.14.0): the resize rewrote any
+        // image in the project, public/ and vendor/ included.
+        if (str_contains($path, '..') || !str_starts_with($path, 'files/')) {
+            return $this->outputError('Path must start with files/ and must not contain ".."');
+        }
         $absPath = rtrim($this->projectDir, '/') . '/' . $path;
 
         $real = realpath($absPath);
-        if ($real === false || !str_starts_with($real . DIRECTORY_SEPARATOR, realpath($this->projectDir) . DIRECTORY_SEPARATOR)) {
-            return $this->outputError('Access denied: path is outside project directory');
+        if ($real === false || !PathJail::contains($this->projectDir, 'files', $absPath)) {
+            return $this->outputError('Access denied: path is outside files/');
         }
         $absPath = $real;
 
