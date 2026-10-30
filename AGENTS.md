@@ -659,8 +659,10 @@ lists (`SERVER_RUN_EXTENSIONS`).
 `Service\PathJail`). File read/write/process, folder create/publish and template
 read/write require the resolved path — for a new one its deepest existing ancestor — to
 stay below that root. Before, a link inside files/ to `../.env.local` resolved inside the
-project and passed. The root itself may be a link (a shared files/ in a deployment); a
-missing root is fine as long as nothing on the way leads elsewhere. `contao:file:process`
+project and passed. A link whose target does not exist yet is refused: `file_exists()`
+calls it missing, and a write would follow it. The root itself may be a link (a shared
+files/ in a deployment); a missing root is fine as long as nothing on the way leads
+elsewhere. `contao:file:process`
 takes only `files/…` paths since then.
 
 > 🔴 Up to v0.12.0 `contao:file:write` checked none of it — any extension, a hard-coded
@@ -789,10 +791,12 @@ before the write when `pid` or `ptable` changes, and invalidates them after. Con
   overwritten, and `contao:theme:import --confirm` refuses them without `--allow-code`.
 - **The example website preview names what is no insert** (v1.14.0). `full` runs every
   line, so `other_statements` lists statements other than inserts and table definitions
-  (`SET`, comments and key toggles aside) and `user_statements` counts every statement on
-  tl_user; one of those asks for the `--admins` decision too. After the run,
-  `settleAdmins()` tells a new administrator from an account of before the file promoted
-  (`admins.promoted`); `existing` puts the latter back as it was instead of deleting it.
+  (comments and what a dump sets for its session aside — `SESSION_STATEMENT`; a versioned
+  comment `/*!… */` runs in MySQL and counts unless it holds such a setting, `SET
+  PASSWORD` counts) and `user_statements` counts every statement on tl_user; one of those
+  asks for the `--admins` decision too. After the run, `settleAdmins()` tells a new
+  administrator from an account of before the file promoted (`admins.promoted`, by name
+  or, renamed, by id); `existing` puts the latter back as it was instead of deleting it.
   In `data` tl_user is emptied first, so there is nothing to compare against.
 - **A theme clone bends references into the theme, never out of it** (v1.9.0,
   `ThemeCloner`). Contao has no theme copy (`tl_theme` is `notCopyable`; the first draft of
@@ -981,8 +985,9 @@ Both share `MemberPassword` (trait):
 `UNMARKED` adds columns that hold secrets without such a marker: `tl_version.data` (the
 serialised record, password hashes included) and `tl_opt_in.token`. A new one goes there,
 not into a command. `contao:listing:data` refuses a module condition or sort that names a
-masked column or holds a subquery (`select`): it would test a masked value row by row
-through what is listed.
+masked column or holds a subquery (`select`, `table`, `values` outside string literals,
+read with and without backslash escapes, or a versioned comment): it would test a masked
+value row by row through what is listed.
 
 ## Member and user fields: a deny list, not an allow list (v1.1.0)
 

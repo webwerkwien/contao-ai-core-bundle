@@ -212,7 +212,8 @@ class ThemeArchive
         $name = strtolower(basename($path));
 
         return \in_array($name, ['.htaccess', '.user.ini'], true)
-            || 1 === preg_match('/\.(php\d?|phtml|phar|phps|html5|twig)$/', $name);
+            // The extensions UploadPolicy refuses for files/, plus the two template kinds.
+            || 1 === preg_match('/\.(php\d?|pht|phtml|phar|phps|html5|twig)$/', $name);
     }
 
     /**

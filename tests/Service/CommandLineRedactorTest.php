@@ -191,4 +191,19 @@ class CommandLineRedactorTest extends TestCase
         $this->assertSame(['S3CRET'], $values);
         $this->assertSame('acme:x https://example.com/a', CommandLineRedactor::redact('acme:x https://example.com/a'), 'no user info, nothing to blank');
     }
+
+    public function testAnUnencodedAtSignInTheUrlPasswordIsBlankedWhole(): void
+    {
+        $this->assertSame('acme:x --dsn=mysql://u:***@db/shop', CommandLineRedactor::redact('acme:x --dsn=mysql://u:pa@ss@db/shop'));
+        $this->assertSame('acme:x mysql://u:***@db/shop', CommandLineRedactor::redact("acme:x 'mysql://u:p w@db/shop'"));
+    }
+
+    public function testATokenWithADashButNoSecretLetterIsStillRead(): void
+    {
+        // A quoted argument that starts with a dash and carries a line of its own.
+        $logged = CommandLineRedactor::redact("acme:x '-q --set password=y'");
+
+        $this->assertStringContainsString('password=***', $logged);
+        $this->assertStringNotContainsString('password=y', $logged);
+    }
 }

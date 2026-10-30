@@ -75,7 +75,7 @@ class ThemeArchiveTest extends TestCase
 
     public function testFilesTheServerRunsAreRecognised(): void
     {
-        foreach (['templates/fe_page.html5', 'templates/content_element/text.html.twig', 'files/x/shell.PHP', 'files/a.phtml', 'files/.htaccess', 'files/sub/.user.ini', 'files/tool.phar'] as $path) {
+        foreach (['templates/fe_page.html5', 'templates/content_element/text.html.twig', 'files/x/shell.PHP', 'files/a.phtml', 'files/.htaccess', 'files/sub/.user.ini', 'files/tool.phar', 'files/old.pht'] as $path) {
             self::assertTrue(ThemeArchive::isCode($path), $path);
         }
 

@@ -58,6 +58,19 @@ class PathJailTest extends TestCase
         self::assertTrue(PathJail::contains($this->dir . '/project', 'linked', $this->dir . '/project/linked/x.jpg'));
     }
 
+    public function testALinkWhoseTargetIsMissingIsRefused(): void
+    {
+        $this->link($this->dir . '/project/config/new.yaml', $this->dir . '/project/files/new.yaml');
+
+        self::assertFalse(PathJail::contains($this->dir . '/project', 'files', $this->dir . '/project/files/new.yaml'));
+    }
+
+    public function testAPathOutsideTheRootIsRefusedBeforeAnyLookup(): void
+    {
+        self::assertFalse(PathJail::contains($this->dir . '/project', 'templates', $this->dir . '/project/templatesX/a.html5'));
+        self::assertFalse(PathJail::contains($this->dir . '/project', 'files', $this->dir . '/project/config/x.yaml'));
+    }
+
     public function testAMissingRootIsCreatedOnlyInTheProject(): void
     {
         self::assertTrue(PathJail::contains($this->dir . '/project', 'templates', $this->dir . '/project/templates/fe_page.html5'));

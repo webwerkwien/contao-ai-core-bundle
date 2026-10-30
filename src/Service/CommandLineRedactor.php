@@ -47,8 +47,12 @@ final class CommandLineRedactor
      */
     public const SECRET = '/passw(?:or)?d|passwort|passphrase|pass(?![a-z])|secret|token|api[-_]?key|credential|private[-_]?key/i';
 
-    /** The password part of a URL's user info: `scheme://user:password@`. */
-    private const URL_PASSWORD = '#([a-z][a-z0-9+.-]*://[^\s/:@]*:)([^\s/@]+)@#i';
+    /**
+     * The password part of a URL's user info: `scheme://user:password@`. Up to the last
+     * `@` before the path, so an unencoded `@` or a space in a quoted password is blanked
+     * whole; reaching too far costs a detail, not the secret.
+     */
+    private const URL_PASSWORD = '#([a-z][a-z0-9+.-]*://[^\s/:@]*:)([^/]+)@#i';
 
     /**
      * The shortcut letters of the options that are secrets — by name or declared — for
@@ -161,13 +165,16 @@ final class CommandLineRedactor
                 // -p value, -pvalue, -rp value: from the first secret letter on, the rest
                 // of the token is its value, or else the next token. Symfony reads a
                 // letter before it as a flag or as an option that takes the rest — either
-                // way nothing after a secret letter is left standing.
+                // way nothing after a secret letter is left standing. A token without one
+                // goes on to the key=value check below, as any other token.
+                $found = false;
                 foreach (str_split(substr($text, 1)) as $k => $letter) {
                     if (!$isSecret($letter)) {
                         continue;
                     }
 
-                    $rest = substr($text, $k + 2);
+                    $found = true;
+                    $rest  = substr($text, $k + 2);
 
                     if ('' !== $rest) {
                         $replace[$n] = substr($text, 0, $k + 2) . self::MASK;
@@ -180,7 +187,9 @@ final class CommandLineRedactor
                     break;
                 }
 
-                continue;
+                if ($found) {
+                    continue;
+                }
             }
 
             // key=value as the value of an option (--set password=x) or an argument.

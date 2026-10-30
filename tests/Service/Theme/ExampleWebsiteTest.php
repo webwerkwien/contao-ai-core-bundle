@@ -330,6 +330,45 @@ class ExampleWebsiteTest extends TestCase
         self::assertSame('hash2', $this->user('editor')['password'], 'the account comes back as it was');
     }
 
+    /**
+     * MySQL runs a versioned comment, and SET PASSWORD changes the site's database
+     * account; what a dump sets for its own session stays out of the list.
+     */
+    public function testThePreviewNamesVersionedCommentsAndSetPassword(): void
+    {
+        file_put_contents($this->dir . '/system/tmp/demo.sql', implode("\n", [
+            '/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;',
+            '/*!50503 SET character_set_client = utf8mb4 */;',
+            '/*!40000 ALTER TABLE `tl_page` DISABLE KEYS */;',
+            'SET FOREIGN_KEY_CHECKS=0;',
+            "INSERT INTO `tl_page` (`id`) VALUES (1);",
+            '/*!50001 DROP TABLE `tl_member` */;',
+            "SET PASSWORD = 'x';",
+        ]));
+
+        $preview = $this->service()->analyse('system/tmp/demo.sql', 'full');
+
+        self::assertSame(['/*!50001 DROP TABLE `tl_member` */;', "SET PASSWORD = 'x';"], $preview['other_statements']);
+    }
+
+    /**
+     * A file that renames the account it promotes: found by its id, put back as it was.
+     */
+    public function testARenamedPromotedAccountIsPutBack(): void
+    {
+        $result = $this->service(static function (array $users): array {
+            $users[3]['admin'] = 1;
+            $users[3]['username'] = 'boss';
+
+            return $users;
+        })->import('system/tmp/demo.sql', 'full', 'existing');
+
+        self::assertSame(['boss'], $result['admins']['promoted']);
+        self::assertSame([], $result['admins']['removed']);
+        self::assertSame(['contao-ai', 'editor', 'webmaster'], $this->usernames());
+        self::assertSame(0, (int) $this->user('editor')['admin']);
+    }
+
     public function testBothNamesAPromotedAccount(): void
     {
         $result = $this->service(static function (array $users): array {

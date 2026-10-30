@@ -136,8 +136,18 @@ class ListingDataCommand extends AbstractReadCommand
     {
         $sql = $where . ' ' . $sort;
 
-        if (1 === preg_match('/\bselect\b/i', $sql)) {
-            return \sprintf('Module %d has a subquery in its condition or sort; contao:listing:data does not run it, a subquery could test values the output masks.', $id);
+        // A subquery needs SELECT, or since MySQL 8.0.19 TABLE or VALUES. Words inside
+        // string literals do not count (`type = 'select'`), with the literals read both
+        // with and without backslash escapes, so neither reading can hide one. A
+        // versioned comment (`/*!50000SELECT…*/`) has no word boundary to find.
+        $outsideLiterals = [
+            preg_replace('/\'(?:[^\'\\\\]|\\\\.|\'\')*\'|"(?:[^"\\\\]|\\\\.|"")*"/s', "''", $sql),
+            preg_replace('/\'(?:[^\']|\'\')*\'|"(?:[^"]|"")*"/s', "''", $sql),
+        ];
+        foreach ($outsideLiterals as $code) {
+            if (null === $code || 1 === preg_match('/\b(?:select|table|values)\b|\/\*!/i', $code)) {
+                return \sprintf('Module %d has a subquery in its condition or sort; contao:listing:data does not run it, a subquery could test values the output masks.', $id);
+            }
         }
 
         foreach (SensitiveFields::columns($table) as $column) {

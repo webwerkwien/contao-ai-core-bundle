@@ -21,9 +21,22 @@ final class PathJail
      */
     public static function contains(string $projectDir, string $root, string $absolute): bool
     {
+        // Lexically first: the callers check the prefix too, this keeps the next one honest.
+        $base = rtrim(str_replace('\\', '/', $projectDir), '/') . '/' . trim($root, '/');
+        $path = str_replace('\\', '/', $absolute);
+        if ($path !== $base && !str_starts_with($path, $base . '/')) {
+            return false;
+        }
+
         $check = $absolute;
-        while (!file_exists($check) && $check !== \dirname($check)) {
+        while (!is_link($check) && !file_exists($check) && $check !== \dirname($check)) {
             $check = \dirname($check);
+        }
+
+        // A link whose target does not exist yet: file_exists() calls it missing, and a
+        // write would follow it and create the target wherever it points.
+        if (is_link($check) && !file_exists($check)) {
+            return false;
         }
 
         $real = realpath($check);

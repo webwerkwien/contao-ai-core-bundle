@@ -51,6 +51,9 @@ class ExampleWebsite
     /** Statements other than inserts and table definitions, named in the preview up to this many. */
     private const OTHER_SHOWN = 20;
 
+    /** What a dump runs for its own session (character set, checks, keys), not named in the preview. */
+    private const SESSION_STATEMENT = 'SET\s+(?:NAMES|CHARACTER\s+SET|CHARACTER_SET_\w+|COLLATION_\w+|SQL_MODE|TIME_ZONE|FOREIGN_KEY_CHECKS|UNIQUE_CHECKS|AUTOCOMMIT|SQL_NOTES|@)|LOCK\s+TABLES|UNLOCK\s+TABLES|ALTER\s+TABLE\s+`?tl_[a-z0-9_]+`?\s+(?:DISABLE|ENABLE)\s+KEYS';
+
     public function __construct(
         private readonly ContaoFramework $framework,
         private readonly Connection $connection,
@@ -87,9 +90,12 @@ class ExampleWebsite
                 }
             } elseif (preg_match('/^\s*(?:CREATE|DROP)\s+TABLE\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?`?(tl_[a-z0-9_]+)`?/i', $statement, $m)) {
                 $tables[$m[1]] = $m[1];
-            } elseif (!preg_match('/^\s*(?:--|#|\/\*|SET\s|LOCK\s+TABLES|UNLOCK\s+TABLES|ALTER\s+TABLE\s+`?tl_[a-z0-9_]+`?\s+(?:DISABLE|ENABLE)\s+KEYS)/i', $statement)) {
+            } elseif (!preg_match('/^\s*(?:--|#|\/\*(?!!)|(?:\/\*!\d*\s*)?(?:'.self::SESSION_STATEMENT.'))/i', $statement)) {
                 // `full` runs every line: an UPDATE, DELETE, GRANT or a statement on
-                // another table is named here, not only counted (v1.14.0).
+                // another table is named here, not only counted (v1.14.0). So is a
+                // versioned comment (`/*!50001 DROP TABLE … */`, which MySQL runs)
+                // unless it holds what a dump sets for its session, and any SET beyond
+                // those (`SET PASSWORD` changes the database account of the site).
                 $other[] = mb_strimwidth(trim($statement), 0, 120, '…');
             }
 
@@ -211,13 +217,22 @@ class ExampleWebsite
      */
     private function settleAdmins(array $kept, array $others, string $policy): array
     {
-        $keptNames = array_map('strval', array_column($kept, 'username'));
-        $before    = array_column($others, null, 'username');
-        $imported  = [];
-        $promoted  = [];
-        foreach (array_diff(array_map('strval', array_column($this->existingAdmins(), 'username')), $keptNames) as $username) {
-            if (isset($before[$username])) {
-                $promoted[] = $username;
+        $keptNames  = array_map('strval', array_column($kept, 'username'));
+        $before     = array_column($others, null, 'username');
+        // A file can rename the account it promotes (`SET username = …, admin = 1`).
+        $beforeById = array_column($others, null, 'id');
+        $origin     = [];
+        $imported   = [];
+        $promoted   = [];
+        foreach ($this->existingAdmins() as $admin) {
+            $username = (string) $admin['username'];
+            if (\in_array($username, $keptNames, true)) {
+                continue;
+            }
+            $row = $before[$username] ?? $beforeById[$admin['id']] ?? null;
+            if (null !== $row) {
+                $promoted[]        = $username;
+                $origin[$username] = $row;
             } else {
                 $imported[] = $username;
             }
@@ -234,7 +249,7 @@ class ExampleWebsite
 
             foreach ($promoted as $username) {
                 $this->connection->delete('tl_user', ['username' => $username]);
-                if ($this->putBack($before[$username])) {
+                if ($this->putBack($origin[$username])) {
                     $renumbered[] = $username;
                 }
             }

@@ -17,10 +17,12 @@ Works with the same backend-bundle; contao-ai-cli v1.17.0 passes the new `--allo
 - **`contao:example-website:import`: the preview names what is no insert.** Mode `full`
   runs every line of the file; `other_statements` (the first 20) and
   `other_statement_count` now list statements other than inserts and table definitions,
-  and `user_statements` counts every statement on `tl_user`. Such a statement asks for
+  versioned comments (`/*!… */`) and `SET` beyond session settings included, and
+  `user_statements` counts every statement on `tl_user`. Such a statement asks for
   the `--admins` decision as well.
 - **`admins.promoted`** in the answer of an example website import: existing accounts the
-  file made administrators. With `--admins=existing` they are put back as they were;
+  file made administrators, also under a new name. With `--admins=existing` they are put
+  back as they were;
   before, they were deleted like imported administrators.
 
 ### Changed
@@ -37,7 +39,8 @@ Works with the same backend-bundle; contao-ai-cli v1.17.0 passes the new `--allo
 - **File and template commands resolve links against `files/` and `templates/`**, no
   longer against the project directory: `file read`, `file write`, `file process`,
   `folder create`, `folder publish`, `template read` and `template write` refuse a path
-  that leads out of that root through a link. A linked root itself is still accepted.
+  that leads out of that root through a link, and a link whose target does not exist yet.
+  A linked root itself is still accepted.
 - **`contao:file:process` takes only paths below `files/`**, as the other file commands.
 - **`contao:file:write` never writes PHP files (`php`, `php3`–`php8`, `pht`, `phtml`,
   `phar`, `phps`), `.htaccess` or `.user.ini`**, even when `uploadTypes` lists them.

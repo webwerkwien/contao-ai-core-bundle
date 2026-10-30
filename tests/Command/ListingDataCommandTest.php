@@ -158,6 +158,18 @@ class ListingDataCommandTest extends TestCase
         yield 'masked column in the condition' => [['list_where' => "PASSWORD LIKE '\$2y\$13\$a%'"], 'whose value is masked'];
         yield 'masked column in the sort'      => [['list_sort' => 't1.password'], 'whose value is masked'];
         yield 'subquery into another table'    => [['list_where' => "disable=0 AND (SELECT ai_api_key FROM tl_user WHERE id=1) LIKE 'sk-a%'"], 'subquery'];
+        yield 'subquery with TABLE'            => [['list_where' => 'id IN (TABLE tl_user)'], 'subquery'];
+        yield 'subquery in a versioned comment' => [['list_where' => 'disable=0 /*!50000AND id IN (SELECT 1)*/'], 'subquery'];
+        yield 'literal hiding a subquery'      => [['list_where' => "city = '\\' OR id IN (SELECT 1) OR city = '"], 'subquery'];
+    }
+
+    public function testTheWordSelectInALiteralIsNoSubquery(): void
+    {
+        $GLOBALS['TL_DCA']['tl_member']['fields'] = ['firstname' => [], 'lastname' => []];
+
+        $out = $this->listing(self::module(['list_where' => "city = 'select'"]));
+
+        self::assertSame('ok', $out['status'], (string) ($out['message'] ?? ''));
     }
 
     /**

@@ -82,15 +82,15 @@ class FileProcessCommand extends AbstractWriteCommand
         }
         $absPath = rtrim($this->projectDir, '/') . '/' . $path;
 
+        if (!file_exists($absPath)) {
+            return $this->outputError("File not found: {$path}");
+        }
+
         $real = realpath($absPath);
         if ($real === false || !PathJail::contains($this->projectDir, 'files', $absPath)) {
             return $this->outputError('Access denied: path is outside files/');
         }
         $absPath = $real;
-
-        if (!file_exists($absPath)) {
-            return $this->outputError("File not found: {$path}");
-        }
 
         $ext = strtolower(pathinfo($absPath, PATHINFO_EXTENSION));
 
