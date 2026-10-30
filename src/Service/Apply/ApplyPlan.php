@@ -38,6 +38,8 @@ final class ApplyPlan
 
     private const REF = '/^[a-z0-9_-]+$/';
 
+    private const LANGUAGE_TABLES = ['tl_page', 'tl_article'];
+
     /**
      * @param list<array<string, mixed>> $steps
      */
@@ -108,6 +110,13 @@ final class ApplyPlan
                 if (\array_key_exists($option, $step) && !\is_string($step[$option]) && !\is_int($step[$option])) {
                     $problems[] = \sprintf('%s: "%s" must be text or a number.', $at, $option);
                 }
+            }
+
+            // A plan writes pages, articles and content, and only those tables are checked
+            // to roll back (ApplyCommand::TABLES); `language link` alone would also reach
+            // news, events and FAQ (v1.14.0).
+            if ('language link' === $do && \array_key_exists('table', $step) && !\in_array($step['table'], self::LANGUAGE_TABLES, true)) {
+                $problems[] = \sprintf('%s: "table" must be one of %s; link other tables with contao:language:link on its own.', $at, implode(', ', self::LANGUAGE_TABLES));
             }
 
             if (\array_key_exists('set', $step) && (!\is_array($step['set']) || ([] !== $step['set'] && array_is_list($step['set'])))) {

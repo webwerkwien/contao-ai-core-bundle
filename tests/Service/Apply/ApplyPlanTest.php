@@ -49,6 +49,7 @@ class ApplyPlanTest extends TestCase
         yield 'duplicate ref' => ['{"steps": [{"ref": "a", "do": "page create", "title": "x"}, {"ref": "a", "do": "page create", "title": "y"}]}', 'ref "a" is used twice'];
         yield 'forward reference' => ['{"steps": [{"do": "content create", "type": "text", "pid": "@later"}, {"ref": "later", "do": "article create", "title": "x"}]}', '"@later" does not name an earlier step'];
         yield 'self reference' => ['{"steps": [{"ref": "a", "do": "page create", "title": "x", "pid": "@a"}]}', '"@a" does not name an earlier step'];
+        yield 'language link outside pages and articles' => ['{"steps": [{"do": "language link", "table": "tl_news", "id": 4, "main": 2}]}', '"table" must be one of tl_page, tl_article'];
         yield 'article of a non-page' => ['{"steps": [{"ref": "a", "do": "article create", "title": "x"}, {"do": "content create", "type": "text", "pid": "@a.article"}]}', '"@a.article" needs a page create'];
     }
 
