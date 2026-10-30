@@ -89,6 +89,10 @@ class ListingDataCommand extends AbstractReadCommand
         if ('' !== $where && null !== $this->insertTags) {
             $where = $this->insertTags->replaceInline($where);
         }
+        if (null !== ($refusal = $this->guessingRefusal($id, $table, $where, (string) ($module['list_sort'] ?? '')))) {
+            return $this->outputError($refusal);
+        }
+
         $whereSql = '' !== trim($where) ? ' WHERE (' . $where . ')' : '';
         $from     = ' FROM ' . $this->connection->quoteIdentifier($table) . ' t1';
 
@@ -116,6 +120,33 @@ class ListingDataCommand extends AbstractReadCommand
         ]);
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Why the module's condition or sort is not run here, or null (v1.14.0).
+     *
+     * The output masks sensitive fields, but the condition runs before the mask: with
+     * `list_where = "password LIKE '$2y$13$a%'"`, or a subquery into another table, the
+     * row count answers yes or no, and `module update` lets a caller set the condition —
+     * a secret read character by character. Refused are a condition or sort naming a
+     * sensitive column of the listed table, and any subquery. The front end still runs
+     * the module as configured; only this read command does not.
+     */
+    private function guessingRefusal(int $id, string $table, string $where, string $sort): ?string
+    {
+        $sql = $where . ' ' . $sort;
+
+        if (1 === preg_match('/\bselect\b/i', $sql)) {
+            return \sprintf('Module %d has a subquery in its condition or sort; contao:listing:data does not run it, a subquery could test values the output masks.', $id);
+        }
+
+        foreach (SensitiveFields::columns($table) as $column) {
+            if (1 === preg_match('/\b' . preg_quote($column, '/') . '\b/i', $sql)) {
+                return \sprintf('Module %d filters or sorts by "%s", whose value is masked; contao:listing:data does not run that condition.', $id, $column);
+            }
+        }
+
+        return null;
     }
 
     /**

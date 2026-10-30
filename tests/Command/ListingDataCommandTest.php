@@ -149,4 +149,32 @@ class ListingDataCommandTest extends TestCase
         self::assertStringContainsString($message, $out['message']);
         self::assertSame([], $this->queries);
     }
+
+    /**
+     * @return iterable<string, array{array<string, string>, string}>
+     */
+    public static function guesses(): iterable
+    {
+        yield 'masked column in the condition' => [['list_where' => "PASSWORD LIKE '\$2y\$13\$a%'"], 'whose value is masked'];
+        yield 'masked column in the sort'      => [['list_sort' => 't1.password'], 'whose value is masked'];
+        yield 'subquery into another table'    => [['list_where' => "disable=0 AND (SELECT ai_api_key FROM tl_user WHERE id=1) LIKE 'sk-a%'"], 'subquery'];
+    }
+
+    /**
+     * The condition runs before the mask; the count would answer a guess (v1.14.0).
+     *
+     * @dataProvider guesses
+     *
+     * @param array<string, string> $overrides
+     */
+    public function testAConditionThatCouldTestAMaskedValueIsNotRun(array $overrides, string $message): void
+    {
+        $GLOBALS['TL_DCA']['tl_member']['fields'] = ['firstname' => [], 'lastname' => [], 'password' => ['inputType' => 'password']];
+
+        $out = $this->listing(self::module($overrides));
+
+        self::assertSame('error', $out['status']);
+        self::assertStringContainsString($message, $out['message']);
+        self::assertSame([], $this->queries);
+    }
 }
