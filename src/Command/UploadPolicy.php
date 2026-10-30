@@ -29,6 +29,13 @@ trait UploadPolicy
     private const IMAGE_EXTENSIONS = ['gif', 'jpg', 'jpeg', 'png', 'webp', 'avif', 'heic', 'jxl'];
 
     /**
+     * What the web server runs or reads as its configuration: refused even when
+     * `uploadTypes` lists it (v1.14.0). Contao trusts that list alone; an agent writing
+     * into the public files/ should not turn an administrator's slip into running code.
+     */
+    private const SERVER_RUN_EXTENSIONS = ['php', 'php3', 'php4', 'php5', 'php7', 'php8', 'pht', 'phtml', 'phar', 'phps', 'htaccess'];
+
+    /**
      * Refuse a file the installation would not accept as an upload.
      *
      * Needs the framework initialised (reads `Config`). May change the source
@@ -181,6 +188,14 @@ trait UploadPolicy
 
         $ext     = $this->extensionOf($targetPath);
         $allowed = StringUtil::trimsplit(',', strtolower($uploadTypes));
+
+        if (\in_array($ext, self::SERVER_RUN_EXTENSIONS, true) || '.user.ini' === strtolower(basename($targetPath))) {
+            return \sprintf(
+                '%s is a file the web server runs or reads as configuration; it is not written into files/, '
+                . 'whatever uploadTypes allows. Nothing was written.',
+                $targetPath,
+            );
+        }
 
         if ('' === $ext || !\in_array($ext, $allowed, true)) {
             return \sprintf(

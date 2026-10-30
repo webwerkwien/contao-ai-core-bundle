@@ -82,6 +82,20 @@ class UploadPolicyTest extends TestCase
         ];
     }
 
+    /**
+     * Files the web server runs stay out even when uploadTypes lists them (v1.14.0).
+     */
+    public function testServerRunFilesAreRefusedWhateverUploadTypesSays(): void
+    {
+        foreach (['files/x/shell.php', 'files/x/a.PHTML', 'files/x/t.phar', 'files/x/.htaccess', 'files/x/.user.ini'] as $path) {
+            $violation = $this->subject()->uploadViolation($path, 10, 'php,phtml,phar,htaccess,ini,jpg', 20480000);
+            $this->assertNotNull($violation, $path);
+            $this->assertStringContainsString('web server runs', $violation);
+        }
+
+        $this->assertNull($this->subject()->uploadViolation('files/x/settings.ini', 10, 'ini', 20480000), 'another .ini is no server configuration');
+    }
+
     // --- size ---
 
     public function testTheSystemMaximumReplacesTheOldTenMegabytes(): void
