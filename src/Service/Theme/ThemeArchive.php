@@ -102,7 +102,7 @@ class ThemeArchive
     /**
      * What an import of $path would do, without doing it.
      *
-     * @return array{themes: list<string>, tables: array<string, int>, overwrites: list<string>, new_files: int, missing_fields: array<string, list<string>>, example_websites: list<string>, existing_names: list<string>, lost_theme_elements: int}
+     * @return array{themes: list<string>, tables: array<string, int>, overwrites: list<string>, new_files: int, missing_fields: array<string, list<string>>, example_websites: list<string>, existing_names: list<string>, lost_theme_elements: int, code_files: list<string>}
      */
     public function analyse(string $path): array
     {
@@ -114,6 +114,7 @@ class ThemeArchive
         $overwrites = [];
         $newFiles = 0;
         $examples = [];
+        $code = [];
 
         while ($zip->next()) {
             $name = (string) $zip->file_name;
@@ -134,6 +135,9 @@ class ThemeArchive
             }
 
             $target = (string) preg_replace('#^tl_files/#', 'files/', $name);
+            if (self::isCode($target)) {
+                $code[] = $target;
+            }
             if (is_file(Path::join($this->projectDir, $target))) {
                 $overwrites[] = $target;
             } else {
@@ -190,7 +194,25 @@ class ThemeArchive
             'existing_names'   => $existing,
             // Layout slots that will be empty after the import, see above.
             'lost_theme_elements' => $lostElements,
+            'code_files'       => $code,
         ];
+    }
+
+    /**
+     * Whether the server runs or evaluates $path once it is extracted (v1.14.0).
+     *
+     * Contao's extraction writes every file under files/, templates/ and var/backups/
+     * without a type filter — a theme import is a code import, which is why it needs the
+     * admin right. A legacy `.html5` template is PHP and replaces the core template of the
+     * same name on the next request; Twig templates run their logic as well. The preview
+     * named such files only when they overwrote one, a new one counted in `new_files`.
+     */
+    public static function isCode(string $path): bool
+    {
+        $name = strtolower(basename($path));
+
+        return \in_array($name, ['.htaccess', '.user.ini'], true)
+            || 1 === preg_match('/\.(php\d?|phtml|phar|phps|html5|twig)$/', $name);
     }
 
     /**

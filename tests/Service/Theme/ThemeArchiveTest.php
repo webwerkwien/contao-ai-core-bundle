@@ -5,6 +5,8 @@ namespace Webwerkwien\ContaoAiCoreBundle\Tests\Service\Theme;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Console\Tester\CommandTester;
+use Webwerkwien\ContaoAiCoreBundle\Command\ThemeImportCommand;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 use Webwerkwien\ContaoAiCoreBundle\Service\Theme\ThemeArchive;
 
@@ -69,6 +71,39 @@ class ThemeArchiveTest extends TestCase
                 self::assertStringContainsString($message, $e->getMessage(), $method);
             }
         }
+    }
+
+    public function testFilesTheServerRunsAreRecognised(): void
+    {
+        foreach (['templates/fe_page.html5', 'templates/content_element/text.html.twig', 'files/x/shell.PHP', 'files/a.phtml', 'files/.htaccess', 'files/sub/.user.ini', 'files/tool.phar'] as $path) {
+            self::assertTrue(ThemeArchive::isCode($path), $path);
+        }
+
+        foreach (['files/theme/style.css', 'files/logo.svg', 'files/doc.php.txt', 'templates/readme.md', 'files/html5.jpg'] as $path) {
+            self::assertFalse(ThemeArchive::isCode($path), $path);
+        }
+    }
+
+    /**
+     * An archive with code imports only with --allow-code (v1.14.0).
+     */
+    public function testAnArchiveWithCodeIsNotImportedWithoutAllowCode(): void
+    {
+        $archive = $this->createMock(ThemeArchive::class);
+        $archive->method('analyse')->willReturn([
+            'themes' => ['Demo'], 'tables' => [], 'overwrites' => [], 'new_files' => 1, 'missing_fields' => [],
+            'example_websites' => [], 'existing_names' => [], 'lost_theme_elements' => 0,
+            'code_files' => ['templates/fe_page.html5'],
+        ]);
+        $archive->expects(self::never())->method('import');
+
+        $tester = new CommandTester(new ThemeImportCommand($archive));
+        $tester->execute(['file' => 'system/tmp/demo.cto', '--confirm' => true]);
+
+        $out = json_decode($tester->getDisplay(), true);
+        self::assertSame('error', $out['status']);
+        self::assertStringContainsString('templates/fe_page.html5', $out['message']);
+        self::assertStringContainsString('--allow-code', $out['message']);
     }
 
     public function testAMissingThemeIsNotExported(): void

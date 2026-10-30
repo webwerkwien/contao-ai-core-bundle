@@ -19,6 +19,11 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Theme\ThemeArchive;
  * files in files/ and templates/ the archive would overwrite, fields this database lacks,
  * example websites inside (not imported here). An import has no undo — files are
  * overwritten and records created — so it runs only when asked twice.
+ *
+ * Files the server runs or evaluates (PHP, legacy `.html5` templates, Twig, `.htaccess`)
+ * are listed by name in `code_files`, new or overwritten, and the import runs only with
+ * `--allow-code` as well (v1.14.0): an archive from elsewhere can carry a template that
+ * runs on every page.
  */
 #[AsCommand(name: 'contao:theme:import', description: "Import a theme from Contao's .cto archive (preview without --confirm)")]
 class ThemeImportCommand extends Command
@@ -44,6 +49,7 @@ class ThemeImportCommand extends Command
     {
         $this->addArgument('file', InputArgument::REQUIRED, 'The .cto/.zip, relative to the project root, in ' . ThemeArchive::TMP_DIR . '/');
         $this->addOption('confirm', null, InputOption::VALUE_NONE, 'Import; without it the command only previews');
+        $this->addOption('allow-code', null, InputOption::VALUE_NONE, 'Also import when the archive holds files the server runs (see code_files in the preview)');
         $this->addOperatorOption();
     }
 
@@ -57,6 +63,14 @@ class ThemeImportCommand extends Command
                 $output->writeln($this->json(['status' => 'preview'] + $preview));
 
                 return Command::SUCCESS;
+            }
+
+            if ([] !== $preview['code_files'] && !$input->getOption('allow-code')) {
+                throw new \InvalidArgumentException(\sprintf(
+                    'The archive holds %d file(s) the server runs or evaluates: %s. Check them, then import with --confirm --allow-code. Nothing was imported.',
+                    \count($preview['code_files']),
+                    implode(', ', $preview['code_files']),
+                ));
             }
 
             $result = $this->archive->import($file);
