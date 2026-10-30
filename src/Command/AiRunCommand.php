@@ -132,8 +132,11 @@ class AiRunCommand extends AbstractReadCommand
         // the entry stays in tl_log for the log period and in every backup (v1.5.0).
         // A malformed `secrets` is left out by the reader (it reports a problem);
         // the names reading like a secret are blanked regardless.
+        // The shortcuts of secret options as well: `-p x` for `--password x` (v1.14.0).
         $secrets = $contract['fields']['secrets'] ?? [];
-        $this->recordInvocation(CommandLineRedactor::redact($line, \is_array($secrets) ? array_values(array_map('strval', $secrets)) : []));
+        $secrets = \is_array($secrets) ? array_values(array_map('strval', $secrets)) : [];
+        $real    = $target instanceof LazyCommand ? $target->getCommand() : $target;
+        $this->recordInvocation(CommandLineRedactor::redact($line, [...$secrets, ...CommandLineRedactor::secretShortcuts($real->getDefinition(), $secrets)]));
 
         // `doRun`, with the command name still in the string, rather than
         // `find()->run()` on the remainder. Running the command object directly

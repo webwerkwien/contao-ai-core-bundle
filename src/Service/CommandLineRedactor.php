@@ -3,6 +3,7 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Service;
 
 use Symfony\Component\Console\Input\ArgvInput;
+use Symfony\Component\Console\Input\InputDefinition;
 use Symfony\Component\Console\Input\StringInput;
 
 /**
@@ -18,7 +19,13 @@ use Symfony\Component\Console\Input\StringInput;
  * secret, token, api key, credential …), and what a command declares in
  * `#[AiContract(secrets: …)]`. Both as an option (`--api-key x`, `--api-key=x`) and as
  * the key of a `key=value` pair (`--set password=x`, `--set=password=x`), the form this
- * bundle's commands take fields in. Short options (`-p x`) are not recognised.
+ * bundle's commands take fields in.
+ *
+ * Short options (v1.14.0): `-p x`, `-px` and `-rp x` are blanked when `p` is passed in
+ * `$declared` — {@see secretShortcuts()} reads which letters stand for a secret from the
+ * command's definition. Until then `contao:user:password admin -p x`, run through
+ * `contao:ai:run`, reached `tl_log` in plain text; Contao's own password commands have
+ * that shortcut. A password in a URL (`mysql://user:x@host`) is blanked in any value.
  *
  * The line is split the way Symfony's StringInput splits it — backslash escapes, both
  * quote kinds, glued parts — character by character: what the command reads as
@@ -40,8 +47,41 @@ final class CommandLineRedactor
      */
     public const SECRET = '/passw(?:or)?d|passwort|passphrase|pass(?![a-z])|secret|token|api[-_]?key|credential|private[-_]?key/i';
 
+    /** The password part of a URL's user info: `scheme://user:password@`. */
+    private const URL_PASSWORD = '#([a-z][a-z0-9+.-]*://[^\s/:@]*:)([^\s/@]+)@#i';
+
     /**
-     * @param list<string> $declared names the command declares secret, with or without `--`
+     * The shortcut letters of the options that are secrets — by name or declared — for
+     * `$declared` of {@see redact()}.
+     *
+     * @param list<string> $declared
+     *
+     * @return list<string>
+     */
+    public static function secretShortcuts(InputDefinition $definition, array $declared = []): array
+    {
+        $declared = array_map(static fn (string $name): string => strtolower(ltrim($name, '-')), $declared);
+        $letters  = [];
+
+        foreach ($definition->getOptions() as $option) {
+            $shortcut = $option->getShortcut();
+
+            if (null === $shortcut || '' === $shortcut) {
+                continue;
+            }
+
+            if (\in_array(strtolower($option->getName()), $declared, true) || 1 === preg_match(self::SECRET, $option->getName())) {
+                // "p|x" for two shortcuts of one option
+                array_push($letters, ...explode('|', $shortcut));
+            }
+        }
+
+        return array_values(array_unique($letters));
+    }
+
+    /**
+     * @param list<string> $declared names the command declares secret, with or without `--`,
+     *                               and shortcut letters of secret options
      */
     public static function redact(string $line, array $declared = []): string
     {
@@ -117,10 +157,51 @@ final class CommandLineRedactor
                 continue;
             }
 
+            if (str_starts_with($text, '-') && \strlen($text) > 1) {
+                // -p value, -pvalue, -rp value: from the first secret letter on, the rest
+                // of the token is its value, or else the next token. Symfony reads a
+                // letter before it as a flag or as an option that takes the rest — either
+                // way nothing after a secret letter is left standing.
+                foreach (str_split(substr($text, 1)) as $k => $letter) {
+                    if (!$isSecret($letter)) {
+                        continue;
+                    }
+
+                    $rest = substr($text, $k + 2);
+
+                    if ('' !== $rest) {
+                        $replace[$n] = substr($text, 0, $k + 2) . self::MASK;
+                        $values[]    = ltrim($rest, '=');
+                    } elseif (isset($tokens[$n + 1]) && !str_starts_with($tokens[$n + 1][2], '-')) {
+                        $replace[$n + 1] = self::MASK;
+                        $values[]        = $tokens[$n + 1][2];
+                    }
+
+                    break;
+                }
+
+                continue;
+            }
+
             // key=value as the value of an option (--set password=x) or an argument.
             if (!isset($replace[$n]) && null !== ($value = self::blankedValue($text, $isSecret, $depth, $values, $withheld))) {
                 $replace[$n] = $value;
             }
+        }
+
+        // A password in a URL, in any token nothing else blanked: `--dsn=mysql://u:x@h`
+        // has a harmless option name, so only the value tells.
+        foreach ($tokens as $n => [, , $text]) {
+            if (isset($replace[$n]) || 1 !== preg_match(self::URL_PASSWORD, $text)) {
+                continue;
+            }
+
+            $blanked     = (string) preg_replace_callback(self::URL_PASSWORD, static function (array $m) use (&$values): string {
+                $values[] = $m[2];
+
+                return $m[1] . self::MASK . '@';
+            }, $text);
+            $replace[$n] = 1 === preg_match('/\s/', $blanked) ? "'" . str_replace("'", "'\\''", $blanked) . "'" : $blanked;
         }
 
         if ([] === $replace) {

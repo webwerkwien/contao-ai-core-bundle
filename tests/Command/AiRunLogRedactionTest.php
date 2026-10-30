@@ -31,7 +31,9 @@ class AiRunLogRedactionTest extends TestCase
             {
                 $this->setName('contao:probe-set')
                     ->addOption('set', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY)
-                    ->addOption('api-key', null, InputOption::VALUE_REQUIRED);
+                    ->addOption('api-key', null, InputOption::VALUE_REQUIRED)
+                    // as Contao's contao:user:password declares it
+                    ->addOption('password', 'p', InputOption::VALUE_REQUIRED);
             }
 
             protected function execute(InputInterface $input, OutputInterface $output): int
@@ -57,6 +59,13 @@ class AiRunLogRedactionTest extends TestCase
         $this->aiRun('contao:probe-set --set password=geheim --set title=Laden --api-key=abc');
 
         $this->assertSame(['contao:ai:run started an unwrapped command: contao:probe-set --set password=*** --set title=Laden --api-key=***'], $this->logged);
+    }
+
+    public function testTheShortcutOfASecretOptionIsBlankedInTheLog(): void
+    {
+        $this->aiRun('contao:probe-set -p geheim --set title=Laden');
+
+        $this->assertSame(['contao:ai:run started an unwrapped command: contao:probe-set -p *** --set title=Laden'], $this->logged);
     }
 
     public function testWhatTheCommandDeclaresSecretIsBlankedToo(): void

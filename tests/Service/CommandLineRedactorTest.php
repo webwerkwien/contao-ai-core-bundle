@@ -4,6 +4,9 @@ namespace Webwerkwien\ContaoAiCoreBundle\Tests\Service;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputDefinition;
+use Symfony\Component\Console\Input\InputOption;
 use Webwerkwien\ContaoAiCoreBundle\Service\CommandLineRedactor;
 
 /**
@@ -142,5 +145,50 @@ class CommandLineRedactorTest extends TestCase
         $line = 'acme:x --set password=S3cr3t! --api-key "S3cr3t! two" --set=token=S3cr3t!';
 
         $this->assertStringNotContainsString('S3cr3t!', CommandLineRedactor::redact($line));
+    }
+
+    /**
+     * Contao's own `contao:user:password` has `-p` for `--password` (v1.14.0).
+     *
+     * @return iterable<string, array{string, string}>
+     */
+    public static function shortOptions(): iterable
+    {
+        yield 'separate value' => ['contao:user:password admin -p S3CRET', 'contao:user:password admin -p ***'];
+        yield 'glued value' => ['contao:user:password admin -pS3CRET', 'contao:user:password admin -p***'];
+        yield 'glued with =' => ['contao:user:password admin -p=S3CRET', 'contao:user:password admin -p***'];
+        yield 'behind a flag' => ['contao:user:password admin -rp S3CRET', 'contao:user:password admin -rp ***'];
+        yield 'flag alone stays' => ['contao:user:password admin -r', 'contao:user:password admin -r'];
+        yield 'inner line of contao:ai:run' => ["contao:ai:run --command-line='contao:user:password admin -p S3CRET'", "contao:ai:run --command-line='contao:user:password admin -p ***'"];
+    }
+
+    #[DataProvider('shortOptions')]
+    public function testTheShortcutOfASecretOptionIsBlanked(string $line, string $logged): void
+    {
+        $definition = new InputDefinition([
+            new InputArgument('username'),
+            new InputOption('password', 'p', InputOption::VALUE_REQUIRED),
+            new InputOption('require-change', 'r', InputOption::VALUE_NONE),
+        ]);
+
+        $shortcuts = CommandLineRedactor::secretShortcuts($definition);
+
+        $this->assertSame(['p'], $shortcuts);
+        $this->assertSame($logged, CommandLineRedactor::redact($line, $shortcuts));
+    }
+
+    public function testWithoutTheShortcutsAShortOptionStaysAsBefore(): void
+    {
+        // Callers pass them; the plain call blanks by name only.
+        $this->assertSame('acme:x -p 4711', CommandLineRedactor::redact('acme:x -p 4711'));
+    }
+
+    public function testAPasswordInAUrlIsBlankedWhateverTheOptionIsCalled(): void
+    {
+        [$logged, $values] = CommandLineRedactor::redacted('acme:import --dsn=mysql://shop:S3CRET@db.example.com/shop --dry-run');
+
+        $this->assertSame('acme:import --dsn=mysql://shop:***@db.example.com/shop --dry-run', $logged);
+        $this->assertSame(['S3CRET'], $values);
+        $this->assertSame('acme:x https://example.com/a', CommandLineRedactor::redact('acme:x https://example.com/a'), 'no user info, nothing to blank');
     }
 }

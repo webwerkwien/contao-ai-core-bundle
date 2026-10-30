@@ -324,13 +324,16 @@ class RedactingConsoleErrorListener extends ErrorListener
     }
 
     /**
+     * The declared secrets and the shortcuts of secret options (`-p`, v1.14.0).
+     *
      * @return list<string>
      */
     private static function secretsOf(Command $command): array
     {
-        $class   = $command instanceof LazyCommand ? $command->getCommand()::class : $command::class;
-        $secrets = ContractReader::read($class)['fields']['secrets'] ?? [];
+        $real    = $command instanceof LazyCommand ? $command->getCommand() : $command;
+        $secrets = ContractReader::read($real::class)['fields']['secrets'] ?? [];
+        $secrets = \is_array($secrets) ? array_values(array_map('strval', $secrets)) : [];
 
-        return \is_array($secrets) ? array_values(array_map('strval', $secrets)) : [];
+        return [...$secrets, ...CommandLineRedactor::secretShortcuts($real->getDefinition(), $secrets)];
     }
 }
