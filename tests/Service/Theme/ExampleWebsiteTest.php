@@ -78,7 +78,10 @@ class ExampleWebsiteTest extends TestCase
         $connection->method('createSchemaManager')->willReturn($schema);
         $connection->method('quoteIdentifier')->willReturnCallback(static fn (string $n): string => '`' . $n . '`');
         $connection->method('fetchAllAssociative')->willReturnCallback(
-            fn (): array => $this->tableGone ? throw new \RuntimeException('Base table tl_user not found') : array_values(array_filter($this->users, static fn (array $u): bool => 1 === (int) $u['admin'] && 'contao-ai' !== $u['username'])),
+            fn (string $sql): array => $this->tableGone ? throw new \RuntimeException('Base table tl_user not found') : array_values(array_filter(
+                $this->users,
+                static fn (array $u): bool => (str_contains($sql, 'admin = 1') === (1 === (int) $u['admin'])) && 'contao-ai' !== $u['username'],
+            )),
         );
         $connection->method('fetchAssociative')->willReturnCallback(function (string $sql, array $params): array|false {
             if ($this->tableGone) {
@@ -181,7 +184,7 @@ class ExampleWebsiteTest extends TestCase
 
         self::assertSame('backup__20261015090000.sql.gz', $result['backup']);
         self::assertSame(['backup', 'statements'], \array_slice($this->log, 0, 2), 'the backup comes first');
-        self::assertSame(['kept' => ['webmaster'], 'removed' => ['demo'], 'imported' => [], 'renumbered' => []], $result['admins']);
+        self::assertSame(['kept' => ['webmaster'], 'removed' => ['demo'], 'imported' => [], 'promoted' => [], 'renumbered' => []], $result['admins']);
         self::assertSame(['contao-ai', 'webmaster'], $this->usernames());
         self::assertSame('hash', $this->user('webmaster')['password'], 'the account comes back as it was');
     }
@@ -190,7 +193,7 @@ class ExampleWebsiteTest extends TestCase
     {
         $result = $this->service(self::truncateAndAddDemo())->import('system/tmp/demo.sql', 'data', 'both');
 
-        self::assertSame(['kept' => ['webmaster'], 'removed' => [], 'imported' => ['demo'], 'renumbered' => []], $result['admins']);
+        self::assertSame(['kept' => ['webmaster'], 'removed' => [], 'imported' => ['demo'], 'promoted' => [], 'renumbered' => []], $result['admins']);
         self::assertSame(['contao-ai', 'demo', 'webmaster'], $this->usernames());
     }
 
@@ -217,7 +220,7 @@ class ExampleWebsiteTest extends TestCase
 
         $result = $this->service(self::truncateAndAddDemo())->import('system/tmp/demo.sql', 'data', null);
 
-        self::assertSame(['kept' => [], 'removed' => [], 'imported' => ['demo'], 'renumbered' => []], $result['admins']);
+        self::assertSame(['kept' => [], 'removed' => [], 'imported' => ['demo'], 'promoted' => [], 'renumbered' => []], $result['admins']);
         self::assertSame(['contao-ai', 'demo'], $this->usernames(), 'contao-ai is put back');
     }
 
@@ -280,6 +283,64 @@ class ExampleWebsiteTest extends TestCase
             ->import('system/tmp/demo.sql', 'data', 'both');
 
         self::assertSame(['webmaster'], $result['admins']['renumbered']);
+    }
+
+    /**
+     * `full` runs every line: an UPDATE on tl_user or a statement on another table is
+     * named in the preview, and a change to tl_user asks for the decision (v1.14.0).
+     */
+    public function testThePreviewNamesWhatIsNoInsert(): void
+    {
+        file_put_contents($this->dir . '/system/tmp/demo.sql', implode("\n", [
+            "INSERT INTO `tl_page` (`id`) VALUES (1);",
+            "UPDATE `tl_user` SET `admin` = 1 WHERE `username` = 'editor';",
+            'DROP TABLE `other`;',
+            'SET NAMES utf8mb4;',
+        ]));
+
+        $preview = $this->service()->analyse('system/tmp/demo.sql', 'full');
+
+        self::assertSame(0, $preview['user_rows']);
+        self::assertSame(1, $preview['user_statements']);
+        self::assertTrue($preview['needs_admin_decision']);
+        self::assertSame(2, $preview['other_statement_count'], 'SET is no change');
+        self::assertStringContainsString('UPDATE `tl_user`', $preview['other_statements'][0]);
+        self::assertSame('DROP TABLE `other`;', $preview['other_statements'][1]);
+    }
+
+    /**
+     * An editor the file made an administrator is an existing account: `existing` puts it
+     * back as it was instead of deleting it, `both` names it (v1.14.0).
+     */
+    public function testAPromotedExistingAccountIsNotRemoved(): void
+    {
+        $promote = static function (array $users): array {
+            $users[3]['admin'] = 1;
+            $users[3]['password'] = 'changed';
+
+            return $users;
+        };
+
+        $result = $this->service($promote)->import('system/tmp/demo.sql', 'full', 'existing');
+
+        self::assertSame(['editor'], $result['admins']['promoted']);
+        self::assertSame([], $result['admins']['removed']);
+        self::assertSame(['contao-ai', 'editor', 'webmaster'], $this->usernames());
+        self::assertSame(0, (int) $this->user('editor')['admin']);
+        self::assertSame('hash2', $this->user('editor')['password'], 'the account comes back as it was');
+    }
+
+    public function testBothNamesAPromotedAccount(): void
+    {
+        $result = $this->service(static function (array $users): array {
+            $users[3]['admin'] = 1;
+
+            return $users;
+        })->import('system/tmp/demo.sql', 'full', 'both');
+
+        self::assertSame(['editor'], $result['admins']['promoted']);
+        self::assertSame([], $result['admins']['imported']);
+        self::assertSame(1, (int) $this->user('editor')['admin']);
     }
 
     public function testEmptyLinesAreAWarningInModeFull(): void

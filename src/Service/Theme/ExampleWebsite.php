@@ -31,7 +31,10 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
  *   `both` keeps the existing admins next to the imported ones, `existing` keeps only the
  *   existing ones and removes imported admins. On the same username the existing account
  *   wins. Without existing admins the imported ones simply arrive. `contao-ai` is always
- *   put back.
+ *   put back. An existing account the file made an administrator is named in `promoted`,
+ *   and `existing` puts it back as it was.
+ * - the preview names statements other than inserts and table definitions — `full` runs
+ *   every line of the file — and counts every statement on tl_user.
  */
 class ExampleWebsite
 {
@@ -44,6 +47,9 @@ class ExampleWebsite
      * contao-ai-cli removes it by that name (theme_archive.Upload._cleanup).
      */
     public const EXTRACTED_SUFFIX = '-example.sql';
+
+    /** Statements other than inserts and table definitions, named in the preview up to this many. */
+    private const OTHER_SHOWN = 20;
 
     public function __construct(
         private readonly ContaoFramework $framework,
@@ -59,7 +65,7 @@ class ExampleWebsite
     /**
      * What an import would do.
      *
-     * @return array{file: string, mode: string, statements: int, tables: list<string>, truncates: int, user_rows: int, existing_admins: list<string>, needs_admin_decision: bool, warnings: list<string>}
+     * @return array{file: string, mode: string, statements: int, tables: list<string>, truncates: int, user_rows: int, user_statements: int, other_statements: list<string>, other_statement_count: int, existing_admins: list<string>, needs_admin_decision: bool, warnings: list<string>}
      */
     public function analyse(string $path, string $mode, ?string $entry = null): array
     {
@@ -70,14 +76,27 @@ class ExampleWebsite
         $statements = $this->statements($sql, $mode);
         $tables = [];
         $userRows = 0;
+        $userStatements = 0;
+        $other = [];
         foreach ($statements as $statement) {
             if (preg_match('/^\s*(?:INSERT|REPLACE)\s+INTO\s+`?(tl_[a-z0-9_]+)`?/i', $statement, $m)) {
                 $tables[$m[1]] = $m[1];
                 if ('tl_user' === $m[1]) {
                     $userRows += max(1, substr_count($statement, '),('));
+                    continue;
                 }
             } elseif (preg_match('/^\s*(?:CREATE|DROP)\s+TABLE\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?`?(tl_[a-z0-9_]+)`?/i', $statement, $m)) {
                 $tables[$m[1]] = $m[1];
+            } elseif (!preg_match('/^\s*(?:--|#|\/\*|SET\s|LOCK\s+TABLES|UNLOCK\s+TABLES|ALTER\s+TABLE\s+`?tl_[a-z0-9_]+`?\s+(?:DISABLE|ENABLE)\s+KEYS)/i', $statement)) {
+                // `full` runs every line: an UPDATE, DELETE, GRANT or a statement on
+                // another table is named here, not only counted (v1.14.0).
+                $other[] = mb_strimwidth(trim($statement), 0, 120, '…');
+            }
+
+            // Any statement on tl_user that is not a plain insert — `UPDATE tl_user SET
+            // admin = 1 …` makes an editor an administrator and was counted nowhere.
+            if (preg_match('/\btl_user\b/i', $statement)) {
+                ++$userStatements;
             }
         }
         ksort($tables);
@@ -91,14 +110,17 @@ class ExampleWebsite
             'tables'               => array_values($tables),
             'truncates'            => 'data' === $mode ? \count($this->tlTables()) : 0,
             'user_rows'            => $userRows,
+            'user_statements'      => $userStatements,
+            'other_statements'     => \array_slice($other, 0, self::OTHER_SHOWN),
+            'other_statement_count' => \count($other),
             'existing_admins'      => array_map('strval', $admins),
-            'needs_admin_decision' => [] !== $admins && $userRows > 0,
+            'needs_admin_decision' => [] !== $admins && ($userRows > 0 || $userStatements > 0),
             'warnings'             => $this->warnings($sql, $mode),
         ];
     }
 
     /**
-     * @return array{backup: string, backup_note: string, statements: int, admins: array{kept: list<string>, removed: list<string>, imported: list<string>, renumbered: list<string>}, messages: list<array{type: string, text: string}>}
+     * @return array{backup: string, backup_note: string, statements: int, admins: array{kept: list<string>, removed: list<string>, imported: list<string>, promoted: list<string>, renumbered: list<string>}, messages: list<array{type: string, text: string}>}
      */
     public function import(string $path, string $mode, ?string $adminPolicy, ?string $entry = null): array
     {
@@ -116,7 +138,9 @@ class ExampleWebsite
         $backup = $config->getBackup()->getFilename();
 
         $kept = $this->existingAdmins();
-        $cliUser = $this->connection->fetchAssociative('SELECT * FROM tl_user WHERE username = ?', [CliUser::USERNAME]) ?: null;
+        // `data` empties tl_user first, so no account from before can be changed by the file.
+        $others = 'data' === $mode ? [] : $this->otherUsers();
+        $cliUser =$this->connection->fetchAssociative('SELECT * FROM tl_user WHERE username = ?', [CliUser::USERNAME]) ?: null;
         $relative = $preview['file'];
 
         $failure = null;
@@ -139,10 +163,10 @@ class ExampleWebsite
         // putting back can fail itself — a `full` import that dropped
         // tl_user and stopped before recreating it — which must not hide the cause or the
         // backup's name.
-        $admins = ['kept' => [], 'removed' => [], 'imported' => [], 'renumbered' => []];
+        $admins = ['kept' => [], 'removed' => [], 'imported' => [], 'promoted' => [], 'renumbered' => []];
         $restoreFailure = null;
         try {
-            $admins = $this->settleAdmins($kept, $preview['needs_admin_decision'] ? (string) $adminPolicy : 'both');
+            $admins = $this->settleAdmins($kept, $others, $preview['needs_admin_decision'] ? (string) $adminPolicy : 'both');
             if (null !== $cliUser) {
                 $this->putBack($cliUser);
             }
@@ -175,28 +199,50 @@ class ExampleWebsite
     }
 
     /**
-     * @param list<array<string, mixed>> $kept the admin rows from before
+     * An administrator after the import who was none before is either new or an account
+     * from before the file promoted (`UPDATE tl_user SET admin = 1`, `INSERT … ON
+     * DUPLICATE KEY UPDATE`). The second is named in `promoted`; with `existing` it goes
+     * back to what it was instead of being removed — it is an existing account (v1.14.0).
      *
-     * @return array{kept: list<string>, removed: list<string>, imported: list<string>, renumbered: list<string>}
+     * @param list<array<string, mixed>> $kept   the admin rows from before
+     * @param list<array<string, mixed>> $others the other accounts from before, contao-ai aside
+     *
+     * @return array{kept: list<string>, removed: list<string>, imported: list<string>, promoted: list<string>, renumbered: list<string>}
      */
-    private function settleAdmins(array $kept, string $policy): array
+    private function settleAdmins(array $kept, array $others, string $policy): array
     {
         $keptNames = array_map('strval', array_column($kept, 'username'));
-        $imported  = array_values(array_diff(array_column($this->existingAdmins(), 'username'), $keptNames));
-        $removed   = [];
+        $before    = array_column($others, null, 'username');
+        $imported  = [];
+        $promoted  = [];
+        foreach (array_diff(array_map('strval', array_column($this->existingAdmins(), 'username')), $keptNames) as $username) {
+            if (isset($before[$username])) {
+                $promoted[] = $username;
+            } else {
+                $imported[] = $username;
+            }
+        }
+        $removed    = [];
+        $renumbered = [];
 
         if ('existing' === $policy) {
             foreach ($imported as $username) {
                 $this->connection->delete('tl_user', ['username' => $username]);
-                $removed[] = (string) $username;
+                $removed[] = $username;
             }
             $imported = [];
+
+            foreach ($promoted as $username) {
+                $this->connection->delete('tl_user', ['username' => $username]);
+                if ($this->putBack($before[$username])) {
+                    $renumbered[] = $username;
+                }
+            }
         }
 
         // On the same username the existing account wins. A row the import did not touch
         // stays as it is — deleting and re-inserting it would risk the account for nothing
         // (since v1.9.0); only a different row under its name is replaced.
-        $renumbered = [];
         foreach ($kept as $row) {
             $now = $this->connection->fetchAssociative('SELECT * FROM tl_user WHERE username = ?', [$row['username']]);
             if (false !== $now && $now == $row) {
@@ -210,7 +256,7 @@ class ExampleWebsite
             }
         }
 
-        return ['kept' => $keptNames, 'removed' => $removed, 'imported' => array_map('strval', $imported), 'renumbered' => $renumbered];
+        return ['kept' => $keptNames, 'removed' => $removed, 'imported' => $imported, 'promoted' => $promoted, 'renumbered' => $renumbered];
     }
 
     /**
@@ -253,6 +299,19 @@ class ExampleWebsite
     {
         return $this->connection->fetchAllAssociative(
             'SELECT * FROM tl_user WHERE admin = 1 AND username <> ? ORDER BY id',
+            [CliUser::USERNAME],
+        );
+    }
+
+    /**
+     * The accounts that are no administrators, `contao-ai` aside.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function otherUsers(): array
+    {
+        return $this->connection->fetchAllAssociative(
+            "SELECT * FROM tl_user WHERE (admin IS NULL OR admin <> '1') AND username <> ? ORDER BY id",
             [CliUser::USERNAME],
         );
     }
