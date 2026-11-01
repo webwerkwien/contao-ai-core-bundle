@@ -65,6 +65,10 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
+    Webwerkwien\ContaoAiCoreBundle\Command\FileRenameCommand:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
     Webwerkwien\ContaoAiCoreBundle\Command\TemplateDeleteCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'

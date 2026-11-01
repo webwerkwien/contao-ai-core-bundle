@@ -754,6 +754,24 @@ before the write when `pid` or `ptable` changes, and invalidates them after. Con
 > the one just loaded. Articles and content moved fine, so a test on those alone passes.
 > The same trap as `generateAlias()` under *Page URLs follow Contao's back-end rules*.
 
+## Renaming files and folders: `contao:file:rename`
+
+`FileMoveCommand` and `FileRenameCommand` extend `AbstractFileRelocateCommand`, which holds
+everything a path change has in common: the `.public`, dot-path, existing-target and linked-folder
+refusals, `Files::rename()`, the DBAFS sync that keeps the UUIDs, the symlinks for a folder, the
+files-channel line and `pathUsages`. A command only decides the destination and may add a
+refusal of its own (`refuseDestination()`, called after the framework is initialised). Do not
+copy that sequence into a third command; add a subclass.
+
+- `--name` is a name: no `/` or `\`, no control characters, not `.`/`..`, at most 255 bytes
+  (`FileRenameCommand::nameRefusal()`). A separator would turn a rename into a move.
+- **A rename must not open what a write refuses.** A file that gets another extension — or
+  becomes `.user.ini` — goes through `UploadPolicy::uploadViolation()` (server-run extensions,
+  `uploadTypes`); an unchanged extension passes, so an old file stays renamable whatever
+  `uploadTypes` lists today. Folders are not checked.
+- The rename is verified on a real installation, not by `composer ci`: the unit tests pin the
+  refusals and the extension rule, the DBAFS part needs a booted framework.
+
 ## Cloning and creating pages — as the back end does (v0.22.0)
 
 - **A new cloner extends `AbstractDcaCloner`** (v1.8.0: forms, newsletter channels,

@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## Unreleased
+
+### Added
+
+- **`contao:file:rename --path <file|folder> --name <new name>`** renames a file or folder
+  in place and keeps its UUID, so every element that points at it keeps working. Same
+  rules as `contao:file:move`: no overwriting, nothing outside `files/`, no linked
+  folders, the files log line with the operator, and `pathUsages` for texts that name the
+  old path. `--name` is a name, not a path (use `contao:file:move` for another folder).
+  A file that gets a different extension is held against `uploadTypes` and the extensions
+  the web server runs, as an upload with that name would be; keeping the extension always
+  works. Nothing can be renamed to or from `.public` — `contao:folder:publish` decides
+  that.
+
 ## v1.14.0 - 2026-10-30
 
 Works with the same backend-bundle; contao-ai-cli v1.17.0 passes the new `--allow-code`.
