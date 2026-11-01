@@ -50,11 +50,22 @@ abstract class AbstractFileRelocateCommand extends AbstractWriteCommand
 
     /**
      * A further reason to refuse the new path, checked after the shared rules and before
-     * anything is changed, with the framework initialised. Null when the path may be used.
+     * anything is changed or the framework is initialised. Null when the path may be used.
      */
     protected function refuseDestination(string $source, string $destination): ?string
     {
         return null;
+    }
+
+    /**
+     * What the command does besides the path change, once the resource is at $destination
+     * and before the DBAFS sync. Returns fields for the answer.
+     *
+     * @return array<string, mixed>
+     */
+    protected function afterRename(string $source, string $destination, bool $isFolder): array
+    {
+        return [];
     }
 
     /**
@@ -96,13 +107,13 @@ abstract class AbstractFileRelocateCommand extends AbstractWriteCommand
             }
         }
 
-        $this->framework->initialize();
-
         $refusal = $this->refuseDestination($source, $destination);
 
         if (null !== $refusal) {
             return $this->outputError($refusal);
         }
+
+        $this->framework->initialize();
 
         $isFolder = is_dir($this->projectDir . '/' . $source) && !is_link($this->projectDir . '/' . $source);
 
@@ -122,7 +133,8 @@ abstract class AbstractFileRelocateCommand extends AbstractWriteCommand
             return $this->outputError("{$source} could not be {$past} to {$destination}. Nothing was changed.");
         }
 
-        $container = System::getContainer();
+        $afterRename = $this->afterRename($source, $destination, $isFolder);
+        $container   = System::getContainer();
 
         try {
             $container->get('contao.filesystem.dbafs_manager')->sync($source, $destination);
@@ -165,7 +177,7 @@ abstract class AbstractFileRelocateCommand extends AbstractWriteCommand
             'type'      => $isFolder ? 'folder' : 'file',
             'records'   => \count($after),
             'uuidsKept' => $kept === \count($before),
-        ];
+        ] + $afterRename;
 
         if ([] !== $pathSearch['usages']) {
             $data['pathUsages'] = $pathSearch['usages'];

@@ -760,15 +760,26 @@ before the write when `pid` or `ptable` changes, and invalidates them after. Con
 everything a path change has in common: the `.public`, dot-path, existing-target and linked-folder
 refusals, `Files::rename()`, the DBAFS sync that keeps the UUIDs, the symlinks for a folder, the
 files-channel line and `pathUsages`. A command only decides the destination and may add a
-refusal of its own (`refuseDestination()`, called after the framework is initialised). Do not
-copy that sequence into a third command; add a subclass.
+refusal of its own (`refuseDestination()`, before the framework is initialised) and work of
+its own after the rename (`afterRename()`). Do not copy that sequence into a third command;
+add a subclass.
 
-- `--name` is a name: no `/` or `\`, no control characters, not `.`/`..`, at most 255 bytes
-  (`FileRenameCommand::nameRefusal()`). A separator would turn a rename into a move.
-- **A rename must not open what a write refuses.** A file that gets another extension — or
-  becomes `.user.ini` — goes through `UploadPolicy::uploadViolation()` (server-run extensions,
-  `uploadTypes`); an unchanged extension passes, so an old file stays renamable whatever
-  `uploadTypes` lists today. Folders are not checked.
+- `--name` is a name, held to the back end's name field (`DC_Folder::save()`,
+  `tl_files::checkFilename()`, 5.3 to 6.0): no `/` or `\`, no control characters or `"`, no
+  leading or trailing dot, at most 255 bytes (`FileRenameCommand::nameRefusal()`). A
+  separator would turn a rename into a move.
+- **A file keeps its extension exactly as written** (`extensionRefusal()`): none added,
+  none removed, no change of case — the back end only lets you edit the name in front of
+  it. That is the whole defence against `a.txt` -> `a.php`, `x.PHP` -> `x.php` or
+  `a.htaccess` -> `.htaccess`: the file type is the one the file was accepted with, so no
+  `uploadTypes` check is needed. Folders are free.
+- **A rename is not a move in the back end.** `DC_Folder::save()` for the name field (5.3 to
+  6.0) also removes an image's thumbnails under the old name (Contao #6641) and empties the
+  script cache for a style sheet or script; `cut()` does neither. `FileRenameCommand` does
+  both in `afterRename()` and names them in the answer (`thumbnailsRemoved`,
+  `scriptCachePurged`). A folder move or rename logs one *Undefined array key* warning per
+  child from Contao's own DBAFS sync — the back end calls the same `sync()` — and the UUIDs
+  are kept all the same.
 - The rename is verified on a real installation, not by `composer ci`: the unit tests pin the
   refusals and the extension rule, the DBAFS part needs a booted framework.
 

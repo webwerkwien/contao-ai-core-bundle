@@ -13,10 +13,11 @@ This file was reconstructed from the git history on 2026-08-13, so entries befor
   rules as `contao:file:move`: no overwriting, nothing outside `files/`, no linked
   folders, the files log line with the operator, and `pathUsages` for texts that name the
   old path. `--name` is a name, not a path (use `contao:file:move` for another folder).
-  A file that gets a different extension is held against `uploadTypes` and the extensions
-  the web server runs, as an upload with that name would be; keeping the extension always
-  works. Nothing can be renamed to or from `.public` — `contao:folder:publish` decides
-  that.
+  As in the back end, a file keeps its extension exactly as written — a rename changes
+  the name, not the file type — and no name starts or ends with a dot. Nothing can be
+  renamed to or from `.public` — `contao:folder:publish` decides that. An image's
+  thumbnails under the old name are removed (`thumbnailsRemoved`), and renaming a style
+  sheet or script empties the script cache (`scriptCachePurged`), as the back end does.
 
 ## v1.14.0 - 2026-10-30
 

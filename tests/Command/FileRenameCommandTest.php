@@ -131,6 +131,11 @@ class FileRenameCommandTest extends TestCase
             'dot'           => ['.'],
             'up and away'   => ['../c.png'],
             'control char'  => ["c\x00.png"],
+            'quote'         => ['c".png'],
+            'leading dot'   => ['.hidden.png'],
+            'the marker'    => ['.public'],
+            'htaccess'      => ['.htaccess'],
+            'trailing dot'  => ['c.png.'],
             'too long'      => [str_repeat('a', 256)],
         ];
     }
@@ -139,7 +144,7 @@ class FileRenameCommandTest extends TestCase
     {
         // The known non-match for the refusals above: a check that refuses everything
         // passes those tests just as well.
-        foreach (['c.png', 'Über uns.png', '.hidden', 'a b', str_repeat('a', 255)] as $name) {
+        foreach (['c.png', 'Über uns.png', 'a.b.png', 'a b', str_repeat('a', 255)] as $name) {
             $this->assertNull(FileRenameCommand::nameRefusal($name), $name);
         }
     }
@@ -192,16 +197,15 @@ class FileRenameCommandTest extends TestCase
     }
 
     /**
-     * A `.public` file decides whether a folder is served; renaming it, or renaming
-     * something to it, would change that behind the back of folder:publish.
-     *
-     * @dataProvider publicMarker
+     * A `.public` file decides whether a folder is served; renaming it would change that
+     * behind the back of folder:publish. Renaming something to it is a leading dot, see
+     * badNames.
      */
-    public function testThePublicMarkerIsNeitherRenamedNorCreated(string $path, string $name): void
+    public function testThePublicMarkerIsNotRenamed(): void
     {
         touch($this->root . '/files/x/.public');
 
-        $out = $this->execute(['--path' => $path, '--name' => $name]);
+        $out = $this->execute(['--path' => 'files/x/.public', '--name' => 'c.public']);
 
         $this->assertSame('error', $out['status']);
         $this->assertStringContainsString('folder-publish', $out['message']);
@@ -209,14 +213,17 @@ class FileRenameCommandTest extends TestCase
     }
 
     /**
-     * @return array<string, array{string, string}>
+     * The file type stays: refused before anything changes or the framework starts.
      */
-    public static function publicMarker(): array
+    public function testAFileKeepsItsExtension(): void
     {
-        return [
-            'rename it'    => ['files/x/.public', 'c.png'],
-            'rename to it' => ['files/x/a.png', '.public'],
-        ];
+        $out = $this->execute(['--path' => 'files/x/a.png', '--name' => 'a.php']);
+
+        $this->assertSame('error', $out['status']);
+        $this->assertStringContainsString('ending in .png', $out['message']);
+        $this->assertStringContainsString('Nothing was renamed', $out['message']);
+        $this->assertFileExists($this->root . '/files/x/a.png');
+        $this->assertFileDoesNotExist($this->root . '/files/x/a.php');
     }
 
     public function testAPathThroughALinkedFolderIsRefused(): void
@@ -239,41 +246,82 @@ class FileRenameCommandTest extends TestCase
     }
 
     /**
-     * A rename must not open what a write refuses: the extension the web server runs, and
-     * one `uploadTypes` does not list. The same extension passes in any case.
+     * As the back end's rename (Contao #6641): the thumbnails of the image under its old
+     * name go, those of other images stay. A folder has none.
+     */
+    public function testARenamedImageLosesItsOldThumbnails(): void
+    {
+        $assets = $this->root . '/assets/images';
+        mkdir($assets . '/1', 0777, true);
+        mkdir($assets . '/2', 0777, true);
+        $thumbnails = [$assets . '/1/a-1234abcd.png', $assets . '/2/a-5678ef01.png'];
+        $others     = [$assets . '/1/ab-1234abcd.png', $assets . '/1/b-1234abcd.png', $assets . '/2/a-5678ef01.jpg'];
+
+        foreach ([...$thumbnails, ...$others] as $file) {
+            file_put_contents($file, 'thumb');
+        }
+
+        $previous  = \Contao\System::getContainer();
+        $container = new \Symfony\Component\DependencyInjection\ContainerBuilder();
+        $container->setParameter('contao.image.valid_extensions', ['jpg', 'png', 'svg']);
+        $container->setParameter('contao.image.target_dir', $assets);
+        \Contao\System::setContainer($container);
+
+        try {
+            $command     = new FileRenameCommand($this->createMock(ContaoFramework::class), $this->createMock(Connection::class), $this->root);
+            $afterRename = new \ReflectionMethod($command, 'afterRename');
+
+            $this->assertSame(['thumbnailsRemoved' => 2], $afterRename->invoke($command, 'files/x/a.png', 'files/x/c.png', false));
+            $this->assertSame([], $afterRename->invoke($command, 'files/x/sub', 'files/x/sub2', true));
+        } finally {
+            (new \ReflectionProperty(\Contao\System::class, 'objContainer'))->setValue(null, $previous);
+            (new \ReflectionProperty(\Contao\System::class, 'arrStaticObjects'))->setValue(null, []);
+        }
+
+        foreach ($thumbnails as $file) {
+            $this->assertFileDoesNotExist($file);
+        }
+        foreach ($others as $file) {
+            $this->assertFileExists($file);
+        }
+
+        (new \Symfony\Component\Filesystem\Filesystem())->remove($this->root . '/assets');
+    }
+
+    /**
+     * As in the back end, a file keeps its extension exactly as written: a rename changes
+     * the name, not the file type. So `a.txt` never becomes `a.php`, whatever is allowed.
      *
      * @dataProvider extensions
      */
-    public function testANewExtensionIsHeldAgainstTheUploadRules(string $source, string $destination, bool $refused): void
+    public function testAFileKeepsItsExtensionAsWritten(string $source, string $name, bool $isFolder, bool $refused): void
     {
-        $command = new FileRenameCommand($this->createMock(ContaoFramework::class), $this->createMock(Connection::class), $this->root);
-
-        $reason = $command->extensionRefusal($source, $destination, 'jpg,png,svg');
+        $reason = FileRenameCommand::extensionRefusal($source, $name, $isFolder);
 
         if ($refused) {
-            $this->assertNotNull($reason, "{$source} -> {$destination}");
-            $this->assertStringContainsString('Nothing was renamed', (string) $reason);
+            $this->assertNotNull($reason, "{$source} -> {$name}");
         } else {
-            $this->assertNull($reason, "{$source} -> {$destination}");
+            $this->assertNull($reason, "{$source} -> {$name}");
         }
     }
 
     /**
-     * @return array<string, array{string, string, bool}>
+     * @return array<string, array{string, string, bool, bool}>
      */
     public static function extensions(): array
     {
         return [
-            'same extension'                  => ['files/a.png', 'files/b.png', false],
-            'case only'                       => ['files/a.png', 'files/A.PNG', false],
-            'another listed extension'        => ['files/a.png', 'files/a.jpg', false],
-            'php'                             => ['files/a.png', 'files/a.php', true],
-            'phtml'                           => ['files/a.png', 'files/a.phtml', true],
-            'htaccess'                        => ['files/a.png', 'files/.htaccess', true],
-            'user.ini from another ini'       => ['files/a.ini', 'files/.user.ini', true],
-            'extension not in uploadTypes'    => ['files/a.png', 'files/a.exe', true],
-            'extension removed'               => ['files/a.png', 'files/a', true],
-            'an old file keeps its extension' => ['files/a.exe', 'files/b.exe', false],
+            'same extension'           => ['files/a.png', 'b.png', false, false],
+            'name case only'           => ['files/a.png', 'A.png', false, false],
+            'more dots in the name'    => ['files/a.png', 'a.v2.png', false, false],
+            'old file, old type'       => ['files/a.exe', 'b.exe', false, false],
+            'txt to php'               => ['files/a.txt', 'a.php', false, true],
+            'another allowed type'     => ['files/a.png', 'a.jpg', false, true],
+            'case of the extension'    => ['files/x.PHP', 'x.php', false, true],
+            'extension removed'        => ['files/a.png', 'a', false, true],
+            'extension added'          => ['files/README', 'README.php', false, true],
+            'no extension, none added' => ['files/README', 'NOTES', false, false],
+            'a folder is free'         => ['files/sub', 'sub.v2', true, false],
         ];
     }
 }
