@@ -73,6 +73,10 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
+    Webwerkwien\ContaoAiCoreBundle\Command\TemplateRenameCommand:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
     Webwerkwien\ContaoAiCoreBundle\Command\FolderPublishCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'

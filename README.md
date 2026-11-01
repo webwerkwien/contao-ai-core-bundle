@@ -49,7 +49,7 @@ All commands output JSON and follow a consistent `{"status":"ok", ...}` / `{"sta
 | Members | `contao:member:create` `contao:member:password` `contao:member:update` `contao:member:delete` |
 | Users | `contao:user:update` `contao:user:delete` |
 | Files | `contao:file:read` `contao:file:write` `contao:file:meta` `contao:file:process` `contao:file:delete` `contao:file:move` `contao:file:rename` `contao:folder:create` `contao:folder:publish` |
-| Templates | `contao:template:list` `contao:template:read` `contao:template:write` `contao:template:delete` |
+| Templates | `contao:template:list` `contao:template:read` `contao:template:write` `contao:template:delete` `contao:template:rename` |
 | Cache | `contao:cache:clear` (Symfony's `cache:clear`, logged as in the back end) |
 | Comments | `contao:comment:delete` `contao:comment:publish` |
 | Layout | `contao:layout:read` |

@@ -888,6 +888,23 @@ refused (lessons of `file:delete`). Contao 5.3 has no Template Studio — the ru
 rebuilt here, not called. Before this command, cleaning up a test installation needed
 a shell `rm`.
 
+**`contao:template:rename --path templates/….html.twig --name <variant>`** mirrors
+`AbstractRenameVariantOperation` of 5.7 and 6.0. Templates are named, not referenced by
+UUID: `write` plus `delete` would reset every element using the variant, a rename carries
+them along. Only a variant is renamed — `templates/content_element|frontend_module|page/
+<type>/<name>.html.twig`, deeper names too, no theme folder — and only its last segment
+(`--name`: letters, digits, `_`, `-`; `.html.twig` may be given and is taken off). An
+override keeps its name to override anything, other templates are named by those that
+include them; both are refused. No overwriting. Then, as for `delete`: move the file,
+`TemplateCacheRefresher`, every record naming the old identifier gets the new one —
+`tl_content.customTpl`, `tl_module.customTpl`, **`tl_layout.template`** for a page variant
+(`RenamePageVariantOperation`; `delete` has no page counterpart in the Studio) — with a
+version and `tstamp` each. Answer: `to`, `identifier`, `newIdentifier`,
+`migratedUsages` when any, `templateCacheRefreshed`/`cacheWarning`; a failed update after
+the move is `status: error`, names the IDs left and what to set, and is logged with
+`notMigrated`. Legacy `.html5` variants (`RenameLegacyVariantOperation`) are not covered:
+the template commands are Twig only.
+
 **`contao:cache:clear`** runs Symfony's `cache:clear` in the same process and then logs
 *"Purged the internal cache"* in `monolog.logger.contao.cron` — what
 `Automator::purgeInternalCache()` writes when the back end purges — with the operator and
