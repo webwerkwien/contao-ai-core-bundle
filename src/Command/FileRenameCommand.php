@@ -149,8 +149,11 @@ class FileRenameCommand extends AbstractFileRelocateCommand
         $data      = [];
 
         if (\in_array($extension, (array) $container->getParameter('contao.image.valid_extensions'), true)) {
-            $pattern    = $container->getParameter('contao.image.target_dir') . '/*/' . Path::getFilenameWithoutExtension($source) . '-*.' . Path::getExtension($source);
-            $thumbnails = glob($pattern) ?: [];
+            // The old name is matched literally ([, * and ? are glob syntax and may be part
+            // of a file name), and only files are removed, as Files::delete() does.
+            $stem       = strtr(Path::getFilenameWithoutExtension($source), ['[' => '[[]', '*' => '[*]', '?' => '[?]']);
+            $pattern    = $container->getParameter('contao.image.target_dir') . '/*/' . $stem . '-*.' . Path::getExtension($source);
+            $thumbnails = array_values(array_filter(glob($pattern) ?: [], is_file(...)));
 
             (new Filesystem())->remove($thumbnails);
 

@@ -136,15 +136,27 @@ class FileRenameCommandTest extends TestCase
             'the marker'    => ['.public'],
             'htaccess'      => ['.htaccess'],
             'trailing dot'  => ['c.png.'],
-            'too long'      => [str_repeat('a', 256)],
+            'too long'      => [str_repeat('a', 252) . '.png'],
         ];
+    }
+
+    /**
+     * For a folder the trailing dot is the only rule that applies — no extension to keep.
+     */
+    public function testAFolderNameMustNotEndWithADot(): void
+    {
+        $out = $this->execute(['--path' => 'files/x', '--name' => 'y.']);
+
+        $this->assertSame('error', $out['status']);
+        $this->assertStringContainsString('must not end with a dot', $out['message']);
+        $this->assertDirectoryExists($this->root . '/files/x');
     }
 
     public function testOrdinaryNamesPassTheNameCheck(): void
     {
         // The known non-match for the refusals above: a check that refuses everything
         // passes those tests just as well.
-        foreach (['c.png', 'Über uns.png', 'a.b.png', 'a b', str_repeat('a', 255)] as $name) {
+        foreach (['c.png', 'Über uns.png', 'a.b.png', 'a b', str_repeat('a', 251) . '.png'] as $name) {
             $this->assertNull(FileRenameCommand::nameRefusal($name), $name);
         }
     }
@@ -254,12 +266,16 @@ class FileRenameCommandTest extends TestCase
         $assets = $this->root . '/assets/images';
         mkdir($assets . '/1', 0777, true);
         mkdir($assets . '/2', 0777, true);
-        $thumbnails = [$assets . '/1/a-1234abcd.png', $assets . '/2/a-5678ef01.png'];
+        $thumbnails = [$assets . '/1/a-1234abcd.png', $assets . '/2/a-5678ef01.png', $assets . '/1/a[b]-1234abcd.png'];
         $others     = [$assets . '/1/ab-1234abcd.png', $assets . '/1/b-1234abcd.png', $assets . '/2/a-5678ef01.jpg'];
 
         foreach ([...$thumbnails, ...$others] as $file) {
             file_put_contents($file, 'thumb');
         }
+
+        // Only files go, as with Files::delete(): a folder that happens to match stays.
+        mkdir($assets . '/2/a-folder.png');
+        $others[] = $assets . '/2/a-folder.png';
 
         $previous  = \Contao\System::getContainer();
         $container = new \Symfony\Component\DependencyInjection\ContainerBuilder();
@@ -272,6 +288,9 @@ class FileRenameCommandTest extends TestCase
             $afterRename = new \ReflectionMethod($command, 'afterRename');
 
             $this->assertSame(['thumbnailsRemoved' => 2], $afterRename->invoke($command, 'files/x/a.png', 'files/x/c.png', false));
+
+            // [b] is part of the name, not a glob class: a[b]-… goes, ab-… stays.
+            $this->assertSame(['thumbnailsRemoved' => 1], $afterRename->invoke($command, 'files/x/a[b].png', 'files/x/c.png', false));
             $this->assertSame([], $afterRename->invoke($command, 'files/x/sub', 'files/x/sub2', true));
         } finally {
             (new \ReflectionProperty(\Contao\System::class, 'objContainer'))->setValue(null, $previous);

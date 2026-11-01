@@ -94,7 +94,7 @@ abstract class AbstractFileRelocateCommand extends AbstractWriteCommand
         }
 
         if (is_link($this->projectDir . '/' . $destination) || file_exists($this->projectDir . '/' . $destination)) {
-            return $this->outputError("{$destination} already exists. Nothing was {$past} — Contao does not overwrite on a move either.");
+            return $this->outputError("{$destination} already exists. Nothing was {$past} — Contao does not overwrite either.");
         }
 
         // No linked folder on either way: through one, the rename would act on the link's
@@ -133,8 +133,15 @@ abstract class AbstractFileRelocateCommand extends AbstractWriteCommand
             return $this->outputError("{$source} could not be {$past} to {$destination}. Nothing was changed.");
         }
 
-        $afterRename = $this->afterRename($source, $destination, $isFolder);
-        $container   = System::getContainer();
+        // The clean-up must not keep tl_files from following the rename: a failure is
+        // reported in the answer, and the sync runs all the same.
+        try {
+            $afterRename = $this->afterRename($source, $destination, $isFolder);
+        } catch (\Throwable $e) {
+            $afterRename = ['cleanupWarning' => 'The clean-up after the rename failed (' . $e->getMessage() . '): thumbnails under the old name or the script cache may be left over. Run cache clear if style sheets or scripts look stale.'];
+        }
+
+        $container = System::getContainer();
 
         try {
             $container->get('contao.filesystem.dbafs_manager')->sync($source, $destination);

@@ -777,7 +777,9 @@ add a subclass.
   6.0) also removes an image's thumbnails under the old name (Contao #6641) and empties the
   script cache for a style sheet or script; `cut()` does neither. `FileRenameCommand` does
   both in `afterRename()` and names them in the answer (`thumbnailsRemoved`,
-  `scriptCachePurged`). A folder move or rename logs one *Undefined array key* warning per
+  `scriptCachePurged`). The old name is matched literally (`[`, `*`, `?` escaped for
+  `glob()`, unlike the back end) and only files are removed. A failing clean-up does not
+  stop the DBAFS sync: it becomes `cleanupWarning` in the answer. A folder move or rename logs one *Undefined array key* warning per
   child from Contao's own DBAFS sync — the back end calls the same `sync()` — and the UUIDs
   are kept all the same.
 - The rename is verified on a real installation, not by `composer ci`: the unit tests pin the

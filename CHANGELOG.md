@@ -18,6 +18,8 @@ This file was reconstructed from the git history on 2026-08-13, so entries befor
   renamed to or from `.public` — `contao:folder:publish` decides that. An image's
   thumbnails under the old name are removed (`thumbnailsRemoved`), and renaming a style
   sheet or script empties the script cache (`scriptCachePurged`), as the back end does.
+  Should that clean-up fail, the rename and `tl_files` still go through and the answer
+  carries `cleanupWarning`.
 - **`contao:template:rename --path templates/….html.twig --name <variant>`** renames a
   template variant as Contao's Template Studio does, and every record using it follows:
   `customTpl` of content elements and front-end modules, `template` of page layouts, each
