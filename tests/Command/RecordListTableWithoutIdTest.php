@@ -105,10 +105,11 @@ class RecordListTableWithoutIdTest extends TestCase
     public function testCamelCaseColumnsSurviveTheSchemaComparison(): void
     {
         /**
-         * The trap this guards: Doctrine's listTableColumns() lowercases its
-         * array keys, so `singleSRC` comes back as `singlesrc`. Comparing with
-         * array_intersect would drop every camelCase column Contao has while
-         * looking like it worked, because most core columns are lowercase.
+         * The trap this guards: the schema may spell a column `singlesrc` where
+         * the DCA says `singleSRC`. The names (TableColumns) are compared
+         * lower-cased on both sides; array_intersect would drop every camelCase
+         * column Contao has while looking like it worked, because most core
+         * columns are lowercase.
          */
         $connection = $this->createMock(Connection::class);
         $schemaManager = $this->createMock(\Doctrine\DBAL\Schema\AbstractSchemaManager::class);

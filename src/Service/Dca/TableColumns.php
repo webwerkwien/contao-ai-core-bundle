@@ -15,6 +15,9 @@ use Doctrine\DBAL\Schema\Column;
  * record:list refused to read or filter it, and undo:restore put a deleted
  * layout back without its `rows` value, silently. getName() is the name as the
  * database has it, in its own case.
+ *
+ * DBAL 4.4 deprecates both getName() and listTableColumns() in favour of
+ * getObjectName() and introspectTableColumns(); this is the one place to switch.
  */
 final class TableColumns
 {
