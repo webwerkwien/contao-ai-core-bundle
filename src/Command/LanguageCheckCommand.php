@@ -12,6 +12,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Terminal42\ChangeLanguage\PageFinder;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\TableColumns;
 use Webwerkwien\ContaoAiCoreBundle\Service\Language\ChangeLanguageLinks;
 use Webwerkwien\ContaoAiCoreBundle\Service\Language\LinkTargetDiagnosis;
 
@@ -156,7 +157,7 @@ class LanguageCheckCommand extends Command
         $found  = [];
 
         foreach (ChangeLanguageLinks::ARCHIVES as $archiveTable => $childTable) {
-            if (!$schema->tablesExist([$archiveTable, $childTable]) || !isset($schema->listTableColumns($archiveTable)['master'])) {
+            if (!$schema->tablesExist([$archiveTable, $childTable]) || !\in_array('master', TableColumns::lowerNames($this->connection, $archiveTable), true)) {
                 continue;
             }
 

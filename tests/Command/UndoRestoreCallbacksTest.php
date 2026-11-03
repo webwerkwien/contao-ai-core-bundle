@@ -51,7 +51,10 @@ class UndoRestoreCallbacksTest extends TestCase
         });
 
         $schema = $this->createMock(AbstractSchemaManager::class);
-        $schema->method('listTableColumns')->willReturn(['id' => null, 'headline' => null]);
+        $schema->method('listTableColumns')->willReturn([
+            'id'       => new \Doctrine\DBAL\Schema\Column('id', new \Doctrine\DBAL\Types\IntegerType()),
+            'headline' => new \Doctrine\DBAL\Schema\Column('headline', new \Doctrine\DBAL\Types\StringType()),
+        ]);
         $connection->method('createSchemaManager')->willReturn($schema);
 
         $callbacks = $this->createMock(DcaCallbacks::class);

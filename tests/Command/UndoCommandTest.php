@@ -63,7 +63,10 @@ class UndoCommandTest extends TestCase
     private function givenColumns(Connection $connection, array $columns): void
     {
         $schema = $this->createMock(\Doctrine\DBAL\Schema\AbstractSchemaManager::class);
-        $schema->method('listTableColumns')->willReturn(array_fill_keys($columns, null));
+        $schema->method('listTableColumns')->willReturn(array_combine(
+            array_map('strtolower', $columns),
+            array_map(static fn (string $c): \Doctrine\DBAL\Schema\Column => new \Doctrine\DBAL\Schema\Column($c, new \Doctrine\DBAL\Types\StringType()), $columns),
+        ));
         $connection->method('createSchemaManager')->willReturn($schema);
     }
 

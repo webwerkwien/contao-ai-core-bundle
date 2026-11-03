@@ -10,6 +10,7 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\TableColumns;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\TableName;
 use Webwerkwien\ContaoAiCoreBundle\Service\SensitiveFields;
 
@@ -205,16 +206,16 @@ class RecordListCommand extends AbstractReadCommand
      * MySQL resolves column names case-insensitively, so comparing in lower
      * case and emitting the DCA's spelling is both safe and correct.
      *
+     * The names, not the keys: a key is quoted when the name is an SQL keyword,
+     * and `tl_layout.rows` was refused as unknown up to v1.16.0 (TableColumns).
+     *
      * @param list<string> $candidates
      *
      * @return list<string>
      */
     private function existingColumns(string $table, array $candidates): array
     {
-        $actual = array_map(
-            'strtolower',
-            array_keys($this->connection->createSchemaManager()->listTableColumns($table)),
-        );
+        $actual = TableColumns::lowerNames($this->connection, $table);
 
         return array_values(array_filter(
             $candidates,

@@ -170,10 +170,11 @@ class RecordCascadeCollector
         return $GLOBALS['TL_DCA'][$table] ?? [];
     }
 
+    /** By name, not by Doctrine's keys, which quote SQL keywords (Dca\TableColumns). */
     protected function hasColumn(string $table, string $column): bool
     {
         try {
-            return isset($this->connection->createSchemaManager()->listTableColumns($table)[$column]);
+            return \in_array(strtolower($column), Dca\TableColumns::lowerNames($this->connection, $table), true);
         } catch (\Throwable) {
             return false;
         }

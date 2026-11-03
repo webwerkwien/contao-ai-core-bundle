@@ -11,6 +11,7 @@ use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\TableColumns;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\TableName;
 
 /**
@@ -159,7 +160,7 @@ class UndoRestoreCommand extends AbstractWriteCommand
 
                 // Contao's own step: anything the table has since lost is dropped
                 // rather than failing the insert. Compared lower-cased on both
-                // sides because Doctrine lower-cases its column keys.
+                // sides: MySQL ignores the case of a column name.
                 $insert = [];
                 $kept   = [];
                 foreach ($record as $column => $value) {
@@ -293,15 +294,15 @@ class UndoRestoreCommand extends AbstractWriteCommand
     }
 
     /**
+     * By name, not by Doctrine's keys, which quote SQL keywords: up to v1.16.0 a
+     * deleted layout came back without its `rows` value (TableColumns).
+     *
      * @return list<string> live column names, lower-cased; empty when the table is gone
      */
     private function columnsOf(string $table): array
     {
         try {
-            return array_map(
-                'strtolower',
-                array_keys($this->connection->createSchemaManager()->listTableColumns($table)),
-            );
+            return TableColumns::lowerNames($this->connection, $table);
         } catch (\Throwable) {
             return [];
         }

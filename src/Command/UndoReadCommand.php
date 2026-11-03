@@ -8,6 +8,7 @@ use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\TableColumns;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\TableName;
 
 /**
@@ -116,10 +117,10 @@ class UndoReadCommand extends AbstractReadCommand
     /**
      * Live column names, lower-cased.
      *
-     * Doctrine's `listTableColumns()` lower-cases its array keys, so `singleSRC`
-     * comes back as `singlesrc` — a known trap. Comparing
-     * lower-cased on both sides is what keeps a mixed-case column from being
-     * reported as dropped when it is perfectly present.
+     * Compared lower-cased on both sides, so a mixed-case column such as
+     * `singleSRC` is not reported as dropped when it is perfectly present. And
+     * by name rather than by Doctrine's keys, which quote SQL keywords: up to
+     * v1.16.0 `tl_layout.rows` counted as dropped (TableColumns).
      *
      * An empty result means the table itself is gone; the caller sees that as
      * an insert that will fail rather than as every column being dropped.
@@ -129,10 +130,7 @@ class UndoReadCommand extends AbstractReadCommand
     private function columnsOf(string $table): array
     {
         try {
-            return array_map(
-                'strtolower',
-                array_keys($this->connection->createSchemaManager()->listTableColumns($table)),
-            );
+            return TableColumns::lowerNames($this->connection, $table);
         } catch (\Throwable) {
             return [];
         }

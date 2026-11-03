@@ -5,6 +5,8 @@ namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\AbstractSchemaManager;
+use Doctrine\DBAL\Schema\Column;
+use Doctrine\DBAL\Types\StringType;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 use Webwerkwien\ContaoAiCoreBundle\Command\AbstractModelReadCommand;
@@ -63,7 +65,10 @@ class SensitiveReadPathsTest extends TestCase
     private function recordList(?array &$sql = null): RecordListCommand
     {
         $schema = $this->createMock(AbstractSchemaManager::class);
-        $schema->method('listTableColumns')->willReturn(['id' => 1, 'username' => 1, 'password' => 1, 'ai_api_key' => 1, 'jsondata' => 1]);
+        $schema->method('listTableColumns')->willReturn(array_map(
+            static fn (string $c): Column => new Column($c, new StringType()),
+            ['id' => 'id', 'username' => 'username', 'password' => 'password', 'ai_api_key' => 'ai_api_key', 'jsondata' => 'jsonData'],
+        ));
 
         $connection = $this->createMock(Connection::class);
         $connection->method('createSchemaManager')->willReturn($schema);

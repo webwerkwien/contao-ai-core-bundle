@@ -8,6 +8,7 @@ use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputOption;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\TableColumns;
 use Webwerkwien\ContaoAiCoreBundle\Service\SensitiveFields;
 
 /**
@@ -276,9 +277,8 @@ class PageTreeCommand extends AbstractReadCommand
             }
         }
 
-        $actual = array_map('strtolower', array_keys(
-            $this->connection->createSchemaManager()->listTableColumns(self::TABLE),
-        ));
+        // The names, not Doctrine's keys, which quote SQL keywords (TableColumns).
+        $actual = TableColumns::lowerNames($this->connection, self::TABLE);
 
         return array_values(array_filter(
             $wanted,
