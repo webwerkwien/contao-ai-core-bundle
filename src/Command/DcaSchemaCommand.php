@@ -62,8 +62,9 @@ class DcaSchemaCommand extends AbstractReadCommand
     }
 
     /**
-     * Whether the field has a column of its own, read as DcaExtractor reads it: a
-     * truthy `sql`.
+     * Whether the field has a column of its own: a truthy `sql`, the check
+     * DcaExtractor uses to tell a virtual field from a column. An empty `sql` would
+     * stop `contao migrate` anyway.
      *
      * A DCA field is not necessarily a column. A virtual field lives inside a JSON
      * column (see `storedIn`), and a field with neither `sql` nor a target is saved

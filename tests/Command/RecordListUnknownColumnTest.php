@@ -78,7 +78,7 @@ class RecordListUnknownColumnTest extends TestCase
 
     public function testNothingSimilarSuggestsNothing(): void
     {
-        $this->assertSame([], $this->similar('gibtsnicht'));
+        $this->assertSame([], $this->similar('nosuchcolumn'));
     }
 
     public function testTheMessageNamesTheCandidateAndAllColumns(): void
@@ -92,7 +92,7 @@ class RecordListUnknownColumnTest extends TestCase
 
     public function testWithoutACandidateTheMessageStillListsTheColumns(): void
     {
-        $message = $this->message('order', 'gibtsnicht');
+        $message = $this->message('order', 'nosuchcolumn');
 
         $this->assertStringNotContainsString('Did you mean', $message);
         $this->assertStringContainsString('Columns: id, pid', $message);
@@ -104,9 +104,9 @@ class RecordListUnknownColumnTest extends TestCase
      */
     public function testASensitiveColumnIsNotOfferedAsAFilter(): void
     {
-        $this->assertStringNotContainsString('secret', $this->message('filter', 'gibtsnicht'));
-        $this->assertStringNotContainsString('secret', $this->message('filter-prefix', 'gibtsnicht'));
-        $this->assertStringNotContainsString('secret', $this->message('order', 'gibtsnicht'));
+        $this->assertStringNotContainsString('secret', $this->message('filter', 'nosuchcolumn'));
+        $this->assertStringNotContainsString('secret', $this->message('filter-prefix', 'nosuchcolumn'));
+        $this->assertStringNotContainsString('secret', $this->message('order', 'nosuchcolumn'));
     }
 
     /**
@@ -114,6 +114,6 @@ class RecordListUnknownColumnTest extends TestCase
      */
     public function testASensitiveColumnIsListedForFields(): void
     {
-        $this->assertStringContainsString('secret', $this->message('fields', 'gibtsnicht'));
+        $this->assertStringContainsString('secret', $this->message('fields', 'nosuchcolumn'));
     }
 }

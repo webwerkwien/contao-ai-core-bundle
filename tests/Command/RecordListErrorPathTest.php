@@ -64,30 +64,30 @@ class RecordListErrorPathTest extends TestCase
     {
         $this->skipWithoutContaoContainer();
 
-        $out = $this->runCommand(['table' => 'tl_page', '--fields' => 'gibtsnicht']);
+        $out = $this->runCommand(['table' => 'tl_page', '--fields' => 'nosuchcolumn']);
 
         $this->assertSame('error', $out['status']);
-        $this->assertStringContainsString('gibtsnicht', $out['message']);
+        $this->assertStringContainsString('nosuchcolumn', $out['message']);
     }
 
     public function testAnUnknownOrderColumnIsRejectedWithAMessage(): void
     {
         $this->skipWithoutContaoContainer();
 
-        $out = $this->runCommand(['table' => 'tl_page', '--order' => 'gibtsnicht DESC']);
+        $out = $this->runCommand(['table' => 'tl_page', '--order' => 'nosuchcolumn DESC']);
 
         $this->assertSame('error', $out['status']);
-        $this->assertStringContainsString('gibtsnicht', $out['message']);
+        $this->assertStringContainsString('nosuchcolumn', $out['message']);
     }
 
     public function testAnUnknownFilterColumnIsRejectedWithAMessage(): void
     {
         $this->skipWithoutContaoContainer();
 
-        $out = $this->runCommand(['table' => 'tl_page', '--filter' => ['gibtsnicht=1']]);
+        $out = $this->runCommand(['table' => 'tl_page', '--filter' => ['nosuchcolumn=1']]);
 
         $this->assertSame('error', $out['status']);
-        $this->assertStringContainsString('gibtsnicht', $out['message']);
+        $this->assertStringContainsString('nosuchcolumn', $out['message']);
     }
 
     /**

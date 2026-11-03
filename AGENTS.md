@@ -397,11 +397,12 @@ empty JSON unit skipped the stored one and reset the level to the default.
 
 | field | meaning |
 |---|---|
-| `column` | `true` when the DCA declares a truthy `sql`, as `DcaExtractor` reads it |
+| `column` | `true` when the DCA declares a truthy `sql`, the check `DcaExtractor` uses to tell a virtual field from a column |
 | `storedIn` | for a virtual field (5.7, 6.0), the JSON column that holds it; `null` otherwise |
 
 `column: false` with `storedIn: null` is a field saved by a callback somewhere else, or
-not at all. `contao:record:list` reads real columns only: the DCA's fields intersected
+not at all, or a virtual field whose target is misconfigured (Contao refuses such a
+DCA). `contao:record:list` reads real columns only: the DCA's fields intersected
 with the table's actual schema. Read column names from here, never infer them; an
 unknown column in `record:list` is answered with likely candidates and the full list
 (`unknownColumn()`, see `RecordListUnknownColumnTest`).

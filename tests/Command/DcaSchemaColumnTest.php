@@ -44,7 +44,8 @@ class DcaSchemaColumnTest extends TestCase
             'sql string'       => [['sql' => "varchar(255) NOT NULL default ''"], true],
             'sql array'        => [['sql' => ['type' => 'string', 'length' => 255, 'default' => '']], true],
             'no sql'           => [['inputType' => 'text'], false],
-            // As DcaExtractor checks it: an empty `sql` is no column either.
+            // As DcaExtractor tells a virtual field from a column; an empty `sql`
+            // would stop `contao migrate` anyway.
             'empty sql'        => [['sql' => ''], false],
             'null sql'         => [['sql' => null], false],
             'virtual field'    => [['inputType' => 'text', 'targetColumn' => 'jsonData'], false],
