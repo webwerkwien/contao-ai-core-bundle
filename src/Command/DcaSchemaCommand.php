@@ -7,6 +7,7 @@ use Contao\CoreBundle\Framework\ContaoFramework;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
+use Webwerkwien\ContaoAiCoreBundle\Service\Dca\VirtualFields;
 
 #[AsCommand(name: 'contao:dca:schema', description: 'Return DCA field definitions for a table')]
 class DcaSchemaCommand extends AbstractReadCommand
@@ -37,12 +38,15 @@ class DcaSchemaCommand extends AbstractReadCommand
             );
         }
 
-        $fields = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
-        $result = [];
+        $fields  = $GLOBALS['TL_DCA'][$table]['fields'] ?? [];
+        $virtual = VirtualFields::map($table);
+        $result  = [];
 
         foreach ($fields as $name => $def) {
             $result[$name] = [
                 'label'         => $def['label'][0] ?? $name,
+                'column'        => self::hasColumn($def),
+                'storedIn'      => $virtual[$name] ?? null,
                 'inputType'     => $def['inputType'] ?? null,
                 'mandatory'     => (bool) ($def['eval']['mandatory'] ?? false),
                 'unique'        => (bool) ($def['eval']['unique'] ?? false),
@@ -55,6 +59,26 @@ class DcaSchemaCommand extends AbstractReadCommand
 
         $this->outputRecord(['table' => $table, 'fields' => $result]);
         return Command::SUCCESS;
+    }
+
+    /**
+     * Whether the field has a column of its own, read as DcaExtractor reads it: a
+     * truthy `sql`.
+     *
+     * A DCA field is not necessarily a column. A virtual field lives inside a JSON
+     * column (see `storedIn`), and a field with neither `sql` nor a target is saved
+     * by a callback somewhere else or not at all. Listed side by side, the two kinds
+     * looked the same, and a caller writing SQL from this answer guessed column
+     * names that do not exist. `record:list` reads only real columns.
+     *
+     * This is the DCA's answer. Whether the database has caught up is what
+     * `contao migrate` reports; a column declared but not yet created is `true` here.
+     *
+     * @param array<string, mixed> $def
+     */
+    private static function hasColumn(array $def): bool
+    {
+        return (bool) ($def['sql'] ?? null);
     }
 
     /**

@@ -261,7 +261,7 @@ class RecordListCommand extends AbstractReadCommand
             $dir = isset($m[2]) ? strtoupper($m[2]) : 'ASC';
             $this->refuseSensitive('order', $col);
             if (!in_array($col, $allowedColumns, true)) {
-                throw new \InvalidArgumentException("order: unknown column: $col");
+                throw $this->unknownColumn('order', $col, $allowedColumns);
             }
             if ('id' === $col) {
                 $usesId = true;
@@ -288,6 +288,74 @@ class RecordListCommand extends AbstractReadCommand
         if (\in_array(strtolower($column), $this->sensitive, true)) {
             throw new \InvalidArgumentException("$option: $column is not shown (password, doNotShow or hideInput in its DCA) and cannot be filtered or sorted by");
         }
+    }
+
+    /**
+     * An unknown column, answered with the columns that would have worked.
+     *
+     * "unknown column: status" told a caller what was wrong and nothing about
+     * what was right, so the second attempt was another guess; an agent that
+     * then fell back to raw SQL guessed there as well. The message names the
+     * likely candidates first (`status` → `orderStatus`, `reference` →
+     * `providerReference`) and then every column the option accepts.
+     *
+     * Sensitive columns are left out of the list for --filter, --filter-prefix
+     * and --order, which refuse them anyway; --fields shows them masked and
+     * lists them.
+     *
+     * @param list<string> $allowedColumns
+     */
+    private function unknownColumn(string $option, string $column, array $allowedColumns): \InvalidArgumentException
+    {
+        $valid = 'fields' === $option
+            ? $allowedColumns
+            : array_values(array_filter(
+                $allowedColumns,
+                fn (string $c): bool => !\in_array(strtolower($c), $this->sensitive, true),
+            ));
+
+        $message = "$option: unknown column: $column.";
+
+        if ([] !== ($suggestions = self::similarColumns($column, $valid))) {
+            $message .= ' Did you mean: '.implode(', ', $suggestions).'?';
+        }
+
+        return new \InvalidArgumentException($message.' Columns: '.implode(', ', $valid));
+    }
+
+    /**
+     * Up to three columns a mistyped name probably meant, best first: the same
+     * name in another case (MySQL ignores case, this command does not), then
+     * one name contained in the other, then a typo of at most two characters.
+     * Names shorter than three characters only match in another case; for
+     * them everything else would be noise.
+     *
+     * @param list<string> $columns
+     *
+     * @return list<string>
+     */
+    private static function similarColumns(string $column, array $columns): array
+    {
+        $needle = strtolower($column);
+        $ranked = [];
+
+        foreach ($columns as $candidate) {
+            $c = strtolower($candidate);
+
+            if ($c === $needle) {
+                $ranked[0][] = $candidate;
+            } elseif (\strlen($needle) < 3 || \strlen($c) < 3) {
+                continue;
+            } elseif (str_contains($c, $needle) || str_contains($needle, $c)) {
+                $ranked[1][] = $candidate;
+            } elseif (levenshtein($c, $needle) <= 2) {
+                $ranked[2][] = $candidate;
+            }
+        }
+
+        ksort($ranked);
+
+        return \array_slice(array_merge(...array_values($ranked)), 0, 3);
     }
 
     /**
@@ -320,7 +388,7 @@ class RecordListCommand extends AbstractReadCommand
             }
             $this->refuseSensitive('filter', $field);
             if (!in_array($field, $allowedColumns, true)) {
-                throw new \InvalidArgumentException("filter: unknown column: $field");
+                throw $this->unknownColumn('filter', $field, $allowedColumns);
             }
             $placeholder = 'f'.$i;
             $clauses[] = $this->connection->quoteIdentifier($field).' = :'.$placeholder;
@@ -356,7 +424,7 @@ class RecordListCommand extends AbstractReadCommand
             }
             $this->refuseSensitive('filter-prefix', $field);
             if (!in_array($field, $allowedColumns, true)) {
-                throw new \InvalidArgumentException("filter-prefix: unknown column: $field");
+                throw $this->unknownColumn('filter-prefix', $field, $allowedColumns);
             }
             if ('' === $value) {
                 throw new \InvalidArgumentException("filter-prefix: empty prefix for: $field");
@@ -390,7 +458,7 @@ class RecordListCommand extends AbstractReadCommand
                 throw new \InvalidArgumentException("fields: invalid column: $col");
             }
             if (!in_array($col, $allowedColumns, true)) {
-                throw new \InvalidArgumentException("fields: unknown column: $col");
+                throw $this->unknownColumn('fields', $col, $allowedColumns);
             }
             $out[] = $col;
         }

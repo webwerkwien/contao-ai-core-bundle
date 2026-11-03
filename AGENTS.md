@@ -391,6 +391,24 @@ empty JSON unit skipped the stored one and reset the level to the default.
 > default and answered `ok`.
 > See `InputUnitValidationTest`.
 
+## What `contao:dca:schema` answers about columns
+
+**A DCA field is not necessarily a column** (v1.16.0). Each field carries:
+
+| field | meaning |
+|---|---|
+| `column` | `true` when the DCA declares a truthy `sql`, as `DcaExtractor` reads it |
+| `storedIn` | for a virtual field (5.7, 6.0), the JSON column that holds it; `null` otherwise |
+
+`column: false` with `storedIn: null` is a field saved by a callback somewhere else, or
+not at all. `contao:record:list` reads real columns only: the DCA's fields intersected
+with the table's actual schema. Read column names from here, never infer them; an
+unknown column in `record:list` is answered with likely candidates and the full list
+(`unknownColumn()`, see `RecordListUnknownColumnTest`).
+
+`column` is the DCA's answer, not the database's: a column declared but not yet
+created by `contao migrate` is `true`. The command reads the DCA only.
+
 ## What `contao:dca:schema` answers about options
 
 Three fields, and they answer different questions:
