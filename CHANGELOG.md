@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.16.0 - 2026-11-03
+
+Works with the same backend-bundle and contao-ai-cli.
+
+### Added
+
+- **`contao:dca:schema` says which fields are columns.** Each field carries `column`:
+  `true` when the DCA declares an `sql` for it, `false` when it has no column of its own.
+  A virtual field (Contao 5.7 and 6.0) names the JSON column that holds it in
+  `storedIn`; for every other field that is `null`. Up to now a field without a column
+  looked exactly like one with, and a query built from the answer could name columns
+  that do not exist. `column` is the DCA's answer: a column declared but not yet
+  created by `contao migrate` is `true`.
+
+### Changed
+
+- **`contao:record:list` answers an unknown column with the columns that would work.**
+  For `--filter`, `--filter-prefix`, `--order` and `--fields` the message now suggests
+  up to three likely candidates (another case, part of the name, a typo of up to two
+  characters) and lists every column the option accepts. Columns that cannot be
+  filtered or sorted by are left out of that list for those options.
+
 ## v1.15.0 - 2026-11-01
 
 Works with the same backend-bundle; contao-ai-cli v1.18.0 adds `file rename` and
