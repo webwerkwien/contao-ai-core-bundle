@@ -410,6 +410,12 @@ unknown column in `record:list` is answered with likely candidates and the full 
 `column` is the DCA's answer, not the database's: a column declared but not yet
 created by `contao migrate` is `true`. The command reads the DCA only.
 
+**The table's actual columns come from `Dca\TableColumns`, never from the keys of
+`listTableColumns()`** (v1.16.1). Doctrine keys that list by the quoted name, so a
+column named like an SQL keyword sits under "`` `rows` ``" and a lookup for `rows`
+misses it. Up to v1.16.0 that made `undo:restore` drop `tl_layout.rows` from a
+restored layout. `TableColumnsTest` builds the keys the way Doctrine does.
+
 ## What `contao:dca:schema` answers about options
 
 Three fields, and they answer different questions:

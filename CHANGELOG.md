@@ -4,6 +4,26 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.16.1 - 2026-11-03
+
+Works with the same backend-bundle and contao-ai-cli.
+
+### Fixed
+
+- **Columns named like an SQL keyword are columns again.** Doctrine keys its column list
+  by the quoted name, and a name on the database's keyword list comes back in
+  backticks: `tl_layout.rows`, any `order` column, and on MySQL 8 also `groups`
+  (`tl_page`, `tl_member`, `tl_user`). Every comparison against those keys missed them:
+  - `contao:undo:restore` left such a column out of the insert, so the restored record
+    came back with the column's default instead of its value. A layout deleted and
+    restored with an earlier version lost its `rows` setting; check restored layouts.
+  - `contao:undo:read` listed the column under `droppedColumns`.
+  - `contao:record:list` refused it in `--fields`, `--filter`, `--filter-prefix` and
+    `--order` as an unknown column.
+  - `contao:page:tree --fields` left it out.
+
+  The bundle now compares against the column names themselves.
+
 ## v1.16.0 - 2026-11-03
 
 Works with the same backend-bundle and contao-ai-cli.
