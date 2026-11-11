@@ -2768,7 +2768,9 @@ abstract class AbstractWriteCommand extends Command
                 return false;
             }
 
-            if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $item)) {
+            // D: "$" alone also matches before a final newline, and the
+            // conversion of such an element fails.
+            if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iD', $item)) {
                 $bins[] = StringUtil::uuidToBin($item);
             } elseif (Validator::isBinaryUuid($item)) {
                 $bins[] = $item;
