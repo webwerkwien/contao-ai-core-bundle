@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.16.2 - 2026-11-11
+
+Works with the same backend-bundle and contao-ai-cli.
+
+### Fixed
+
+- **A serialized value for a file list is read as Contao reads it.** A `fileTree` field
+  with `multiple` accepted any text that unserializes to an array and then split it at
+  commas to find UUIDs. Text after the array, a map key or a string element that
+  contained a UUID got that UUID stored, although Contao never reads one there. A
+  serialized value now passes only as a plain list in exactly the form `serialize()`
+  writes, each element a file UUID (binary as stored, or as text, which is stored
+  binary). Anything else serialized is refused, and nothing is written.
+
 ## v1.16.1 - 2026-11-03
 
 Works with the same backend-bundle and contao-ai-cli.

@@ -1343,6 +1343,12 @@ takes the JSON list reads answer it with, so a read value can be written back. U
 `external=["<uuid>"]` stored the JSON text and answered ok, and a comma list dropped a part
 that was not a UUID without a word (`FileTreeValueRefusalTest`).
 
+The serialized form counts only as `serializedFileList()` reads it (v1.16.2): a plain list in
+exactly the form `serialize()` writes, each element a UUID (binary or text). It is converted
+element by element and never split at commas. Before, anything that unserialized to an array
+passed, and the conversion split the text at commas: `a:0:{},<uuid>` stored `<uuid>`, which
+Contao reads as an empty list.
+
 ## Lines on Contao's log channels
 
 A line written to `monolog.logger.contao.*` takes `$this->logContext(ContaoContext::…)`.
