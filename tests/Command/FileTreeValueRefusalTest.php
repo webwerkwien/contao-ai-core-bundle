@@ -101,11 +101,27 @@ class FileTreeValueRefusalTest extends TestCase
         // Sixteen characters, the length of a binary UUID (since v0.24.0).
         yield 'single 16-char path' => [['singleSRC' => 'files/logo12.svg'], 'files/logo12.svg'];
         // Serialized text Contao reads differently from its comma parts (since v1.16.2).
-        yield 'serialized, uuid after it'     => [['external' => 'a:0:{},' . self::A], 'external'];
-        yield 'serialized, uuid in a key'     => [['external' => 'a:1:{s:38:",' . self::A . ',";s:0:"";}'], 'external'];
-        yield 'serialized, uuid in a string'  => [['external' => serialize([',' . self::A])], 'external'];
-        yield 'serialized map'                => [['external' => serialize([3 => StringUtil::uuidToBin(self::A)])], 'external'];
-        yield 'serialized path'               => [['external' => serialize(['files/site.css'])], 'external'];
+        $serialized = 'external (serialized, but not a plain list of file UUIDs)';
+        yield 'serialized, uuid after it'     => [['external' => 'a:0:{},' . self::A], $serialized];
+        yield 'serialized, uuid in a key'     => [['external' => 'a:1:{s:38:",' . self::A . ',";s:0:"";}'], $serialized];
+        yield 'serialized, uuid in a string'  => [['external' => serialize([',' . self::A])], $serialized];
+        yield 'serialized map'                => [['external' => serialize([3 => StringUtil::uuidToBin(self::A)])], $serialized];
+        yield 'serialized path'               => [['external' => serialize(['files/site.css'])], $serialized];
+        yield 'serialized 16-char path'       => [['external' => serialize(['files/logo12.svg'])], $serialized];
+        yield 'serialized non-string'         => [['external' => serialize([1, StringUtil::uuidToBin(self::A)])], $serialized];
+        // "$" alone also matches before a final newline; hex2bin() then fails.
+        yield 'serialized, newline after uuid' => [['external' => serialize([self::A . "\n"])], $serialized];
+    }
+
+    /**
+     * Converting leaves a refused serialized value whole, should it ever get
+     * there: split at commas, "a:0:{},<uuid>" would store the UUID.
+     */
+    public function testARefusedSerializedValueIsNotSplitByTheConversion(): void
+    {
+        $value = 'a:0:{},' . self::A;
+
+        $this->assertSame(['external' => $value], $this->subject()->convert(['external' => $value]));
     }
 
     /**
