@@ -2691,6 +2691,17 @@ abstract class AbstractWriteCommand extends Command
             return preg_match($pattern, $single) ? StringUtil::uuidToBin($single) : $value;
         }
 
+        // Stored form: converted element by element, never split at commas.
+        $stored = self::serializedFileList($value);
+
+        if (\is_array($stored)) {
+            return serialize($stored);
+        }
+
+        if (false === $stored) {
+            return $value;
+        }
+
         $bins = [];
         foreach (self::fileTreeParts($value) as $part) {
             $part = trim($part);
@@ -2726,6 +2737,50 @@ abstract class AbstractWriteCommand extends Command
     }
 
     /**
+     * A serialized multiple fileTree value, read as Contao reads it.
+     *
+     * Accepted only as a plain list in exactly the form `serialize()` writes,
+     * each element a UUID: binary as stored, or text. Anything else that
+     * unserializes — text after the array, a map, an element that is no UUID —
+     * reads differently in Contao than its comma parts suggest, so it is
+     * neither split at commas nor stored (before v1.16.2 both happened).
+     *
+     * @return list<string>|false|null the binary UUIDs; false for serialized
+     *                                 text in any other form; null when the
+     *                                 value is not serialized
+     */
+    private static function serializedFileList(string $value): array|false|null
+    {
+        $stored = @unserialize($value, ['allowed_classes' => false]);
+
+        if (!\is_array($stored)) {
+            return null;
+        }
+
+        if (!array_is_list($stored) || serialize($stored) !== $value) {
+            return false;
+        }
+
+        $bins = [];
+
+        foreach ($stored as $item) {
+            if (!\is_string($item)) {
+                return false;
+            }
+
+            if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $item)) {
+                $bins[] = StringUtil::uuidToBin($item);
+            } elseif (Validator::isBinaryUuid($item)) {
+                $bins[] = $item;
+            } else {
+                return false;
+            }
+        }
+
+        return $bins;
+    }
+
+    /**
      * Refuse a fileTree value that would not resolve to a file.
      *
      * 🔴 **Measured on Contao 5.7.13 with v0.23.0:**
@@ -2737,7 +2792,8 @@ abstract class AbstractWriteCommand extends Command
      * Checked on the raw input, like the other refusals: the conversion drops
      * a part that is not a UUID, so afterwards a half-wrong list looks valid.
      * Accepted: a UUID (single), a list of UUIDs as JSON or comma form, the
-     * binary or serialized form already stored. See FileTreeValueRefusalTest.
+     * binary or serialized form already stored (serialized only as
+     * serializedFileList() reads it). See FileTreeValueRefusalTest.
      *
      * @param array<string, mixed> $fields
      *
@@ -2771,7 +2827,15 @@ abstract class AbstractWriteCommand extends Command
                 continue;
             }
 
-            if (\is_array(@unserialize($value, ['allowed_classes' => false]))) {
+            $stored = self::serializedFileList($value);
+
+            if (\is_array($stored)) {
+                continue;
+            }
+
+            if (false === $stored) {
+                $offenders[] = \sprintf('%s (serialized, but not a plain list of file UUIDs)', $name);
+
                 continue;
             }
 
