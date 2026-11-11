@@ -100,6 +100,38 @@ class FileTreeValueRefusalTest extends TestCase
         yield 'single path'         => [['singleSRC' => 'files/logo.svg'], 'singleSRC'];
         // Sixteen characters, the length of a binary UUID (since v0.24.0).
         yield 'single 16-char path' => [['singleSRC' => 'files/logo12.svg'], 'files/logo12.svg'];
+        // Serialized text Contao reads differently from its comma parts (since v1.16.2).
+        yield 'serialized, uuid after it'     => [['external' => 'a:0:{},' . self::A], 'external'];
+        yield 'serialized, uuid in a key'     => [['external' => 'a:1:{s:38:",' . self::A . ',";s:0:"";}'], 'external'];
+        yield 'serialized, uuid in a string'  => [['external' => serialize([',' . self::A])], 'external'];
+        yield 'serialized map'                => [['external' => serialize([3 => StringUtil::uuidToBin(self::A)])], 'external'];
+        yield 'serialized path'               => [['external' => serialize(['files/site.css'])], 'external'];
+    }
+
+    /**
+     * Converting never splits serialized text at commas: Contao reads it whole.
+     */
+    public function testAStoredListIsWrittenAsItIs(): void
+    {
+        // 0x2c is a comma: a binary UUID can contain one.
+        $stored = serialize([
+            StringUtil::uuidToBin('2c2c2c2c-b29d-11f1-b9e4-525400338fcc'),
+            StringUtil::uuidToBin(self::B),
+        ]);
+
+        $this->subject()->refuse(['external' => $stored]);
+        $this->assertSame(['external' => $stored], $this->subject()->convert(['external' => $stored]));
+    }
+
+    public function testASerializedListOfUuidTextIsStoredBinary(): void
+    {
+        $value = serialize([self::A, strtoupper(self::B)]);
+
+        $this->subject()->refuse(['external' => $value]);
+        $this->assertSame(
+            ['external' => serialize([StringUtil::uuidToBin(self::A), StringUtil::uuidToBin(self::B)])],
+            $this->subject()->convert(['external' => $value]),
+        );
     }
 
     public function testAnEmptyJsonListClearsTheField(): void
