@@ -137,14 +137,27 @@ class CopyCommandTest extends TestCase
         self::assertSame('tl_content', $answer['ptable']);
     }
 
-    public function testNotIntoItselfNorIntoOneOfItsElements(): void
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function parentsInsideTheSource(): iterable
     {
-        foreach (['40', '42', '43'] as $into) {
-            $answer = $this->copy(null, ['id' => '40', '--to' => $into, '--ptable' => 'tl_content']);
+        yield 'itself' => ['40'];
+        yield 'one of its elements' => ['42'];
+        yield 'an element below that' => ['43'];
+    }
 
-            self::assertSame('error', $answer['status']);
-            self::assertStringContainsString('cannot be copied into itself', (string) $answer['message']);
-        }
+    /**
+     * The back end disables a paste into the record's own tree for cut only; the copier
+     * does not copy the copy (RecordCopierTest).
+     *
+     * @dataProvider parentsInsideTheSource
+     */
+    public function testIntoItsOwnTreeAsTheBackEndAllows(string $into): void
+    {
+        $answer = $this->copy(['pid' => (int) $into, 'ptable' => 'tl_content', 'sorting' => 640], ['id' => '40', '--to' => $into, '--ptable' => 'tl_content']);
+
+        self::assertSame('ok', $answer['status']);
     }
 
     public function testAMissingParentIsRefused(): void

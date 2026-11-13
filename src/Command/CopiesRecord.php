@@ -101,7 +101,7 @@ trait CopiesRecord
 
         try {
             $position = '' !== $to
-                ? $this->positionUnder($table, (int) $id, (int) $to, '' !== $ptable ? $ptable : (string) ($source['ptable'] ?? ''))
+                ? $this->positionUnder($table, (int) $to,'' !== $ptable ? $ptable : (string) ($source['ptable'] ?? ''))
                 : $this->slotAfter($table, (int) ('' !== $after ? $after : $id), null, 'put the copy');
         } catch (\InvalidArgumentException $e) {
             return $this->outputError($e->getMessage());
@@ -119,49 +119,22 @@ trait CopiesRecord
     }
 
     /**
-     * Behind the last child of $parent. Refused when the copy would land inside its own
-     * source or the parent does not exist.
+     * Behind the last child of $parent; refused when the parent does not exist.
+     *
+     * A parent inside the source's own tree is allowed, as in the back end, which
+     * disables that paste for cut only: the copier reads the tree before it writes,
+     * so the copy does not copy itself.
      *
      * @return array<string, mixed>
      *
      * @throws \InvalidArgumentException
      */
-    private function positionUnder(string $table, int $sourceId, int $parent, string $ptable): array
+    private function positionUnder(string $table, int $parent, string $ptable): array
     {
         $dynamic = $this->isDynamicPtable($table);
-
-        if ($dynamic && $ptable === $table && $this->isSourceOrBelow($table, $sourceId, $parent)) {
-            throw new \InvalidArgumentException(\sprintf(
-                'A %s record cannot be copied into itself or one of its own elements (%d is %d or below it). Nothing was written.',
-                $table,
-                $parent,
-                $sourceId,
-            ));
-        }
-
-        $fields = ['pid' => $parent] + ($dynamic ? ['ptable' => $ptable] : []);
+        $fields  = ['pid' => $parent] + ($dynamic ? ['ptable' => $ptable] : []);
         $this->refuseMissingParent($table, $fields);
 
         return $fields + ['sorting' => $this->nextSorting($table, $parent, $dynamic ? $ptable : null)];
-    }
-
-    /** Whether $candidate is the source or lies below it, inside the same table. */
-    private function isSourceOrBelow(string $table, int $sourceId, int $candidate): bool
-    {
-        for ($id = $candidate, $hops = 0; $id > 0 && $hops < 100; ++$hops) {
-            if ($id === $sourceId) {
-                return true;
-            }
-
-            $row = $this->storedRow($table, $id);
-
-            if ([] === $row || $table !== (string) ($row['ptable'] ?? '')) {
-                return false;
-            }
-
-            $id = (int) $row['pid'];
-        }
-
-        return false;
     }
 }

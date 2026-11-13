@@ -17,8 +17,8 @@ This file was reconstructed from the git history on 2026-08-13, so entries befor
   marked with Contao's "(copy)" label (`MSC.copyOf`) in the operator's back-end language,
   on the console too; its children are not. Without a target the copy goes directly behind the
   source; `--after <id>` puts it behind another record, `--to <id>` behind the last child
-  of a parent (for content with `--ptable`). A copy into the source itself or one of its
-  own elements is refused. Each copied row gets a first version, `oncopy_callback`s run as
+  of a parent (for content with `--ptable`). As in the back end, a copy may go into its
+  source's own elements; the copy is then not copied along. Each copied row gets a first version, `oncopy_callback`s run as
   in the back end, and the answer names the fields that were not copied (`notCopied`).
   Change fields afterwards with the update commands.
 

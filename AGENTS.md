@@ -811,8 +811,9 @@ The copy itself is `Service\Copier\RecordCopier`, written after `DC_Table::copy(
   `sorting, id` order, `doNotCopyRecords` honoured. The whole tree is read before the first
   row is written, so a copy below its own source never copies itself, which is what
   `copyChildren()` achieves by leaving the new record out. The back end disables a paste
-  into the record's own tree for cut only, not for copy; `content:copy` refuses `--to` a
-  parent inside the source's own tree.
+  into the record's own tree for cut only, not for copy, so `content:copy` allows `--to`
+  and `--after` inside the source's own tree. Do not add a refusal there: it would refuse
+  what the back end allows (`RecordCopierTest::testACopyInsideItsOwnTreeDoesNotCopyItself`).
 - **`oncopy_callback`** for each child after its own children, the copied record last; a
   first version for every row, as the cloners write one; rows through DBAL,
   never the model layer (`CopiesSourceRows`). The command runs in one transaction.
