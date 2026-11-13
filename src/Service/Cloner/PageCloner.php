@@ -331,7 +331,9 @@ class PageCloner implements EntityClonerInterface
         foreach ($modifications as $key => $value) {
             $clone->$key = (string) $value;
         }
-        if (!isset($modifications['title'])) {
+        // The copy mark on the cloned page only, not on its subpages: Contao marks the
+        // pasted record in copy() and nothing in copyChildren().
+        if (null === $parentNewId && !isset($modifications['title'])) {
             $clone->title = $this->copyLabel->mark((string) ($source->title ?? ''), $operator);
         }
 

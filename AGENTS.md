@@ -284,9 +284,10 @@ asks the permission voters and fails without a back-end user. `generateAlias()` 
 > connection instead; it worked but left the model layer, and was replaced in v0.15.1.
 
 **Cloning a root** accepts `language`, `urlPrefix`, `urlSuffix`, `fallback` and `dns` as
-modifications, so the root takes its new language in one step. The pages below keep
-Contao's copy titles (`… (Kopie)`, alias `…-kopie`, in the operator's back-end language
-through `Service\Copier\CopyLabel`) and are renamed afterwards. A root
+modifications, so the root takes its new language in one step. The cloned page carries
+Contao's copy mark (`… (Kopie)`, alias `…-kopie`, in the operator's back-end language
+through `Service\Copier\CopyLabel`); the pages below keep their titles, as Contao marks the
+pasted record in `copy()` and nothing in `copyChildren()`. Translate them afterwards. A root
 cloned onto its source's domain and prefix is refused. Cloned pages get their alias from
 `generateAlias()`, as a back-end copy does (`tl_page.alias` carries `doNotCopy`); the cloned
 root goes behind its last sibling (`Service\Sorting`).

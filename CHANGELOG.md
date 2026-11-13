@@ -30,6 +30,9 @@ This file was reconstructed from the git history on 2026-08-13, so entries befor
   marked again, as in the back end, so a clone of "Kontakt (Kopie)" keeps that name; a
   theme, whose name is unique, counts on inside the mark ("Basis (Kopie 2)"). An alias
   derived from the name follows the language (`kontakt-copy`).
+- **A recursive page clone marks the cloned page only**, as Contao does when it pastes a
+  page with its subpages: the subpages keep their titles, and their aliases are made from
+  those. Before, every subpage got "(Kopie)".
 
 ### Fixed
 
