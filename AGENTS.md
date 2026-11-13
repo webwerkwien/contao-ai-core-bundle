@@ -779,6 +779,38 @@ before the write when `pid` or `ptable` changes, and invalidates them after. Con
 > the one just loaded. Articles and content moved fine, so a test on those alone passes.
 > The same trap as `generateAlias()` under *Page URLs follow Contao's back-end rules*.
 
+## Copying articles and content — the back end's copy and paste (v1.17.0)
+
+`contao:content:copy` and `contao:article:copy` take one ID and at most one target: none
+(directly behind the source), `--after <sibling>` or `--to <parent>` (content also
+`--ptable`, default the source's). The position comes from the same `SiblingPositions` as
+a move; `CopiesRecord` holds the option handling for both commands. No `--set`.
+
+The copy itself is `Service\Copier\RecordCopier`, written after `DC_Table::copy()` and
+`copyChildren()` (5.3, 5.7, 6.0):
+
+- **every field, without field rights.** Contao asks the voters one question, may this
+  record be created at the target, and copies the rest as stored; the field rights apply
+  in the edit form that follows. The back-end bundle asks those voter questions before it
+  calls these commands, the commands themselves ask none.
+- **resets from the DCA** through `DcaCopyReset` (`doNotCopy`, `unique`, `fallback`,
+  passwords). A closure default cannot be resolved without a back-end request, so the
+  article command gives `author` itself (the operator, as Contao's default does). The
+  alias stays empty as in the back end, where the edit form makes it.
+- **`config.markAsCopy`** on the copied record only, through `MarkAsCopy` with
+  `MSC.copyOf` of the loaded language. Contao loads the request's language and English
+  without a request, so on the console the mark is "(copy)". Never marked twice
+  (contao/contao#6058); for an `inputUnit` field inside `value`.
+- **children per `ctable`**, for a `dynamicPtable` table matched on pid and ptable, in
+  `sorting, id` order, `doNotCopyRecords` honoured. The whole tree is read before the first
+  row is written, so a copy below its own source never copies itself; the command refuses
+  that target anyway, as the back end offers no paste there.
+- **`oncopy_callback`** for each child after its own children, the copied record last; a
+  first version for every row, as the cloners write one; rows through DBAL,
+  never the model layer (`CopiesSourceRows`). The command runs in one transaction.
+
+`RecordCopierTest`, `CopyCommandTest`, `ArticleCopyCommandTest`.
+
 ## Renaming files and folders: `contao:file:rename`
 
 `FileMoveCommand` and `FileRenameCommand` extend `AbstractFileRelocateCommand`, which holds

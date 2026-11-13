@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## Unreleased
+
+### Added
+
+- **`contao:content:copy <id>` and `contao:article:copy <id>`** duplicate a content element
+  or an article the way Contao's back end does. The copy takes every field of its source,
+  including fields the operator may not edit, and its children along: an element its
+  nested elements, an article its content elements. What Contao does not copy is reset
+  from the DCA (`doNotCopy`, `unique`, `fallback`, passwords), so a copied article is
+  unpublished, has no alias yet and belongs to the operator. The copied record itself is
+  marked with Contao's "(copy)" label in the loaded language (`MSC.copyOf`; on the console
+  English), its children are not. Without a target the copy goes directly behind the
+  source; `--after <id>` puts it behind another record, `--to <id>` behind the last child
+  of a parent (for content with `--ptable`). A copy into the source itself or one of its
+  own elements is refused. Each copied row gets a first version, `oncopy_callback`s run as
+  in the back end, and the answer names the fields that were not copied (`notCopied`).
+  Change fields afterwards with the update commands.
+
 ## v1.16.2 - 2026-11-11
 
 Works with the same backend-bundle and contao-ai-cli.
