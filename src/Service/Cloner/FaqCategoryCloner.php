@@ -7,6 +7,8 @@ use Contao\FaqCategoryModel;
 use Contao\FaqModel;
 use Contao\UserModel;
 use Doctrine\DBAL\Connection;
+use Symfony\Contracts\Translation\TranslatorInterface;
+use Webwerkwien\ContaoAiCoreBundle\Service\Copier\CopyLabel;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
@@ -28,12 +30,16 @@ class FaqCategoryCloner implements EntityClonerInterface
 
     private const ALLOWED_CATEGORY_MODIFICATIONS = ['title', 'headline'];
 
+    private readonly CopyLabel $copyLabel;
+
     public function __construct(
         private readonly Connection $connection,
         private readonly ContaoFramework $framework,
         private readonly VersionManager $versionManager,
         private readonly ?DcaCallbacks $dcaCallbacks = null,
+        ?TranslatorInterface $translator = null,
     ) {
+        $this->copyLabel = new CopyLabel($framework, $translator);
     }
 
     public function supports(string $table): bool
@@ -60,7 +66,7 @@ class FaqCategoryCloner implements EntityClonerInterface
         $authorId = $this->resolveAuthorId($operator);
 
         return $this->connection->transactional(function () use ($source, $sourceId, $filteredMods, $ignoredMods, $operator, $authorId): array {
-            $newId = $this->cloneCategoryRow($source, $filteredMods);
+            $newId = $this->cloneCategoryRow($source, $filteredMods, $operator);
             $this->versionManager->createInitialVersion('tl_faq_category', $newId, $operator);
 
             $count = 0;
@@ -90,7 +96,7 @@ class FaqCategoryCloner implements EntityClonerInterface
     /**
      * @param array<string, scalar|null> $modifications
      */
-    private function cloneCategoryRow(FaqCategoryModel $source, array $modifications): int
+    private function cloneCategoryRow(FaqCategoryModel $source, array $modifications, string $operator): int
     {
         $clone = new FaqCategoryModel();
         $this->copySourceRow($clone, $this->fetchSourceRow('tl_faq_category', (int) $source->id));
@@ -100,7 +106,7 @@ class FaqCategoryCloner implements EntityClonerInterface
             $clone->$key = (string) $value;
         }
         if (!isset($modifications['title'])) {
-            $clone->title = ((string) ($source->title ?? '')) . ' (Kopie)';
+            $clone->title = $this->copyLabel->mark((string) ($source->title ?? ''), $operator);
         }
 
         $clone->save();

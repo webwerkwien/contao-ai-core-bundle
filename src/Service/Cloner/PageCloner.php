@@ -14,6 +14,8 @@ use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageLanguage;
 use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageTreeRules;
 use Webwerkwien\ContaoAiCoreBundle\Service\Page\PageUrlGuard;
 use Webwerkwien\ContaoAiCoreBundle\Service\Sorting;
+use Symfony\Contracts\Translation\TranslatorInterface;
+use Webwerkwien\ContaoAiCoreBundle\Service\Copier\CopyLabel;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
@@ -94,6 +96,8 @@ class PageCloner implements EntityClonerInterface
      */
     private const MAX_TOTAL_PAGES = 50;
 
+    private readonly CopyLabel $copyLabel;
+
     public function __construct(
         private readonly Connection $connection,
         private readonly ContaoFramework $framework,
@@ -101,7 +105,9 @@ class PageCloner implements EntityClonerInterface
         private readonly PageUrlGuard $pageUrlGuard,
         private readonly PageTreeRules $pageTreeRules,
         private readonly ?DcaCallbacks $dcaCallbacks = null,
+        ?TranslatorInterface $translator = null,
     ) {
+        $this->copyLabel = new CopyLabel($framework, $translator);
     }
 
     public function supports(string $table): bool
@@ -228,7 +234,7 @@ class PageCloner implements EntityClonerInterface
             return 0;
         }
 
-        $newPageId = $this->clonePageRow($source, $modifications, $parentNewId);
+        $newPageId = $this->clonePageRow($source, $modifications, $parentNewId, $operator);
         $this->versionManager->createInitialVersion('tl_page', $newPageId, $operator);
 
         // Articles + Content
@@ -304,7 +310,7 @@ class PageCloner implements EntityClonerInterface
      * @param array<string, scalar|null> $modifications  Empty for subpage-recursion descent;
      *   only the operator-supplied root call gets the actual override values applied.
      */
-    private function clonePageRow(PageModel $source, array $modifications, ?int $parentNewId): int
+    private function clonePageRow(PageModel $source, array $modifications, ?int $parentNewId, string $operator): int
     {
         $clone     = new PageModel();
         $sourceRow = $this->fetchSourceRow('tl_page', (int) $source->id);
@@ -326,7 +332,7 @@ class PageCloner implements EntityClonerInterface
             $clone->$key = (string) $value;
         }
         if (!isset($modifications['title'])) {
-            $clone->title = ((string) ($source->title ?? '')) . ' (Kopie)';
+            $clone->title = $this->copyLabel->mark((string) ($source->title ?? ''), $operator);
         }
 
         // The cloned root goes behind its last sibling, like every created record

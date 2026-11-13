@@ -7,6 +7,8 @@ use Contao\NewsArchiveModel;
 use Contao\NewsModel;
 use Contao\UserModel;
 use Doctrine\DBAL\Connection;
+use Symfony\Contracts\Translation\TranslatorInterface;
+use Webwerkwien\ContaoAiCoreBundle\Service\Copier\CopyLabel;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
@@ -34,12 +36,16 @@ class NewsArchiveCloner implements EntityClonerInterface
      */
     private const ALLOWED_ARCHIVE_MODIFICATIONS = ['title'];
 
+    private readonly CopyLabel $copyLabel;
+
     public function __construct(
         private readonly Connection $connection,
         private readonly ContaoFramework $framework,
         private readonly VersionManager $versionManager,
         private readonly ?DcaCallbacks $dcaCallbacks = null,
+        ?TranslatorInterface $translator = null,
     ) {
+        $this->copyLabel = new CopyLabel($framework, $translator);
     }
 
     public function supports(string $table): bool
@@ -67,7 +73,7 @@ class NewsArchiveCloner implements EntityClonerInterface
 
         // Atomic cascade: archive + all children commit together or not at all.
         return $this->connection->transactional(function () use ($source, $sourceId, $filteredMods, $ignoredMods, $operator, $authorId): array {
-            $newArchiveId = $this->cloneArchiveRow($source, $filteredMods);
+            $newArchiveId = $this->cloneArchiveRow($source, $filteredMods, $operator);
             $this->versionManager->createInitialVersion('tl_news_archive', $newArchiveId, $operator);
 
             $count    = 0;
@@ -106,7 +112,7 @@ class NewsArchiveCloner implements EntityClonerInterface
     /**
      * @param array<string, scalar|null> $modifications
      */
-    private function cloneArchiveRow(NewsArchiveModel $source, array $modifications): int
+    private function cloneArchiveRow(NewsArchiveModel $source, array $modifications, string $operator): int
     {
         $clone = new NewsArchiveModel();
         $this->copySourceRow($clone, $this->fetchSourceRow('tl_news_archive', (int) $source->id));
@@ -116,7 +122,7 @@ class NewsArchiveCloner implements EntityClonerInterface
             $clone->$key = (string) $value;
         }
         if (!isset($modifications['title'])) {
-            $clone->title = ((string) ($source->title ?? '')) . ' (Kopie)';
+            $clone->title = $this->copyLabel->mark((string) ($source->title ?? ''), $operator);
         }
 
         $clone->save();

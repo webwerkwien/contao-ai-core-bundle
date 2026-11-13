@@ -2,9 +2,11 @@
 
 namespace Webwerkwien\ContaoAiCoreBundle\Tests\Service\Cloner;
 
+use Contao\CoreBundle\Framework\Adapter;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\AbstractDcaCloner;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\FormCloner;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\LayoutCloner;
@@ -36,6 +38,9 @@ class DcaClonerTest extends TestCase
     protected function setUp(): void
     {
         $varchar = "varchar(255) NOT NULL default ''";
+
+        // The language loaded in the request; the operator's own one is tested below.
+        $GLOBALS['TL_LANG']['MSC']['copyOf'] = '%s (Kopie)';
 
         $GLOBALS['TL_DCA'] = [
             'tl_form' => ['fields' => [
@@ -106,13 +111,13 @@ class DcaClonerTest extends TestCase
 
     protected function tearDown(): void
     {
-        unset($GLOBALS['TL_DCA']);
+        unset($GLOBALS['TL_DCA'], $GLOBALS['TL_LANG']);
     }
 
     /**
      * @param class-string<AbstractDcaCloner> $class
      */
-    private function cloner(string $class): AbstractDcaCloner
+    private function cloner(string $class, ?ContaoFramework $framework = null, ?TranslatorInterface $translator = null): AbstractDcaCloner
     {
         $connection = $this->createMock(Connection::class);
         $connection->method('quoteIdentifier')->willReturnCallback(static fn (string $name): string => '`' . $name . '`');
@@ -176,7 +181,59 @@ class DcaClonerTest extends TestCase
             $this->log[] = "oncopy $table:$newId<-$sourceId";
         });
 
-        return new $class($connection, $this->createMock(ContaoFramework::class), $versions, $callbacks);
+        return new $class($connection, $framework ?? $this->createMock(ContaoFramework::class), $versions, $callbacks, $translator);
+    }
+
+    /**
+     * A framework whose UserModel knows one operator, k.jones, working in English.
+     */
+    private function frameworkWithEnglishOperator(): ContaoFramework
+    {
+        $users = $this->getMockBuilder(Adapter::class)->disableOriginalConstructor()->onlyMethods(['__call'])->getMock();
+        $users->method('__call')->willReturnCallback(
+            static fn (string $method, array $arguments): ?object => 'findOneBy' === $method && ['username', 'k.jones'] === $arguments ? (object) ['language' => 'en'] : null,
+        );
+
+        $framework = $this->createMock(ContaoFramework::class);
+        $framework->method('getAdapter')->willReturn($users);
+
+        return $framework;
+    }
+
+    private function translator(): TranslatorInterface
+    {
+        $translator = $this->createMock(TranslatorInterface::class);
+        $translator->method('trans')->willReturnCallback(
+            static fn (string $id, array $parameters, ?string $domain, ?string $locale): string => 'MSC.copyOf' === $id && 'en' === $locale ? '%s (copy)' : $id,
+        );
+
+        return $translator;
+    }
+
+    public function testTheCopyMarkIsInTheOperatorsLanguage(): void
+    {
+        $this->cloner(FormCloner::class, $this->frameworkWithEnglishOperator(), $this->translator())->clone(4, [], 'k.jones');
+
+        [$form] = $this->inserted('tl_form');
+        $this->assertSame('Kontakt (copy)', $form['title'], 'k.jones works in English, whatever the request loaded');
+    }
+
+    public function testAnOperatorUnknownToContaoGetsTheLoadedLanguage(): void
+    {
+        $this->cloner(FormCloner::class, $this->frameworkWithEnglishOperator(), $this->translator())->clone(4, [], 'deploy');
+
+        [$form] = $this->inserted('tl_form');
+        $this->assertSame('Kontakt (Kopie)', $form['title']);
+    }
+
+    public function testACopyIsNotMarkedTwice(): void
+    {
+        $this->tables['tl_form'][4]['title'] = 'Kontakt (Kopie)';
+
+        $this->cloner(FormCloner::class)->clone(4, [], 'k.jones');
+
+        [$form] = $this->inserted('tl_form');
+        $this->assertSame('Kontakt (Kopie)', $form['title'], 'as in the back end (contao/contao#6058)');
     }
 
     private function tableOf(string $sql): string

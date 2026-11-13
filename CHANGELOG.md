@@ -22,6 +22,15 @@ This file was reconstructed from the git history on 2026-08-13, so entries befor
   in the back end, and the answer names the fields that were not copied (`notCopied`).
   Change fields afterwards with the update commands.
 
+### Changed
+
+- **`contao:record:clone` marks the clone in the operator's back-end language**, like
+  the copy commands: "Kontakt (Kopie)" for a German operator, "Kontakt (copy)" for an
+  English one. It was always "(Kopie)". A name that already carries the mark is not
+  marked again, as in the back end, so a clone of "Kontakt (Kopie)" keeps that name; a
+  theme, whose name is unique, counts on inside the mark ("Basis (Kopie 2)"). An alias
+  derived from the name follows the language (`kontakt-copy`).
+
 ### Fixed
 
 - **A unit of only spaces counts as no unit** for `inputUnit` fields such as a headline:

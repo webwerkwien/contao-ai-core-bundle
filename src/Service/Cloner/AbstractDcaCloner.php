@@ -5,6 +5,8 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Cloner;
 use Contao\Controller;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Doctrine\DBAL\Connection;
+use Symfony\Contracts\Translation\TranslatorInterface;
+use Webwerkwien\ContaoAiCoreBundle\Service\Copier\CopyLabel;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
 
@@ -38,12 +40,16 @@ abstract class AbstractDcaCloner implements EntityClonerInterface
 
     private const NULL_UUID = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
+    protected readonly CopyLabel $copyLabel;
+
     public function __construct(
         protected readonly Connection $connection,
         protected readonly ContaoFramework $framework,
         protected readonly VersionManager $versionManager,
         protected readonly ?DcaCallbacks $dcaCallbacks = null,
+        ?TranslatorInterface $translator = null,
     ) {
+        $this->copyLabel = new CopyLabel($framework, $translator);
     }
 
     /** The table of the cloned record. */
@@ -112,13 +118,16 @@ abstract class AbstractDcaCloner implements EntityClonerInterface
 
         ['accepted' => $accepted, 'ignored' => $ignored] = $this->partitionModifications($modifications, [$nameField]);
 
-        $name = \array_key_exists($nameField, $accepted)
-            ? trim((string) $accepted[$nameField])
-            : ((string) ($source[$nameField] ?? '')) . ' (Kopie)';
-
         // The back end refuses an empty name (`mandatory`); a clone writes past it.
-        if ('' === $name) {
-            throw new \InvalidArgumentException(\sprintf('"%s" darf nicht leer sein.', $nameField));
+        // Without one, the source's name with the copy mark, as Contao's copy sets it.
+        if (\array_key_exists($nameField, $accepted)) {
+            $name = trim((string) $accepted[$nameField]);
+
+            if ('' === $name) {
+                throw new \InvalidArgumentException(\sprintf('"%s" darf nicht leer sein.', $nameField));
+            }
+        } else {
+            $name = $this->copyLabel->mark((string) ($source[$nameField] ?? ''), $operator);
         }
 
         return $this->connection->transactional(function () use ($table, $nameField, $name, $source, $sourceId, $ignored, $operator, $options): array {

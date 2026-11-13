@@ -4,7 +4,6 @@ namespace Webwerkwien\ContaoAiCoreBundle\Service\Copier;
 
 use Contao\Controller;
 use Contao\CoreBundle\Framework\ContaoFramework;
-use Contao\System;
 use Doctrine\DBAL\Connection;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\CopiesSourceRows;
@@ -38,13 +37,16 @@ class RecordCopier
 {
     use CopiesSourceRows;
 
+    private readonly CopyLabel $copyLabel;
+
     public function __construct(
         private readonly Connection $connection,
         private readonly ContaoFramework $framework,
         private readonly VersionManager $versionManager,
         private readonly ?DcaCallbacks $dcaCallbacks = null,
-        private readonly ?TranslatorInterface $translator = null,
+        ?TranslatorInterface $translator = null,
     ) {
+        $this->copyLabel = new CopyLabel($framework, $translator);
     }
 
     /**
@@ -75,7 +77,7 @@ class RecordCopier
 
         $mark = $GLOBALS['TL_DCA'][$table]['config']['markAsCopy'] ?? null;
         if (\is_string($mark) && \array_key_exists($mark, $source) && !\array_key_exists($mark, $overrides)) {
-            $overrides[$mark] = MarkAsCopy::apply($this->copyLabel($language), $source[$mark], 'inputUnit' === ($fields[$mark]['inputType'] ?? null));
+            $overrides[$mark] = MarkAsCopy::apply($this->copyLabel->label($language), $source[$mark], 'inputUnit' === ($fields[$mark]['inputType'] ?? null));
         }
 
         ['id' => $newId, 'row' => $copy] = $this->insert($table, $row, $overrides);
@@ -205,34 +207,6 @@ class RecordCopier
         }
 
         return $names;
-    }
-
-    /**
-     * `MSC.copyOf` in $language, so a copy made on the console is marked as the
-     * operator would see it in the back end: without a request Contao loads English.
-     * Contao's translator loads the language file for that language and restores
-     * `$GLOBALS['TL_LANG']` afterwards (contao/contao#5371).
-     *
-     * Without a language, or where the language has no such text, the loaded
-     * language's: in the back end the editor's, on the console English.
-     */
-    private function copyLabel(?string $language): string
-    {
-        if (null !== $language && '' !== $language && null !== $this->translator) {
-            $label = $this->translator->trans('MSC.copyOf', [], 'contao_default', $language);
-
-            if (str_contains($label, '%s')) {
-                return $label;
-            }
-        }
-
-        if (!isset($GLOBALS['TL_LANG']['MSC']['copyOf'])) {
-            $this->framework->getAdapter(System::class)->loadLanguageFile('default');
-        }
-
-        $label = $GLOBALS['TL_LANG']['MSC']['copyOf'] ?? null;
-
-        return \is_string($label) && str_contains($label, '%s') ? $label : '%s (copy)';
     }
 
     /**

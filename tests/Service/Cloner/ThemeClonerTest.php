@@ -31,6 +31,8 @@ class ThemeClonerTest extends TestCase
         $varchar = "varchar(255) NOT NULL default ''";
         $size    = ['inputType' => 'imageSize', 'sql' => $varchar];
 
+        $GLOBALS['TL_LANG']['MSC']['copyOf'] = '%s (Kopie)';
+
         $GLOBALS['TL_DCA'] = [
             'tl_theme' => ['fields' => [
                 'name'       => ['eval' => ['unique' => true], 'sql' => $varchar],
@@ -95,7 +97,7 @@ class ThemeClonerTest extends TestCase
 
     protected function tearDown(): void
     {
-        unset($GLOBALS['TL_DCA']);
+        unset($GLOBALS['TL_DCA'], $GLOBALS['TL_LANG']);
     }
 
     private function cloner(): ThemeCloner
@@ -278,6 +280,25 @@ class ThemeClonerTest extends TestCase
         $result = $this->cloner()->clone(1, [], 'k.jones');
 
         self::assertSame('Basis (Kopie 2)', $this->tables['tl_theme'][$result['id']]['name']);
+    }
+
+    public function testACopyOfACopyCountsOnInsteadOfMarkingTwice(): void
+    {
+        $this->tables['tl_theme'][3] = ['id' => 3, 'tstamp' => 1, 'name' => 'Basis (Kopie)', 'templates' => '', 'screenshot' => null];
+
+        $result = $this->cloner()->clone(3, [], 'k.jones');
+
+        self::assertSame('Basis (Kopie 2)', $this->tables['tl_theme'][$result['id']]['name']);
+    }
+
+    public function testAMarkWithoutBracketsCountsOnAtTheEnd(): void
+    {
+        $GLOBALS['TL_LANG']['MSC']['copyOf'] = 'Copy of %s';
+        $this->tables['tl_theme'][3] = ['id' => 3, 'tstamp' => 1, 'name' => 'Copy of Basis', 'templates' => '', 'screenshot' => null];
+
+        $result = $this->cloner()->clone(1, [], 'k.jones');
+
+        self::assertSame('Copy of Basis 2', $this->tables['tl_theme'][$result['id']]['name']);
     }
 
     public function testATakenNameIsRefusedBeforeAnythingIsWritten(): void

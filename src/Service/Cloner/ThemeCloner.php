@@ -60,7 +60,8 @@ class ThemeCloner extends AbstractDcaCloner
 
         // `tl_theme.name` is `unique` in the DCA: a second "(Kopie)" would be refused by the
         // back end on the next save. A name the caller chose is refused here if it is taken;
-        // the default counts on.
+        // the default, marked in the operator's language, counts on inside the mark:
+        // "Basis (Kopie)", "Basis (Kopie 2)".
         if (\array_key_exists('name', $accepted)) {
             $name = trim((string) $accepted['name']);
             if ('' === $name) {
@@ -70,10 +71,10 @@ class ThemeCloner extends AbstractDcaCloner
                 throw new \InvalidArgumentException(\sprintf('Ein Theme namens "%s" gibt es schon.', $name));
             }
         } else {
-            $base = ((string) ($source['name'] ?? '')) . ' (Kopie';
-            $name = $base . ')';
+            $marked = $this->copyLabel->mark((string) ($source['name'] ?? ''), $operator);
+            $name   = $marked;
             for ($n = 2; $this->themeNameTaken($name); ++$n) {
-                $name = $base . ' ' . $n . ')';
+                $name = str_ends_with($marked, ')') ? substr($marked, 0, -1) . ' ' . $n . ')' : $marked . ' ' . $n;
             }
         }
 

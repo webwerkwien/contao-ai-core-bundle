@@ -285,7 +285,8 @@ asks the permission voters and fails without a back-end user. `generateAlias()` 
 
 **Cloning a root** accepts `language`, `urlPrefix`, `urlSuffix`, `fallback` and `dns` as
 modifications, so the root takes its new language in one step. The pages below keep
-Contao's copy titles (`… (Kopie)`, alias `…-kopie`) and are renamed afterwards. A root
+Contao's copy titles (`… (Kopie)`, alias `…-kopie`, in the operator's back-end language
+through `Service\Copier\CopyLabel`) and are renamed afterwards. A root
 cloned onto its source's domain and prefix is refused. Cloned pages get their alias from
 `generateAlias()`, as a back-end copy does (`tl_page.alias` carries `doNotCopy`); the cloned
 root goes behind its last sibling (`Service\Sorting`).
@@ -803,6 +804,7 @@ The copy itself is `Service\Copier\RecordCopier`, written after `DC_Table::copy(
 - **`config.markAsCopy`** on the copied record only, through `MarkAsCopy` with
   `MSC.copyOf` in the operator's back-end language (`tl_user.language` of `--operator`),
   fetched through Contao's translator, which restores `$GLOBALS['TL_LANG']` afterwards.
+  `CopyLabel` does this for the copier and the cloners alike; do not write a mark by hand.
   Without that, Contao's loaded language: the request's, and English without a request,
   so a console run with an unknown operator marks "(copy)". Never marked twice
   (contao/contao#6058); for an `inputUnit` field inside `value`; an empty value or "0" is
