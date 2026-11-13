@@ -258,14 +258,6 @@ class FileDeleteCommand extends AbstractWriteCommand
      */
     private function records(string $path): array
     {
-        $rows = $this->connection->fetchAllAssociative(
-            'SELECT path, uuid FROM tl_files WHERE path = ? OR path LIKE ?',
-            [$path, addcslashes($path, '%_\\') . '/%'],
-        );
-
-        return array_map(
-            static fn (array $row): array => ['path' => (string) $row['path'], 'uuid' => null === $row['uuid'] ? null : (string) $row['uuid']],
-            $rows,
-        );
+        return (new FileUsageFinder($this->connection))->resourcesOf($path);
     }
 }

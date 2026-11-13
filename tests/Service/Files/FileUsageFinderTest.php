@@ -107,4 +107,29 @@ class FileUsageFinderTest extends TestCase
         $this->assertTrue(FileUsageFinder::isSearchedTable('tl_consho_product'));
         $this->assertFalse(FileUsageFinder::isSearchedTable('doctrine_migration_versions'));
     }
+
+    public function testResourcesOfMatchesTheFolderAndEverythingBelowWithEscapedWildcards(): void
+    {
+        $connection = $this->createMock(\Doctrine\DBAL\Connection::class);
+        $connection->expects($this->once())
+            ->method('fetchAllAssociative')
+            ->with($this->anything(), ['files/a_b%', 'files/a\\_b\\%/%'])
+            ->willReturn([
+                ['path' => 'files/a_b%', 'uuid' => 'U1'],
+                ['path' => 'files/a_b%/x.jpg', 'uuid' => null],
+            ]);
+
+        $this->assertSame(
+            [['path' => 'files/a_b%', 'uuid' => 'U1'], ['path' => 'files/a_b%/x.jpg', 'uuid' => null]],
+            (new FileUsageFinder($connection))->resourcesOf('files/a_b%'),
+        );
+    }
+
+    public function testPathsOnlyDropsTheUuids(): void
+    {
+        $this->assertSame(
+            [['path' => 'files/a.jpg', 'uuid' => null], ['path' => 'files/b.jpg', 'uuid' => null]],
+            FileUsageFinder::pathsOnly([['path' => 'files/a.jpg', 'uuid' => 'U1'], ['path' => 'files/b.jpg', 'uuid' => null]]),
+        );
+    }
 }

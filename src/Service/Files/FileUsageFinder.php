@@ -48,6 +48,38 @@ final class FileUsageFinder
     {
     }
 
+    /**
+     * The tl_files records of a file or folder and of everything below it, as resources for find().
+     *
+     * @return list<array{path: string, uuid: string|null}>
+     */
+    public function resourcesOf(string $path): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT path, uuid FROM tl_files WHERE path = ? OR path LIKE ?',
+            [$path, addcslashes($path, '%_\\') . '/%'],
+        );
+
+        return array_map(
+            static fn (array $row): array => ['path' => (string) $row['path'], 'uuid' => null === $row['uuid'] ? null : (string) $row['uuid']],
+            $rows,
+        );
+    }
+
+    /**
+     * The same resources without their UUIDs: find() then searches only for the paths written
+     * into text fields. Contao refers to files by UUID, so after a rename or a move these text
+     * references are the only ones that break.
+     *
+     * @param list<array{path: string, uuid: string|null}> $resources
+     *
+     * @return list<array{path: string, uuid: null}>
+     */
+    public static function pathsOnly(array $resources): array
+    {
+        return array_map(static fn (array $r): array => ['path' => $r['path'], 'uuid' => null], $resources);
+    }
+
     public static function isSearchedTable(string $table): bool
     {
         return str_starts_with($table, 'tl_') && !\in_array($table, self::SKIPPED_TABLES, true);
