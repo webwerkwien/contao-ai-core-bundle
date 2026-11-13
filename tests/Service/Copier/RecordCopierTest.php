@@ -5,6 +5,7 @@ namespace Webwerkwien\ContaoAiCoreBundle\Tests\Service\Copier;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Webwerkwien\ContaoAiCoreBundle\Service\Copier\RecordCopier;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
 use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
@@ -83,7 +84,7 @@ class RecordCopierTest extends TestCase
         unset($GLOBALS['TL_DCA'], $GLOBALS['TL_LANG']);
     }
 
-    private function copier(): RecordCopier
+    private function copier(?TranslatorInterface $translator = null): RecordCopier
     {
         $connection = $this->createMock(Connection::class);
         $connection->method('quoteIdentifier')->willReturnCallback(static fn (string $name): string => '`' . $name . '`');
@@ -132,7 +133,47 @@ class RecordCopierTest extends TestCase
             $this->log[] = "oncopy $table:$newId<-$sourceId";
         });
 
-        return new RecordCopier($connection, $this->createMock(ContaoFramework::class), $versions, $callbacks);
+        return new RecordCopier($connection, $this->createMock(ContaoFramework::class), $versions, $callbacks, $translator);
+    }
+
+    /**
+     * Contao's translator with the copy mark of a few languages; any other key or
+     * language answers with the key, as Contao's catalogue does for a missing one.
+     */
+    private function translator(): TranslatorInterface
+    {
+        $translator = $this->createMock(TranslatorInterface::class);
+        $translator->method('trans')->willReturnCallback(static function (string $id, array $parameters, ?string $domain, ?string $locale): string {
+            $marks = ['en' => '%s (copy)', 'fr' => '%s (copie)'];
+
+            return 'MSC.copyOf' === $id && 'contao_default' === $domain ? ($marks[$locale] ?? $id) : $id;
+        });
+
+        return $translator;
+    }
+
+    public function testTheMarkComesInTheGivenLanguage(): void
+    {
+        $this->copier($this->translator())->copy('tl_article', 7, ['pid' => 3, 'sorting' => 192], 'k.editor', 'fr');
+
+        self::assertSame('Team (copie)', $this->tables['tl_article'][100]['title']);
+    }
+
+    public function testALanguageWithoutTheMarkKeepsTheLoadedOne(): void
+    {
+        $this->copier($this->translator())->copy('tl_article', 7, ['pid' => 3, 'sorting' => 192], 'k.editor', 'xx');
+
+        self::assertSame('Team (Kopie)', $this->tables['tl_article'][100]['title']);
+    }
+
+    public function testWithoutALanguageTheLoadedMarkIsUsed(): void
+    {
+        $translator = $this->createMock(TranslatorInterface::class);
+        $translator->expects(self::never())->method('trans');
+
+        $this->copier($translator)->copy('tl_article', 7, ['pid' => 3, 'sorting' => 192], 'k.editor', null);
+
+        self::assertSame('Team (Kopie)', $this->tables['tl_article'][100]['title']);
     }
 
     private function tableOf(string $sql): string

@@ -341,6 +341,24 @@ abstract class AbstractWriteCommand extends Command
     }
 
     /**
+     * Back-end language of the Contao user behind the current operator name, or
+     * null when the operator is unknown to Contao or has no language set.
+     *
+     * Texts Contao writes into a record (the copy mark) come in the language of
+     * the request; a console run has none, and Contao falls back to English.
+     */
+    protected function resolveOperatorLanguage(): ?string
+    {
+        $name = $this->resolveOperator();
+        if ('' === $name || !class_exists(\Contao\UserModel::class)) {
+            return null;
+        }
+        $user     = \Contao\UserModel::findOneBy('username', $name);
+        $language = $user ? (string) $user->language : '';
+        return '' !== $language ? $language : null;
+    }
+
+    /**
      * Convert string UUID(s) into Contao's binary storage form for every
      * `fileTree` DCA field of the given table (e.g. tl_content.singleSRC,
      * tl_news.singleSRC, multiSRC/orderSRC).

@@ -107,7 +107,7 @@ trait CopiesRecord
             return $this->outputError($e->getMessage());
         }
 
-        $result = $this->copier()->copy($table, (int) $id, $position + $this->copyOverrides($source, $position), $this->resolveOperator());
+        $result = $this->copier()->copy($table, (int) $id, $position + $this->copyOverrides($source, $position), $this->resolveOperator(), $this->resolveOperatorLanguage());
         $this->cacheTags?->recordChanged($table, $result['id']);
 
         $this->outputSuccess(['id' => $result['id'], 'sourceId' => (int) $id] + $position + [

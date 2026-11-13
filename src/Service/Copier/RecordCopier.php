@@ -6,6 +6,7 @@ use Contao\Controller;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\System;
 use Doctrine\DBAL\Connection;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\CopiesSourceRows;
 use Webwerkwien\ContaoAiCoreBundle\Service\Cloner\DcaCopyReset;
 use Webwerkwien\ContaoAiCoreBundle\Service\Dca\DcaCallbacks;
@@ -40,17 +41,19 @@ class RecordCopier
         private readonly ContaoFramework $framework,
         private readonly VersionManager $versionManager,
         private readonly ?DcaCallbacks $dcaCallbacks = null,
+        private readonly ?TranslatorInterface $translator = null,
     ) {
     }
 
     /**
      * @param array<string, mixed> $overrides values the copy gets instead of the source's: its position and any value the table's own rules derive
+     * @param string|null          $language  language of the copy mark, the operator's back-end language; null keeps the loaded one
      *
      * @return array{id: int, children: int, notCopied: list<string>}
      *
      * @throws \InvalidArgumentException when the source does not exist
      */
-    public function copy(string $table, int $sourceId, array $overrides, string $operator): array
+    public function copy(string $table, int $sourceId, array $overrides, string $operator, ?string $language = null): array
     {
         $this->framework->initialize();
 
@@ -60,7 +63,7 @@ class RecordCopier
 
         $mark = $GLOBALS['TL_DCA'][$table]['config']['markAsCopy'] ?? null;
         if (\is_string($mark) && \array_key_exists($mark, $source) && !\array_key_exists($mark, $overrides)) {
-            $overrides[$mark] = MarkAsCopy::apply($this->copyLabel(), $source[$mark], 'inputUnit' === ($fields[$mark]['inputType'] ?? null));
+            $overrides[$mark] = MarkAsCopy::apply($this->copyLabel($language), $source[$mark], 'inputUnit' === ($fields[$mark]['inputType'] ?? null));
         }
 
         ['id' => $newId, 'row' => $copy] = $this->insert($table, $source, $overrides);
@@ -193,11 +196,24 @@ class RecordCopier
     }
 
     /**
-     * `MSC.copyOf` of the loaded language: in the back end the editor's, on the
-     * console English, as Contao initializes without a request.
+     * `MSC.copyOf` in $language, so a copy made on the console is marked as the
+     * operator would see it in the back end: without a request Contao loads English.
+     * Contao's translator loads the language file for that language and restores
+     * `$GLOBALS['TL_LANG']` afterwards (contao/contao#5371).
+     *
+     * Without a language, or where the language has no such text, the loaded
+     * language's: in the back end the editor's, on the console English.
      */
-    private function copyLabel(): string
+    private function copyLabel(?string $language): string
     {
+        if (null !== $language && '' !== $language && null !== $this->translator) {
+            $label = $this->translator->trans('MSC.copyOf', [], 'contao_default', $language);
+
+            if (str_contains($label, '%s')) {
+                return $label;
+            }
+        }
+
         if (!isset($GLOBALS['TL_LANG']['MSC']['copyOf'])) {
             $this->framework->getAdapter(System::class)->loadLanguageFile('default');
         }

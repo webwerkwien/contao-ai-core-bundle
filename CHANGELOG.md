@@ -14,8 +14,8 @@ This file was reconstructed from the git history on 2026-08-13, so entries befor
   nested elements, an article its content elements. What Contao does not copy is reset
   from the DCA (`doNotCopy`, `unique`, `fallback`, passwords), so a copied article is
   unpublished, has no alias yet and belongs to the operator. The copied record itself is
-  marked with Contao's "(copy)" label in the loaded language (`MSC.copyOf`; on the console
-  English), its children are not. Without a target the copy goes directly behind the
+  marked with Contao's "(copy)" label (`MSC.copyOf`) in the operator's back-end language,
+  on the console too; its children are not. Without a target the copy goes directly behind the
   source; `--after <id>` puts it behind another record, `--to <id>` behind the last child
   of a parent (for content with `--ptable`). A copy into the source itself or one of its
   own elements is refused. Each copied row gets a first version, `oncopy_callback`s run as

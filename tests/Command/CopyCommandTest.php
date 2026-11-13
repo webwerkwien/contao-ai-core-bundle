@@ -52,7 +52,7 @@ class CopyCommandTest extends TestCase
             $copier->expects(self::never())->method('copy');
         } else {
             $copier->expects(self::once())->method('copy')
-                ->with('tl_content', (int) $input['id'], $expected, 'k.editor')
+                ->with('tl_content', (int) $input['id'], $expected, 'k.editor', 'de')
                 ->willReturn(['id' => 100, 'children' => 2, 'notCopied' => []]);
         }
 
@@ -186,5 +186,11 @@ class ContentCopyProbe extends ContentCopyCommand
     protected function recordExists(string $table, int $id): bool
     {
         return \in_array("$table.$id", $this->existing, true) || isset($this->rows[$id]) && 'tl_content' === $table;
+    }
+
+    // The operator's back-end language marks the copy, on the console too.
+    protected function resolveOperatorLanguage(): ?string
+    {
+        return 'de';
     }
 }

@@ -798,8 +798,10 @@ The copy itself is `Service\Copier\RecordCopier`, written after `DC_Table::copy(
   article command gives `author` itself (the operator, as Contao's default does). The
   alias stays empty as in the back end, where the edit form makes it.
 - **`config.markAsCopy`** on the copied record only, through `MarkAsCopy` with
-  `MSC.copyOf` of the loaded language. Contao loads the request's language and English
-  without a request, so on the console the mark is "(copy)". Never marked twice
+  `MSC.copyOf` in the operator's back-end language (`tl_user.language` of `--operator`),
+  fetched through Contao's translator, which restores `$GLOBALS['TL_LANG']` afterwards.
+  Without that, Contao's loaded language: the request's, and English without a request,
+  so a console run with an unknown operator marks "(copy)". Never marked twice
   (contao/contao#6058); for an `inputUnit` field inside `value`.
 - **children per `ctable`**, for a `dynamicPtable` table matched on pid and ptable, in
   `sorting, id` order, `doNotCopyRecords` honoured. The whole tree is read before the first

@@ -45,7 +45,7 @@ class ArticleCopyCommandTest extends TestCase
             $copier->expects(self::never())->method('copy');
         } else {
             $copier->expects(self::once())->method('copy')
-                ->with('tl_article', (int) $input['id'], $expected, 'k.editor')
+                ->with('tl_article', (int) $input['id'], $expected, 'k.editor', null)
                 ->willReturn(['id' => 100, 'children' => 3, 'notCopied' => ['alias', 'author', 'published']]);
         }
 
@@ -144,5 +144,11 @@ class ArticleCopyProbe extends ArticleCopyCommand
     protected function resolveAuthorId(): int
     {
         return 5;
+    }
+
+    // An operator without a back-end language: the copier keeps the loaded mark.
+    protected function resolveOperatorLanguage(): ?string
+    {
+        return null;
     }
 }
