@@ -89,6 +89,10 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
+    Webwerkwien\ContaoAiCoreBundle\Command\FileUsagesCommand:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
     Webwerkwien\ContaoAiCoreBundle\Command\FileWriteCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'
