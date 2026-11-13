@@ -4,7 +4,11 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
-## Unreleased
+## v1.17.0 - 2026-11-13
+
+`content copy` and `article copy` in contao-ai-cli need v1.19.0, the chat tools
+`content_copy` and `article_copy` backend-bundle v1.2.0; everything else works with the
+same versions as v1.16.2.
 
 ### Added
 
