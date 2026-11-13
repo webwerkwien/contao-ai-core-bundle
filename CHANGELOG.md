@@ -22,6 +22,15 @@ This file was reconstructed from the git history on 2026-08-13, so entries befor
   in the back end, and the answer names the fields that were not copied (`notCopied`).
   Change fields afterwards with the update commands.
 
+### Fixed
+
+- **A unit of only spaces counts as no unit** for `inputUnit` fields such as a headline:
+  on its own (`--set headline_unit=" "`) it is refused as empty, next to a value the
+  record's unit stays. On a field without an options list it was stored as the unit.
+- **A `<field>_unit` next to a value already in Contao's stored form is refused** instead
+  of being dropped while the command answered "ok". Send the value as text or as
+  `{"value", "unit"}` JSON.
+
 ## v1.16.2 - 2026-11-11
 
 Works with the same backend-bundle and contao-ai-cli.

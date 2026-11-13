@@ -119,6 +119,52 @@ class InputUnitEmptyUnitTest extends TestCase
         $this->assertSame(['headline' => serialize(['value' => 'Neu', 'unit' => 'h5'])], $fields);
     }
 
+    /**
+     * Spaces are no unit either. Without an options list nothing refused them, and
+     * the field was stored with the unit " ".
+     */
+    public function testABlankCompanionOnItsOwnIsRefused(): void
+    {
+        unset($GLOBALS['TL_DCA']['tl_test']['fields']['headline']['options']);
+
+        $this->expectExceptionMessage('headline_unit is empty');
+
+        $this->convert(['headline_unit' => '  '], $this->stored('h3'));
+    }
+
+    public function testABlankUnitNextToAValueKeepsTheStoredUnit(): void
+    {
+        unset($GLOBALS['TL_DCA']['tl_test']['fields']['headline']['options']);
+
+        $this->assertSame(
+            ['headline' => serialize(['value' => 'Neu', 'unit' => 'h4'])],
+            $this->convert(['headline' => 'Neu', 'headline_unit' => ' '], $this->stored('h4')),
+        );
+        $this->assertSame(
+            ['headline' => serialize(['value' => 'Neu', 'unit' => 'h4'])],
+            $this->convert(['headline' => '{"value":"Neu","unit":" "}'], $this->stored('h4')),
+        );
+    }
+
+    /**
+     * A value already in Contao's stored form carries its own unit. A companion next
+     * to it was dropped without a word, and the command answered "ok".
+     */
+    public function testACompanionNextToAStoredPairIsRefused(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('headline_unit is given next to headline in its stored form');
+
+        $this->convert(['headline' => serialize(['value' => 'Neu', 'unit' => 'h3']), 'headline_unit' => 'h1'], $this->stored('h4'));
+    }
+
+    public function testAnEmptyCompanionNextToAStoredPairChangesNothing(): void
+    {
+        $pair = serialize(['value' => 'Neu', 'unit' => 'h3']);
+
+        $this->assertSame(['headline' => $pair], $this->convert(['headline' => $pair, 'headline_unit' => ''], $this->stored('h4')));
+    }
+
     public function testWithoutOptionsTheRefusalListsNothing(): void
     {
         unset($GLOBALS['TL_DCA']['tl_test']['fields']['headline']['options']);

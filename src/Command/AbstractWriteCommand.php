@@ -2958,14 +2958,14 @@ abstract class AbstractWriteCommand extends Command
             // An empty unit on its own names nothing to write. It was consumed
             // below and answered "ok" with `updated: []`. The console passes
             // strings only; null or a number from a caller in code is no unit
-            // either.
-            if (!\is_string($value) || '' === $value) {
+            // either, and spaces are empty (a field without options stored " ").
+            if (!\is_string($value) || '' === trim($value)) {
                 $allowed = $this->optionValues($dca[$base]) ?? [];
                 throw new \InvalidArgumentException(\sprintf(
                     'For %s, %s %s: name a unit%s. Nothing was written.',
                     $table,
                     $key,
-                    null === $value || '' === $value ? 'is empty' : 'is not a unit name',
+                    null === $value || \is_string($value) ? 'is empty' : 'is not a unit name',
                     [] === $allowed ? '' : ' (allowed: ' . implode(', ', array_map('strval', $allowed)) . ')',
                 ));
             }
@@ -2989,6 +2989,19 @@ abstract class AbstractWriteCommand extends Command
             // serialized string as the value. See InputUnitCentralConversionTest.
             $pair = @unserialize($value, ['allowed_classes' => false]);
             if (\is_array($pair) && \array_key_exists('value', $pair)) {
+                // A pair carries its own unit. A companion next to it was dropped
+                // without a word and the command answered "ok". The command's own
+                // first pass consumes its companions, so only a caller's reaches here.
+                $unitKey = $key . '_unit';
+                if (\is_string($fields[$unitKey] ?? null) && '' !== trim($fields[$unitKey])) {
+                    throw new \InvalidArgumentException(\sprintf(
+                        'For %s, %s is given next to %s in its stored form, which carries its own unit: send %s as text or as {"value", "unit"} JSON. Nothing was written.',
+                        $table,
+                        $unitKey,
+                        $key,
+                        $key,
+                    ));
+                }
                 continue;
             }
 
@@ -3010,12 +3023,12 @@ abstract class AbstractWriteCommand extends Command
                 $val  = (string) $decoded['value'];
                 // An empty unit is no unit: the record's unit stays (3). Until
                 // v1.12.0 '' skipped (3) and reset the level to the default.
-                $unit = isset($decoded['unit']) && '' !== (string) $decoded['unit'] ? (string) $decoded['unit'] : null;
+                $unit = isset($decoded['unit']) && '' !== trim((string) $decoded['unit']) ? (string) $decoded['unit'] : null;
             }
 
             // (1) explicit companion "<field>_unit" wins
             $unitKey = $key . '_unit';
-            if (\array_key_exists($unitKey, $fields) && \is_string($fields[$unitKey]) && '' !== $fields[$unitKey]) {
+            if (\array_key_exists($unitKey, $fields) && \is_string($fields[$unitKey]) && '' !== trim($fields[$unitKey])) {
                 $unit = $fields[$unitKey];
             }
 
