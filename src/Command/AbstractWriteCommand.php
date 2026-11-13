@@ -329,15 +329,22 @@ abstract class AbstractWriteCommand extends Command
      */
     protected function resolveOperatorUserId(int $fallback): int
     {
-        $name = $this->resolveOperator();
-        if ('' === $name) {
-            return $fallback;
-        }
-        if (!class_exists(\Contao\UserModel::class)) {
-            return $fallback;
-        }
-        $user = \Contao\UserModel::findOneBy('username', $name);
+        $user = $this->operatorUser();
         return $user ? (int) $user->id : $fallback;
+    }
+
+    /**
+     * The Contao user whose name the operator gives, or null when there is none.
+     *
+     * @return object{id: int|string, language: string|null}|null
+     */
+    protected function operatorUser(): ?object
+    {
+        $name = $this->resolveOperator();
+        if ('' === $name || !class_exists(\Contao\UserModel::class)) {
+            return null;
+        }
+        return \Contao\UserModel::findOneBy('username', $name);
     }
 
     /**
@@ -349,11 +356,7 @@ abstract class AbstractWriteCommand extends Command
      */
     protected function resolveOperatorLanguage(): ?string
     {
-        $name = $this->resolveOperator();
-        if ('' === $name || !class_exists(\Contao\UserModel::class)) {
-            return null;
-        }
-        $user     = \Contao\UserModel::findOneBy('username', $name);
+        $user     = $this->operatorUser();
         $language = $user ? (string) $user->language : '';
         return '' !== $language ? $language : null;
     }

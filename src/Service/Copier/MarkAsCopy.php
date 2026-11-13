@@ -8,7 +8,7 @@ use Contao\StringUtil;
  * The mark a copied record carries in the field its DCA names in `config.markAsCopy`,
  * as `DC_Table::copy()` sets it (5.3 to 6.0): the label `MSC.copyOf` of the loaded
  * language ("%s (Kopie)", "%s (copy)") around the value; for an `inputUnit` field
- * around its `value`, the unit kept. An empty value stays empty, and a value that
+ * around its `value`, the unit kept. An empty value (or "0") stays as it is, and a value that
  * already carries the mark is not marked again (contao/contao#6058).
  *
  * Only the copied record itself is marked, never its children.
@@ -23,7 +23,8 @@ final class MarkAsCopy
     public static function apply(string $label, mixed $stored, bool $inputUnit): mixed
     {
         if (!$inputUnit) {
-            return \is_string($stored) && '' !== $stored ? self::mark($label, $stored) : $stored;
+            // Contao's `!empty()`: "0" stays unmarked as well.
+            return \is_string($stored) && '' !== $stored && '0' !== $stored ? self::mark($label, $stored) : $stored;
         }
 
         $value = StringUtil::deserialize($stored);

@@ -100,15 +100,22 @@ class RecordCopierTest extends TestCase
                     && (!str_contains($sql, 'ptable') || $row['ptable'] === $params[1]),
             ));
 
-            usort($rows, static fn (array $a, array $b): int => [$a['sorting'] ?? 0, $a['id']] <=> [$b['sorting'] ?? 0, $b['id']]);
+            // The rows come in the order the query asks for and in none other: the
+            // fixture lists 41 before 42, the back end shows 42 first.
+            if (str_ends_with($sql, 'ORDER BY sorting, id')) {
+                usort($rows, static fn (array $a, array $b): int => [$a['sorting'] ?? 0, $a['id']] <=> [$b['sorting'] ?? 0, $b['id']]);
+            }
 
             return $rows;
         });
 
         $connection->method('insert')->willReturnCallback(function (string $table, array $data): int {
+            // Every name quoted: tl_layout has a column called `rows`.
+            self::assertMatchesRegularExpression('/^`\w+`$/', $table);
             $table = trim($table, '`');
             $row   = [];
             foreach ($data as $column => $value) {
+                self::assertMatchesRegularExpression('/^`\w+`$/', (string) $column);
                 $row[trim((string) $column, '`')] = $value;
             }
 
@@ -225,13 +232,30 @@ class RecordCopierTest extends TestCase
         self::assertCount(4, array_filter($this->log, static fn (string $line): bool => str_starts_with($line, 'version')));
     }
 
-    public function testACopyBelowItsOwnSourceDoesNotFindItself(): void
+    /**
+     * @return iterable<string, array{int, int, int}>
+     */
+    public static function copiesIntoTheirOwnTree(): iterable
     {
-        // Into the accordion it copies: the tree is read before the first row is written.
-        $result = $this->copier()->copy('tl_content', 42, ['pid' => 40, 'ptable' => 'tl_content', 'sorting' => 512], 'k.editor');
+        // source, the parent inside its own tree, its children
+        yield 'into itself' => [42, 42, 1];
+        yield 'into one of its elements' => [40, 42, 3];
+    }
 
-        self::assertSame(1, $result['children']);
-        self::assertCount(8, $this->tables['tl_content']);
+    /**
+     * Contao pastes a copy into its own tree and leaves the new record out
+     * (`copyChildren()`: "Exclude the duplicated record itself"). Here the tree is
+     * read before the first row is written, so the copy cannot meet itself.
+     *
+     * @dataProvider copiesIntoTheirOwnTree
+     */
+    public function testACopyInsideItsOwnTreeDoesNotCopyItself(int $source, int $into, int $children): void
+    {
+        $result = $this->copier()->copy('tl_content', $source, ['pid' => $into, 'ptable' => 'tl_content', 'sorting' => 512], 'k.editor');
+
+        self::assertSame($children, $result['children']);
+        self::assertCount(6 + 1 + $children, $this->tables['tl_content']);
+        self::assertSame($into, $this->tables['tl_content'][100]['pid']);
     }
 
     public function testAnArticleWithItsElements(): void
@@ -259,6 +283,32 @@ class RecordCopierTest extends TestCase
         }
 
         self::assertSame('oncopy tl_article:100<-7', end($this->log));
+    }
+
+    public function testTheCopiedRecordTakesTheColumnsOfItsDcaItsChildrenEveryColumn(): void
+    {
+        // A column an extension added without a DCA field.
+        $this->tables['tl_content'][40]['legacy'] = 'x';
+        $this->tables['tl_content'][42]['legacy'] = 'y';
+
+        $this->copier()->copy('tl_content', 40, ['pid' => 7, 'ptable' => 'tl_article', 'sorting' => 192], 'k.editor');
+
+        self::assertArrayNotHasKey('legacy', $this->tables['tl_content'][100]);
+        self::assertSame('y', $this->tables['tl_content'][101]['legacy']);
+    }
+
+    public function testATableTheDcaMarksNotCopyableIsRefused(): void
+    {
+        $GLOBALS['TL_DCA']['tl_article']['config']['notCopyable'] = true;
+
+        try {
+            $this->copier()->copy('tl_article', 7, ['pid' => 3, 'sorting' => 192], 'k.editor');
+            self::fail('a table marked notCopyable was copied');
+        } catch (\InvalidArgumentException $e) {
+            self::assertStringContainsString('not copyable', $e->getMessage());
+        }
+
+        self::assertSame([], $this->log);
     }
 
     public function testAnOverrideOfTheMarkedFieldWins(): void

@@ -3,6 +3,7 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
+use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -64,6 +65,49 @@ class CopyCommandTest extends TestCase
 
         /** @var array<string, mixed> */
         return json_decode(trim($tester->getDisplay()), true, flags: \JSON_THROW_ON_ERROR);
+    }
+
+    public function testTheCopyRunsInOneTransactionThatARefusalRollsBack(): void
+    {
+        // An oncopy callback that refuses after the copier has written the root and
+        // some children must leave none of them behind.
+        $log    = [];
+        $copier = $this->createMock(RecordCopier::class);
+        $copier->expects(self::once())->method('copy')->willReturnCallback(static function () use (&$log): never {
+            $log[] = 'copy';
+
+            throw new \InvalidArgumentException('tl_content.oncopy refused by Probe::check. Nothing was written.');
+        });
+
+        $connection = $this->createMock(Connection::class);
+        $connection->expects(self::once())->method('transactional')->willReturnCallback(static function (callable $fn) use (&$log) {
+            $log[] = 'begin';
+
+            try {
+                $result = $fn();
+            } catch (\Throwable $e) {
+                $log[] = 'rollback';
+
+                throw $e;
+            }
+
+            $log[] = 'commit';
+
+            return $result;
+        });
+
+        $command = new ContentCopyProbe($this->createMock(ContaoFramework::class), $copier, self::ROWS, 512, []);
+        $command->setLogger(new NullLogger());
+        $command->setTransactionConnection($connection);
+
+        $tester = new CommandTester($command);
+        $tester->execute(['id' => '40', '--operator' => 'k.editor']);
+
+        self::assertSame(['begin', 'copy', 'rollback'], $log);
+
+        $answer = json_decode(trim($tester->getDisplay()), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertSame('error', $answer['status']);
+        self::assertStringContainsString('refused by Probe::check', (string) $answer['message']);
     }
 
     public function testWithoutATargetTheCopyGoesDirectlyBehindTheSource(): void

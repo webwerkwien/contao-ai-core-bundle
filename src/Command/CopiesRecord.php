@@ -120,7 +120,7 @@ trait CopiesRecord
 
     /**
      * Behind the last child of $parent. Refused when the copy would land inside its own
-     * source — the back end offers no paste there — or the parent does not exist.
+     * source or the parent does not exist.
      *
      * @return array<string, mixed>
      *

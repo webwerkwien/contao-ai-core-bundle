@@ -792,7 +792,10 @@ The copy itself is `Service\Copier\RecordCopier`, written after `DC_Table::copy(
 - **every field, without field rights.** Contao asks the voters one question, may this
   record be created at the target, and copies the rest as stored; the field rights apply
   in the edit form that follows. The back-end bundle asks those voter questions before it
-  calls these commands, the commands themselves ask none.
+  calls these commands, the commands themselves ask none. As in `copy()`, the copied record
+  takes the columns its DCA has a field for (a column without one gets its database
+  default), the children every column, as in `copyChildren()`. A table whose DCA sets
+  `notCopyable` is refused.
 - **resets from the DCA** through `DcaCopyReset` (`doNotCopy`, `unique`, `fallback`,
   passwords). A closure default cannot be resolved without a back-end request, so the
   article command gives `author` itself (the operator, as Contao's default does). The
@@ -802,11 +805,14 @@ The copy itself is `Service\Copier\RecordCopier`, written after `DC_Table::copy(
   fetched through Contao's translator, which restores `$GLOBALS['TL_LANG']` afterwards.
   Without that, Contao's loaded language: the request's, and English without a request,
   so a console run with an unknown operator marks "(copy)". Never marked twice
-  (contao/contao#6058); for an `inputUnit` field inside `value`.
+  (contao/contao#6058); for an `inputUnit` field inside `value`; an empty value or "0" is
+  not marked (Contao's `!empty()`).
 - **children per `ctable`**, for a `dynamicPtable` table matched on pid and ptable, in
   `sorting, id` order, `doNotCopyRecords` honoured. The whole tree is read before the first
-  row is written, so a copy below its own source never copies itself; the command refuses
-  that target anyway, as the back end offers no paste there.
+  row is written, so a copy below its own source never copies itself, which is what
+  `copyChildren()` achieves by leaving the new record out. The back end disables a paste
+  into the record's own tree for cut only, not for copy; `content:copy` refuses `--to` a
+  parent inside the source's own tree.
 - **`oncopy_callback`** for each child after its own children, the copied record last; a
   first version for every row, as the cloners write one; rows through DBAL,
   never the model layer (`CopiesSourceRows`). The command runs in one transaction.

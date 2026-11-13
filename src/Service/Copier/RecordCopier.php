@@ -17,7 +17,9 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
  * do (5.3 to 6.0):
  *
  * - every field, whatever the caller may edit; the field rights apply when the copy
- *   is changed afterwards, as in the back end's edit form that follows a copy
+ *   is changed afterwards, as in the back end's edit form that follows a copy. The
+ *   copied record takes the columns its DCA has a field for, its children every column
+ * - a table whose DCA sets `notCopyable` is refused
  * - what Contao resets is read from the DCA (DcaCopyReset)
  * - `config.markAsCopy` on the copied record only (MarkAsCopy)
  * - children per `ctable`, matched on pid and, for a `dynamicPtable` table, on ptable,
@@ -58,15 +60,25 @@ class RecordCopier
         $this->framework->initialize();
 
         $fields = $this->fields($table);
+
+        if ($GLOBALS['TL_DCA'][$table]['config']['notCopyable'] ?? false) {
+            throw new \InvalidArgumentException(\sprintf('The DCA of %s marks it as not copyable. Nothing was written.', $table));
+        }
+
         $source = $this->fetchSourceRow($table, $sourceId);
         $tree   = $this->readChildren($table, $sourceId);
+
+        // The copied record takes the columns its DCA knows, as copy() does; a column
+        // without a field gets its database default. The children take every column,
+        // as copyChildren() does.
+        $row = [] !== $fields ? array_intersect_key($source, $fields) : $source;
 
         $mark = $GLOBALS['TL_DCA'][$table]['config']['markAsCopy'] ?? null;
         if (\is_string($mark) && \array_key_exists($mark, $source) && !\array_key_exists($mark, $overrides)) {
             $overrides[$mark] = MarkAsCopy::apply($this->copyLabel($language), $source[$mark], 'inputUnit' === ($fields[$mark]['inputType'] ?? null));
         }
 
-        ['id' => $newId, 'row' => $copy] = $this->insert($table, $source, $overrides);
+        ['id' => $newId, 'row' => $copy] = $this->insert($table, $row, $overrides);
         $this->versionManager->createInitialVersion($table, $newId, $operator);
 
         $children = $this->writeChildren($tree, $newId, $operator);

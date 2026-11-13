@@ -3,6 +3,7 @@
 namespace Webwerkwien\ContaoAiCoreBundle\Tests\Command;
 
 use Contao\CoreBundle\Framework\ContaoFramework;
+use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -84,6 +85,36 @@ class ArticleCopyCommandTest extends TestCase
 
         self::assertSame('error', $answer['status']);
         self::assertStringContainsString('No tl_page record with ID 99', (string) $answer['message']);
+    }
+
+    public function testTheCopyRunsInsideTheTransaction(): void
+    {
+        $log    = [];
+        $copier = $this->createMock(RecordCopier::class);
+        $copier->expects(self::once())->method('copy')->willReturnCallback(static function () use (&$log): array {
+            $log[] = 'copy';
+
+            return ['id' => 100, 'children' => 0, 'notCopied' => []];
+        });
+
+        $connection = $this->createMock(Connection::class);
+        $connection->expects(self::once())->method('transactional')->willReturnCallback(static function (callable $fn) use (&$log) {
+            $log[]  = 'begin';
+            $result = $fn();
+            $log[]  = 'commit';
+
+            return $result;
+        });
+
+        $command = new ArticleCopyProbe($this->createMock(ContaoFramework::class), $copier, self::ROWS);
+        $command->setLogger(new NullLogger());
+        $command->setTransactionConnection($connection);
+
+        $tester = new CommandTester($command);
+        $tester->execute(['id' => '7', '--operator' => 'k.editor']);
+
+        self::assertSame(['begin', 'copy', 'commit'], $log);
+        self::assertSame('ok', json_decode(trim($tester->getDisplay()), true, flags: \JSON_THROW_ON_ERROR)['status']);
     }
 
     public function testAnArticleHasNoParentTableOption(): void

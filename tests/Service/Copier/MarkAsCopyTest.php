@@ -37,6 +37,9 @@ class MarkAsCopyTest extends TestCase
         self::assertNull(MarkAsCopy::apply(self::LABEL, null, false));
         self::assertSame($emptyUnit, MarkAsCopy::apply(self::LABEL, $emptyUnit, true));
         self::assertSame('', MarkAsCopy::apply(self::LABEL, '', true));
+        // Empty in PHP's sense, as Contao checks it.
+        self::assertSame('0', MarkAsCopy::apply(self::LABEL, '0', false));
+        self::assertSame(serialize(['unit' => 'h2', 'value' => '0']), MarkAsCopy::apply(self::LABEL, serialize(['unit' => 'h2', 'value' => '0']), true));
     }
 
     public function testNeverMarkedTwice(): void
