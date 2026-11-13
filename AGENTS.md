@@ -669,6 +669,18 @@ command, it works on `files/`; a custom `contao.upload_path` is not supported.
 > deleted with their records) and on 6.0.0 (folder with a used file refused, `--force` deleted
 > three records; an insert tag `{{picture::…}}` in a text element found).
 
+## Finding usages (v1.18.0)
+
+`contao:file:usages --path files/… [--paths-only]` runs the search of `contao:file:delete` on its
+own: the `tl_files` records of the path and everything below it
+(`FileUsageFinder::resourcesOf()`), then `FileUsageFinder::find()`. A path on disk without a
+record is searched for by path only. The answer lists at most `MAX_USAGES` usages; `complete` is
+false when the limit was reached.
+
+`--paths-only` drops the UUIDs (`FileUsageFinder::pathsOnly()`). Contao refers to files by UUID,
+so a rename or a move keeps those references; what breaks is a path written into a text field.
+That is the question before a rename or a move. Before a delete, ask without the option.
+
 ## Files: the installation's rules, and the DBAFS (v0.13.0)
 
 **What goes into files/ is what the installation allows to be uploaded.** `UploadPolicy`

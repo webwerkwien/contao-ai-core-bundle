@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## Unreleased
+
+### Added
+
+- `contao:file:usages --path files/… [--paths-only]` lists where a file or folder is used: by
+  UUID in file fields and by path in text fields. `--paths-only` searches only for paths, the
+  references a rename or a move breaks.
+
 ## v1.17.0 - 2026-11-13
 
 `content copy` and `article copy` in contao-ai-cli need v1.19.0, the chat tools
