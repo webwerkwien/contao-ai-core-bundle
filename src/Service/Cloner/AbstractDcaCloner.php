@@ -118,8 +118,10 @@ abstract class AbstractDcaCloner implements EntityClonerInterface
 
         ['accepted' => $accepted, 'ignored' => $ignored] = $this->partitionModifications($modifications, [$nameField]);
 
-        // The back end refuses an empty name (`mandatory`); a clone writes past it.
-        // Without one, the source's name with the copy mark, as Contao's copy sets it.
+        // A name the caller gives may not be empty: the back end refuses one
+        // (`mandatory`), and a clone writes past the form. Without one, the source's
+        // name with the copy mark, as Contao's copy sets it; an empty source name stays
+        // empty, as there (`!empty()` in DC_Table::copy()).
         if (\array_key_exists($nameField, $accepted)) {
             $name = trim((string) $accepted[$nameField]);
 

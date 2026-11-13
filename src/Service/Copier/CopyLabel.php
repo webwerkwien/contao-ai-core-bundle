@@ -19,9 +19,6 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  */
 final class CopyLabel
 {
-    /** @var array<string, string|null> back-end language per operator name */
-    private array $languages = [];
-
     public function __construct(
         private readonly ContaoFramework $framework,
         private readonly ?TranslatorInterface $translator = null,
@@ -64,20 +61,19 @@ final class CopyLabel
         return \is_string($label) && str_contains($label, '%s') ? $label : '%s (copy)';
     }
 
-    /** Back-end language of the Contao user named $operator, or null when there is none. */
+    /**
+     * Back-end language of the Contao user named $operator, or null when there is none.
+     * Read on every call: the service may live in a worker longer than a user's setting.
+     */
     public function languageOf(string $operator): ?string
     {
         if ('' === $operator) {
             return null;
         }
 
-        if (!\array_key_exists($operator, $this->languages)) {
-            $user     = $this->framework->getAdapter(UserModel::class)->findOneBy('username', $operator);
-            $language = \is_object($user) ? (string) ($user->language ?? '') : '';
+        $user     = $this->framework->getAdapter(UserModel::class)->findOneBy('username', $operator);
+        $language = \is_object($user) ? (string) ($user->language ?? '') : '';
 
-            $this->languages[$operator] = '' !== $language ? $language : null;
-        }
-
-        return $this->languages[$operator];
+        return '' !== $language ? $language : null;
     }
 }

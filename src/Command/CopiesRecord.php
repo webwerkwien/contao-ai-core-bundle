@@ -101,7 +101,7 @@ trait CopiesRecord
 
         try {
             $position = '' !== $to
-                ? $this->positionUnder($table, (int) $to,'' !== $ptable ? $ptable : (string) ($source['ptable'] ?? ''))
+                ? $this->positionUnder($table, (int) $to, '' !== $ptable ? $ptable : (string) ($source['ptable'] ?? ''))
                 : $this->slotAfter($table, (int) ('' !== $after ? $after : $id), null, 'put the copy');
         } catch (\InvalidArgumentException $e) {
             return $this->outputError($e->getMessage());

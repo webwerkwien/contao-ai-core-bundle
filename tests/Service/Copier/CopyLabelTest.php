@@ -92,13 +92,14 @@ class CopyLabelTest extends TestCase
         self::assertSame('', $label->mark('', 'k.editor'));
     }
 
-    public function testTheOperatorIsLookedUpOnce(): void
+    public function testTheLanguageIsReadAnewEachTime(): void
     {
-        $label = $this->copyLabel(['k.editor' => 'de'], $this->translator());
+        $languages = ['k.editor' => 'de'];
+        $label     = $this->copyLabel($languages, $this->translator());
 
         $label->mark('A', 'k.editor');
         $label->mark('B', 'k.editor');
 
-        self::assertSame(['k.editor'], $this->lookups, 'a recursive page clone marks every page');
+        self::assertSame(['k.editor', 'k.editor'], $this->lookups, 'nothing kept between calls: a worker lives longer than a user\'s language');
     }
 }

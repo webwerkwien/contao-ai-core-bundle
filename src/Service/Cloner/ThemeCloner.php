@@ -71,10 +71,14 @@ class ThemeCloner extends AbstractDcaCloner
                 throw new \InvalidArgumentException(\sprintf('Ein Theme namens "%s" gibt es schon.', $name));
             }
         } else {
-            $marked = $this->copyLabel->mark((string) ($source['name'] ?? ''), $operator);
-            $name   = $marked;
+            // The number goes inside the mark only when the name ends with it: "Basis
+            // (Kopie 2)", but "Copy of Basis (v2) 2" for a mark that has no brackets.
+            $label   = $this->copyLabel->label($this->copyLabel->languageOf($operator));
+            $marked  = $this->copyLabel->mark((string) ($source['name'] ?? ''), $operator);
+            $closing = str_ends_with($label, ')') && str_ends_with($marked, ')');
+            $name    = $marked;
             for ($n = 2; $this->themeNameTaken($name); ++$n) {
-                $name = str_ends_with($marked, ')') ? substr($marked, 0, -1) . ' ' . $n . ')' : $marked . ' ' . $n;
+                $name = $closing ? substr($marked, 0, -1) . ' ' . $n . ')' : trim($marked . ' ' . $n);
             }
         }
 

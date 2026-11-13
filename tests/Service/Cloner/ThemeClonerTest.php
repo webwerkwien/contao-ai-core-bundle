@@ -301,6 +301,17 @@ class ThemeClonerTest extends TestCase
         self::assertSame('Copy of Basis 2', $this->tables['tl_theme'][$result['id']]['name']);
     }
 
+    public function testANameInBracketsKeepsThemWhenTheMarkHasNone(): void
+    {
+        $GLOBALS['TL_LANG']['MSC']['copyOf'] = 'Copy of %s';
+        $this->tables['tl_theme'][1]['name'] = 'Basis (v2)';
+        $this->tables['tl_theme'][3] = ['id' => 3, 'tstamp' => 1, 'name' => 'Copy of Basis (v2)', 'templates' => '', 'screenshot' => null];
+
+        $result = $this->cloner()->clone(1, [], 'k.jones');
+
+        self::assertSame('Copy of Basis (v2) 2', $this->tables['tl_theme'][$result['id']]['name']);
+    }
+
     public function testATakenNameIsRefusedBeforeAnythingIsWritten(): void
     {
         try {
