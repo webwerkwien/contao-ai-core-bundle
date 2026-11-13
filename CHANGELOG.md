@@ -4,7 +4,10 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
-## Unreleased
+## v1.18.0 - 2026-11-13
+
+`file usages` in contao-ai-cli needs v1.20.0, the chat's file tools backend-bundle v1.3.0;
+everything else works with the same versions as v1.17.0.
 
 ### Added
 
