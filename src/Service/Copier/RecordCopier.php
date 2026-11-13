@@ -31,7 +31,7 @@ use Webwerkwien\ContaoAiCoreBundle\Service\VersionManager;
  * Rows go through DBAL, never the model layer (see CopiesSourceRows). No transaction
  * here: the calling command runs in one.
  */
-final class RecordCopier
+class RecordCopier
 {
     use CopiesSourceRows;
 
