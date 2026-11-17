@@ -87,6 +87,31 @@ class ModelWriterTest extends TestCase
     }
 
     /**
+     * A boolean reaches the database as 0 or 1. Doctrine binds false as '' unless
+     * told otherwise, and MySQL in strict mode refuses '' for an integer column —
+     * Contao's own empty value for an unticked checkbox is false
+     * (Widget::getEmptyValueByFieldType()). An update through the model stored 0.
+     */
+    public function testCreateWritesABooleanAsAnInteger(): void
+    {
+        $inserted   = [];
+        $connection = $this->connectionWithColumns(['id', 'tstamp', 'title', 'published', 'featured']);
+        $connection->method('insert')->willReturnCallback(static function (string $table, array $row) use (&$inserted): int {
+            $inserted = $row;
+
+            return 1;
+        });
+        $connection->method('lastInsertId')->willReturn('42');
+
+        $writer = new ModelWriter($connection, $this->createMock(VersionManager::class), $this->createMock(RecordCascadeCollector::class));
+        $writer->create('tl_consho_shop', ['title' => 'Laden', 'published' => false, 'featured' => true], 'editor');
+
+        $this->assertSame(0, $inserted['`published`']);
+        $this->assertSame(1, $inserted['`featured`']);
+        $this->assertSame('Laden', $inserted['`title`']);
+    }
+
+    /**
      * Asked for by Consho: its onsubmit listeners need the values the
      * save_callbacks produce. With the flag, create() is DC_Table::create() plus the
      * saved mask — oncreate, save_callbacks on the record that exists, onsubmit, version.

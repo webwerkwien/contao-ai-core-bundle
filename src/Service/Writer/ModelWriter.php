@@ -296,6 +296,12 @@ class ModelWriter implements RecordWriterInterface
     }
 
     /**
+     * The row for a direct DBAL write: quoted column names, and a boolean as 0 or 1.
+     * Doctrine binds false as '' without a type, which MySQL in strict mode refuses
+     * for an integer column — and false is Contao's own empty value for an unticked
+     * checkbox (Widget::getEmptyValueByFieldType()). Contao's database layer and a
+     * model save store it as 0; so does this, on create and on a table without model.
+     *
      * @param array<string, mixed> $fields
      *
      * @return array<string, mixed>
@@ -305,7 +311,7 @@ class ModelWriter implements RecordWriterInterface
         $quoted = [];
 
         foreach ($fields as $field => $value) {
-            $quoted[$this->connection->quoteIdentifier((string) $field)] = $value;
+            $quoted[$this->connection->quoteIdentifier((string) $field)] = \is_bool($value) ? (int) $value : $value;
         }
 
         return $quoted;
