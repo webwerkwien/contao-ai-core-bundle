@@ -229,6 +229,31 @@ class ModelWriterTest extends TestCase
     }
 
     /**
+     * The update of a table without a model writes directly as well, so a boolean
+     * goes out as 0 or 1 there too.
+     */
+    public function testAnUpdateWithoutAModelWritesABooleanAsAnInteger(): void
+    {
+        $written    = [];
+        $connection = $this->connectionWithColumns(['id', 'tstamp', 'published', 'featured']);
+        $connection->method('fetchAssociative')->willReturn(['id' => 3, 'published' => '1', 'featured' => '']);
+        $connection->method('update')->willReturnCallback(static function (string $table, array $data) use (&$written): int {
+            $written = $data;
+
+            return 1;
+        });
+
+        $callbacks = $this->createMock(DcaCallbacks::class);
+        $callbacks->method('beforeSubmit')->willReturnArgument(2);
+
+        $writer = new ModelWriter($connection, $this->createMock(VersionManager::class), $this->createMock(RecordCascadeCollector::class), null, $callbacks);
+        $writer->update('tl_contao_ai_no_model', 3, ['published' => false, 'featured' => true], 'editor');
+
+        $this->assertSame(0, $written['`published`']);
+        $this->assertSame(1, $written['`featured`']);
+    }
+
+    /**
      * DC_Table::delete(): ondelete for the record itself — not its children — after the
      * undo row, with that row's ID, and before anything is deleted (v1.4.0).
      */

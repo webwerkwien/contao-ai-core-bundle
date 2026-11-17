@@ -4,13 +4,15 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
-## Unreleased
+## v1.18.1 - 2026-11-17
+
+Works with the same versions as v1.18.0.
 
 ### Fixed
 
 - Creating a record through the writer (`RecordWriterInterface::create()`) stored a boolean `false` as an
   empty string, which MySQL in strict mode refuses for an integer column ("Incorrect integer value"). False
-  is Contao's empty value for an unticked checkbox. Booleans are now written as 0 or 1, as Contao's own
+  is Contao's empty value for an unticked checkbox in a boolean column. Booleans are now written as 0 or 1, as Contao's own
   database layer does — on create and on an update of a table without a model.
 
 ## v1.18.0 - 2026-11-13
