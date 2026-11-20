@@ -2897,7 +2897,9 @@ abstract class AbstractWriteCommand extends Command
      *   4. $defaultUnit, or — when a command passes none, as convertFields() does
      *      for every write since v0.12.0 — the unit in the field's SQL default,
      *      else the first option
-     * A value that already is a {value, unit} pair is left alone.
+     * A value that already is a {value, unit} pair is left alone. A value that
+     * starts with "{" (not "{{") but is not the JSON object of (2) is refused
+     * (since v1.18.2).
      * A unit the caller gives (1 or 2) that the field's DCA options do not list
      * is refused (since v0.11.0). A stored or default unit that is not listed
      * falls back to the default, as before. Companion "<field>_unit" keys are consumed so
@@ -3021,8 +3023,32 @@ abstract class AbstractWriteCommand extends Command
             // only exists from PHP 8.3 — this bundle supports PHP ^8.2. If the
             // minimum PHP requirement is ever raised to 8.3+, this can be
             // simplified with json_validate() before decoding.
-            $decoded = json_decode($value, true);
-            if (\is_array($decoded) && \array_key_exists('value', $decoded)) {
+            $decoded  = json_decode($value, true);
+            $jsonPair = \is_array($decoded) && \array_key_exists('value', $decoded);
+
+            // A value that starts like a JSON object but is not the {"value", "unit"}
+            // form is refused (v1.18.2). Windows PowerShell 5.1 drops the inner double
+            // quotes of `--set 'headline={"value":"Titel","unit":"h1"}'`, so
+            // `{value:Titel,unit:h1}` arrived; it was stored as the headline text with
+            // the stored or default unit and the command answered ok. Insert tags (`{{…}}`) are
+            // text and pass, as the {"value", …} form does.
+            $trimmed = ltrim($value);
+            if (!$jsonPair && str_starts_with($trimmed, '{') && !str_starts_with($trimmed, '{{')) {
+                throw new \InvalidArgumentException(\sprintf(
+                    'Not valid JSON for %s: %s=%s. Nothing was written. The value starts like a '
+                    . '{"value", "unit"} object but is not one — typically because the shell dropped '
+                    . 'the double quotes (Windows PowerShell 5.1 does that for native programs). Pass '
+                    . 'valid JSON, e.g. %s={"value":"…","unit":"…"}, or the text alone with %s_unit '
+                    . 'next to it. A text that starts with "{" goes in the JSON form as well.',
+                    $table,
+                    $key,
+                    mb_strimwidth($value, 0, 60, '…'),
+                    $key,
+                    $key,
+                ));
+            }
+
+            if ($jsonPair) {
                 $val  = (string) $decoded['value'];
                 // An empty unit is no unit: the record's unit stays (3). Until
                 // v1.12.0 '' skipped (3) and reset the level to the default.

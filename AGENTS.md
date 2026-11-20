@@ -384,6 +384,14 @@ up to v1.12.0 it still slipped through as `ok` with `updated: []`. Next to a val
 absent: an update keeps the stored unit, a create takes the default. Up to v1.12.0 the
 empty JSON unit skipped the stored one and reset the level to the default.
 
+**A value that starts with `{` but is not the `{"value", "unit"}` object is refused**
+(v1.18.2), exit 1, nothing written: invalid JSON, and valid JSON without a `value` key.
+Windows PowerShell 5.1 drops the inner double quotes of
+`--set 'headline={"value":"Titel","unit":"h1"}'`, so `{value:Titel,unit:h1}` arrived and
+was stored as the headline text with the stored or default unit, answered `ok`. Insert tags
+(`{{…}}`) at the start are text and pass; a text that really starts with a single `{` goes
+in the JSON form. Test: `InputUnitJsonRefusalTest`.
+
 > 🔴 **v0.2.28 to v0.10.0 could not write these fields at all.** The conversion
 > into the pair ran before the checks, so `refuseInvalidValues()` held the whole
 > serialized string against `rgxp` (since v0.2.28: `width=90 --set width_unit=vw`
@@ -1208,7 +1216,8 @@ as a serialized array": the structured input types (`STRUCTURED_INPUT_TYPES`) an
 
 - `refuseUnstructuredValues()` (write, v0.12.0) — types only
 - `convertJsonStructuredFields()` (write) — a JSON array/object becomes the serialized form,
-  leaves as strings; runs first in `convertFields()`; `inputUnit` keeps its own JSON path.
+  leaves as strings; runs first in `convertFields()`; `inputUnit` keeps its own JSON path
+  (with its own refusal since v1.18.2, see *`inputUnit` fields*).
   **A value that starts with `[` or `{` but does not parse is refused** (v0.26.0), before
   any conversion. Until then it was left for `refuseUnstructuredValues()`, which only
   covers the wizards: a list or table field went through the comma conversion first, and
