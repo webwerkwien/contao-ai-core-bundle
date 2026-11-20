@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The project adheres to 
 
 This file was reconstructed from the git history on 2026-08-13, so entries before that date describe what the tags contain rather than what was written at release time.
 
+## v1.18.2 - 2026-11-20
+
+Works with the same versions as v1.18.1.
+
+### Fixed
+
+- A unit field such as `headline` stored a value that starts with `{` but is not valid JSON as
+  its text, with the stored or default unit, and the command answered ok. Windows PowerShell 5.1 drops
+  the inner double quotes of `--set 'headline={"value":"Title","unit":"h1"}'`, so
+  `{value:Title,unit:h1}` arrived and became the headline. Such a value is now refused and
+  nothing is written, as list and table fields have done since v0.26.0; so is a JSON object
+  without a `value` key. Insert tags at the start (`{{…}}`) are still text, and a text that
+  starts with a single `{` can be given as `{"value":"…","unit":"…"}`.
+
 ## v1.18.1 - 2026-11-17
 
 Works with the same versions as v1.18.0.
